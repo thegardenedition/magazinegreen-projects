@@ -1,0 +1,506 @@
+'use client';
+
+/**
+ * ProjectDetail.tsx
+ * ------------------------------------------------------------------------
+ * 매거진그린 · [Projects] 상세페이지 메인 레이아웃
+ *
+ * 오늘의집 '집들이'의 직관적 정보 구조(브레드크럼 → 스펙 요약 → 이미지
+ * 스토리텔링 → 플로팅 목차/액션바)를 매거진그린의 화이트 & 딥그린 에디토리얼
+ * 톤앤매너로 재구성했습니다.
+ */
+
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import ImageWithPins, { type Pin } from './ImageWithPins';
+
+/* ------------------------------------------------------------------------ */
+/* Types — CMS 데이터 스키마                                                  */
+/* ------------------------------------------------------------------------ */
+
+export interface ProjectSpec {
+  icon: 'area' | 'duration' | 'style' | 'completed';
+  label: string;
+  value: string;
+  unit: string;
+}
+
+export interface ProjectCredit {
+  design: string;
+  photography: string;
+  editor: string;
+}
+
+export interface ProjectMeta {
+  title: string;
+  subtitle: string;
+  category: string;
+  location: string;
+  heroImage: string;
+  thumbnail: string;
+  publishedAt: string;
+  readingTime: number;
+  credit: ProjectCredit;
+  specs: ProjectSpec[];
+}
+
+export interface ProjectNavLink {
+  slug: string;
+  title: string;
+}
+
+export interface ProjectNavigation {
+  prev?: ProjectNavLink;
+  next?: ProjectNavLink;
+}
+
+export type ContentBlock =
+  | { type: 'text'; id: string; heading?: string; body: string }
+  | {
+      type: 'image';
+      id: string;
+      heading?: string;
+      src: string;
+      alt: string;
+      aspectRatio?: string;
+      caption?: string;
+      pins?: Pin[];
+    }
+  | { type: 'quote'; id: string; heading?: string; text: string; author?: string }
+  | {
+      type: 'video';
+      id: string;
+      heading?: string;
+      provider: 'youtube';
+      videoId: string;
+      title: string;
+      caption?: string;
+    };
+
+export interface ProjectData {
+  id: string;
+  slug: string;
+  meta: ProjectMeta;
+  navigation: ProjectNavigation;
+  contentBlocks: ContentBlock[];
+}
+
+interface ProjectDetailProps {
+  data: ProjectData;
+  /** 핀 CTA 클릭 시 라우팅 등을 상위에서 처리하고 싶을 때 */
+  onPinNavigate?: (pin: Pin) => void;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Small presentational helpers                                             */
+/* ------------------------------------------------------------------------ */
+
+const SPEC_ICON: Record<ProjectSpec['icon'], ReactElement> = {
+  area: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" />
+      <path d="M3.5 9h17M9 3.5v17" />
+    </svg>
+  ),
+  duration: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" strokeLinecap="round" />
+    </svg>
+  ),
+  style: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <path
+        d="M12 3c2 3 6 4.5 6 9a6 6 0 0 1-12 0c0-4.5 4-6 6-9Z"
+        strokeLinejoin="round"
+      />
+      <path d="M12 13v8" strokeLinecap="round" />
+    </svg>
+  ),
+  completed: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 12.5l2.4 2.4L15.5 9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+function Breadcrumb({ category }: { category: string }) {
+  return (
+    <nav aria-label="breadcrumb" className="mb-8 flex items-center gap-1.5 text-[13px] text-[#8a8a84]">
+      <Link href="/" className="transition-colors hover:text-[#1A4D2E]">
+        Home
+      </Link>
+      <span className="text-[#c9c9c2]">/</span>
+      <Link href="/projects" className="transition-colors hover:text-[#1A4D2E]">
+        Projects
+      </Link>
+      <span className="text-[#c9c9c2]">/</span>
+      <span className="font-medium text-[#1A4D2E]">{category}</span>
+    </nav>
+  );
+}
+
+function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-black/[0.06] bg-black/[0.06] sm:grid-cols-4">
+      {specs.map((spec) => (
+        <div key={spec.label} className="flex flex-col items-center gap-2 bg-white px-4 py-6 text-center">
+          <span className="text-[#1A4D2E]">{SPEC_ICON[spec.icon]}</span>
+          <span className="text-[13px] text-[#8a8a84]">{spec.label}</span>
+          <span className="font-serif text-[17px] text-[#1c1c1a]">
+            {spec.value}
+            {spec.unit && <span className="ml-0.5 text-[13px] text-[#8a8a84]">{spec.unit}</span>}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Intersection Observer 기반 활성 섹션 추적 훅 */
+function useActiveSection(ids: string[]) {
+  const [activeId, setActiveId] = useState<string | null>(ids[0] ?? null);
+
+  useEffect(() => {
+    if (ids.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+
+        if (visible[0]) {
+          setActiveId(visible[0].target.id);
+        }
+      },
+      {
+        // 뷰포트 상단 20%~하단 55% 사이에 걸린 섹션을 '현재 읽는 중'으로 간주
+        rootMargin: '-20% 0px -55% 0px',
+        threshold: 0,
+      },
+    );
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [ids]);
+
+  return activeId;
+}
+
+function DesktopToc({
+  items,
+  activeId,
+}: {
+  items: { id: string; heading: string }[];
+  activeId: string | null;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <nav
+      aria-label="table of contents"
+      className="sticky top-28 hidden max-w-[200px] flex-col gap-3 border-l border-black/[0.06] pl-5 lg:flex"
+    >
+      {items.map((item) => {
+        const isActive = item.id === activeId;
+        return (
+          <a
+            key={item.id}
+            href={`#${item.id}`}
+            className={`relative text-[13px] leading-snug transition-colors ${
+              isActive ? 'font-medium text-[#1A4D2E]' : 'text-[#a3a39c] hover:text-[#5a5a55]'
+            }`}
+          >
+            {isActive && (
+              <motion.span
+                layoutId="toc-indicator"
+                className="absolute -left-[21px] top-0.5 h-4 w-[2px] bg-[#1A4D2E]"
+                transition={{ duration: 0.2 }}
+              />
+            )}
+            {item.heading}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+function MobileActionBar({
+  isSaved,
+  onToggleSave,
+  onShare,
+}: {
+  isSaved: boolean;
+  onToggleSave: () => void;
+  onShare: () => void;
+}) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur lg:hidden">
+      <div className="mx-auto flex max-w-[520px] items-center justify-between gap-2 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <button
+          type="button"
+          onClick={onToggleSave}
+          aria-pressed={isSaved}
+          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55]"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 transition-colors ${isSaved ? 'fill-[#1A4D2E] text-[#1A4D2E]' : 'fill-none text-[#5a5a55]'}`}
+            stroke="currentColor"
+            strokeWidth={1.6}
+          >
+            <path d="M12 20.5s-7.5-4.6-7.5-10.2a4.6 4.6 0 0 1 7.5-3.6 4.6 4.6 0 0 1 7.5 3.6c0 5.6-7.5 10.2-7.5 10.2Z" />
+          </svg>
+          {isSaved ? '스크랩됨' : '스크랩'}
+        </button>
+
+        <span className="h-6 w-px bg-black/[0.06]" />
+
+        <button
+          type="button"
+          onClick={onShare}
+          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55]"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <circle cx="18" cy="5" r="2.5" />
+            <circle cx="6" cy="12" r="2.5" />
+            <circle cx="18" cy="19" r="2.5" />
+            <path d="M8.2 10.7l7.6-4.4M8.2 13.3l7.6 4.4" />
+          </svg>
+          공유하기
+        </button>
+
+        <span className="h-6 w-px bg-black/[0.06]" />
+
+        <Link href="/projects" className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55]">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+          </svg>
+          목록으로
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Content block renderer                                                    */
+/* ------------------------------------------------------------------------ */
+
+function ContentBlockRenderer({
+  block,
+  onPinNavigate,
+}: {
+  block: ContentBlock;
+  onPinNavigate?: (pin: Pin) => void;
+}) {
+  switch (block.type) {
+    case 'text':
+      return (
+        <section id={block.id} className="scroll-mt-28 py-6">
+          {block.heading && (
+            <h2 className="mb-5 font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+              {block.heading}
+            </h2>
+          )}
+          <div
+            className="space-y-5 text-[16px] leading-[1.75] text-[#3a3a37] [&_p]:leading-[1.75]"
+            dangerouslySetInnerHTML={{ __html: block.body }}
+          />
+        </section>
+      );
+
+    case 'image':
+      return (
+        <section id={block.id} className="scroll-mt-28 py-6">
+          {block.heading && (
+            <h2 className="mb-5 font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+              {block.heading}
+            </h2>
+          )}
+          <ImageWithPins
+            src={block.src}
+            alt={block.alt}
+            aspectRatio={block.aspectRatio}
+            caption={block.caption}
+            pins={block.pins}
+            onPinNavigate={onPinNavigate}
+          />
+        </section>
+      );
+
+    case 'quote':
+      return (
+        <section id={block.id} className="scroll-mt-28 py-10">
+          <blockquote className="border-l-2 border-[#1A4D2E] pl-6">
+            <p className="font-serif text-[20px] italic leading-[1.7] text-[#1c1c1a] sm:text-[23px]">
+              “{block.text}”
+            </p>
+            {block.author && (
+              <cite className="mt-4 block text-[13px] not-italic text-[#8a8a84]">— {block.author}</cite>
+            )}
+          </blockquote>
+        </section>
+      );
+
+    case 'video':
+      return (
+        <section id={block.id} className="scroll-mt-28 py-6">
+          {block.heading && (
+            <h2 className="mb-5 font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+              {block.heading}
+            </h2>
+          )}
+          <div className="relative w-full overflow-hidden rounded-sm bg-black" style={{ aspectRatio: '16 / 9' }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${block.videoId}`}
+              title={block.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
+          {block.caption && (
+            <p className="mt-3 text-center text-[13px] leading-relaxed text-[#8a8a84]">{block.caption}</p>
+          )}
+        </section>
+      );
+
+    default:
+      return null;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Main component                                                            */
+/* ------------------------------------------------------------------------ */
+
+export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProps) {
+  const { meta, navigation, contentBlocks } = data;
+  const [isSaved, setIsSaved] = useState(false);
+  const shareUrlRef = useRef<string>('');
+
+  const tocItems = useMemo(
+    () =>
+      contentBlocks
+        .filter((b): b is Extract<ContentBlock, { heading?: string }> => Boolean(b.heading))
+        .map((b) => ({ id: b.id, heading: b.heading as string })),
+    [contentBlocks],
+  );
+  const sectionIds = useMemo(() => contentBlocks.map((b) => b.id), [contentBlocks]);
+  const activeSectionId = useActiveSection(sectionIds);
+
+  useEffect(() => {
+    shareUrlRef.current = window.location.href;
+  }, []);
+
+  async function handleShare() {
+    const shareData = { title: meta.title, url: shareUrlRef.current };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        /* 사용자가 공유를 취소한 경우 조용히 무시 */
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrlRef.current);
+      alert('링크가 복사되었습니다.');
+    }
+  }
+
+  return (
+    <div className="bg-white pb-24 lg:pb-0">
+      {/* Hero */}
+      <header className="relative">
+        <div className="relative h-[52vh] min-h-[380px] w-full sm:h-[64vh]">
+          <Image src={meta.heroImage} alt={meta.title} fill priority className="object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+        </div>
+
+        <div className="mx-auto max-w-[880px] px-5 sm:px-8">
+          <div className="relative z-10 -mt-24 rounded-md bg-white px-6 py-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:-mt-28 sm:px-10 sm:py-10">
+            <span className="text-[13px] font-medium tracking-wide text-[#1A4D2E]">
+              {meta.category} · {meta.location}
+            </span>
+            <h1 className="mt-3 font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
+              {meta.title}
+            </h1>
+            <p className="mt-3 text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
+              {meta.subtitle}
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-black/[0.06] pt-5 text-[13px] text-[#8a8a84]">
+              <span>디자인 {meta.credit.design}</span>
+              <span>사진 {meta.credit.photography}</span>
+              <span>글 {meta.credit.editor}</span>
+              <span className="ml-auto">
+                {meta.publishedAt} · {meta.readingTime}분 소요
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Body */}
+      <div className="mx-auto max-w-[880px] px-5 pt-10 sm:px-8">
+        <Breadcrumb category={meta.category} />
+        <SpecGrid specs={meta.specs} />
+      </div>
+
+      <div className="mx-auto flex max-w-[1180px] items-start gap-16 px-5 py-14 sm:px-8">
+        <article className="min-w-0 flex-1 max-w-[720px]">
+          {contentBlocks.map((block) => (
+            <ContentBlockRenderer key={block.id} block={block} onPinNavigate={onPinNavigate} />
+          ))}
+
+          {/* 이전/다음 글 내비게이션 */}
+          <nav className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-md border border-black/[0.06] bg-black/[0.06] sm:grid-cols-2">
+            {navigation.prev ? (
+              <Link
+                href={`/projects/${navigation.prev.slug}`}
+                className="group flex flex-col justify-center gap-1.5 bg-white px-6 py-6 transition-colors hover:bg-[#F9F9F7]"
+              >
+                <span className="text-[12px] text-[#8a8a84]">이전 프로젝트</span>
+                <span className="font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
+                  ← {navigation.prev.title}
+                </span>
+              </Link>
+            ) : (
+              <span className="bg-white px-6 py-6" />
+            )}
+            {navigation.next ? (
+              <Link
+                href={`/projects/${navigation.next.slug}`}
+                className="group flex flex-col items-end justify-center gap-1.5 bg-white px-6 py-6 text-right transition-colors hover:bg-[#F9F9F7]"
+              >
+                <span className="text-[12px] text-[#8a8a84]">다음 프로젝트</span>
+                <span className="font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
+                  {navigation.next.title} →
+                </span>
+              </Link>
+            ) : (
+              <span className="bg-white px-6 py-6" />
+            )}
+          </nav>
+        </article>
+
+        {/* Desktop 우측 플로팅 TOC */}
+        <aside className="w-[200px] shrink-0">
+          <DesktopToc items={tocItems} activeId={activeSectionId} />
+        </aside>
+      </div>
+
+      {/* Mobile 하단 플로팅 액션바 */}
+      <MobileActionBar isSaved={isSaved} onToggleSave={() => setIsSaved((v) => !v)} onShare={handleShare} />
+    </div>
+  );
+}
