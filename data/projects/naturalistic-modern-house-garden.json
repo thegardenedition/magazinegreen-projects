@@ -1,0 +1,160 @@
+{
+  "id": "proj-2026-014",
+  "slug": "naturalistic-modern-house-garden",
+  "meta": {
+    "title": "자연주의 식재를 활용한 모던 주택 정원",
+    "subtitle": "군더더기 없는 건축에 자연의 리듬을 들이다",
+    "category": "주택정원",
+    "location": "경기도 양평군",
+    "heroImage": "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=2400",
+    "thumbnail": "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=1200",
+    "publishedAt": "2026-08-20",
+    "readingTime": 8,
+    "credit": {
+      "design": "스튜디오 어라운드그린",
+      "photography": "김도윤",
+      "editor": "이서연"
+    },
+    "specs": [
+      { "icon": "area", "label": "부지 면적", "value": "132", "unit": "㎡" },
+      { "icon": "duration", "label": "시공 기간", "value": "45", "unit": "일" },
+      { "icon": "style", "label": "식재 스타일", "value": "내추럴리스틱", "unit": "" },
+      { "icon": "completed", "label": "준공", "value": "2026.06", "unit": "" }
+    ]
+  },
+  "navigation": {
+    "prev": {
+      "slug": "rooftop-kitchen-garden-seongsu",
+      "title": "성수동 옥상, 도시 한복판의 키친가든"
+    },
+    "next": {
+      "slug": "minimal-courtyard-pocheon",
+      "title": "포천 중정, 비움으로 완성한 정원"
+    }
+  },
+  "contentBlocks": [
+    {
+      "type": "text",
+      "id": "intro",
+      "heading": "프로젝트 소개",
+      "body": "<p>건축주는 단 하나를 요청했다. \"정원이 계절을 대신 살아줬으면 좋겠다.\" 콘크리트와 유리로 정갈하게 마감된 이 주택은 사계절 내내 표정이 크게 바뀌지 않는다. 그 정적인 배경 위에서, 정원만큼은 봄의 싹과 여름의 무성함, 가을의 색과 겨울의 실루엣까지 또렷하게 드러나야 했다.</p><p>스튜디오 어라운드그린은 인위적으로 다듬은 정형식 화단 대신, 다년생 초화와 그라스류가 바람에 따라 스스로 움직이는 내추럴리스틱 플랜팅을 택했다. 관리는 최소로, 표정은 최대로 — 그것이 이 정원의 유일한 원칙이었다.</p>"
+    },
+    {
+      "type": "image",
+      "id": "planting-bed",
+      "heading": "내추럴 플랜팅 베드",
+      "src": "https://images.unsplash.com/photo-1558693168-c370615b54e0?q=80&w=2400",
+      "alt": "그라스류와 다년생 초화로 구성된 내추럴 플랜팅 베드 전경",
+      "aspectRatio": "3 / 2",
+      "caption": "거실 창 앞 6m 길이의 메인 플랜팅 베드. 계절마다 다른 초화가 릴레이로 피고 진다.",
+      "pins": [
+        {
+          "id": "pin-plant-01",
+          "type": "plant",
+          "x": 28.5,
+          "y": 71.0,
+          "title": "펜니세텀 '하멜른'",
+          "shortDescription": "가을바람에 부드럽게 흔들리는 수입 신품종 그라스. 생육이 왕성해 초보자도 쉽게 키울 수 있어요.",
+          "thumbnail": "https://images.unsplash.com/photo-1621525046057-c395b6ba9e5b?q=80&w=400",
+          "link": {
+            "type": "plant-curation",
+            "targetSlug": "pennisetum-alopecuroides-hameln",
+            "ctaLabel": "식물 큐레이션 보러가기"
+          },
+          "detail": {
+            "scientificName": "Pennisetum alopecuroides 'Hameln'",
+            "commonName": "수입 신품종 왜성 수크령",
+            "origin": "네덜란드 육종 · 국내 검역 통과 신품종",
+            "growthStatus": "생육 상태 매우 건강, 병충해 저항성 우수",
+            "sunlight": "양지~반양지",
+            "heightRange": "40~60cm",
+            "note": "희귀종이 아닌, 유통이 안정적이고 생육이 검증된 수입 신품종 위주로 큐레이션했습니다."
+          }
+        },
+        {
+          "id": "pin-plant-02",
+          "type": "plant",
+          "x": 63.0,
+          "y": 42.5,
+          "title": "에키네시아 '마그누스'",
+          "shortDescription": "진한 자주빛 꽃을 여름 내내 오래 피우는 수입 신품종. 배수만 잘 맞으면 관리가 까다롭지 않아요.",
+          "thumbnail": "https://images.unsplash.com/photo-1597848212624-a19eb35e2651?q=80&w=400",
+          "link": {
+            "type": "plant-curation",
+            "targetSlug": "echinacea-purpurea-magnus",
+            "ctaLabel": "식물 큐레이션 보러가기"
+          },
+          "detail": {
+            "scientificName": "Echinacea purpurea 'Magnus'",
+            "commonName": "수입 신품종 에키네시아",
+            "origin": "독일 육종 · 국내 재배 안정화 완료 신품종",
+            "growthStatus": "생육 상태 건강, 개화 지속력 우수",
+            "sunlight": "양지",
+            "heightRange": "70~90cm",
+            "note": "한정 수량이 아닌 상시 유통 가능한 건강한 개체 위주로 선정했습니다."
+          }
+        }
+      ]
+    },
+    {
+      "type": "quote",
+      "id": "designer-note",
+      "heading": "디자이너의 말",
+      "text": "정원은 완성되는 순간 이미 늦은 것이다. 우리는 다만 자라날 방향을 정해줄 뿐, 나머지는 계절에게 맡긴다.",
+      "author": "스튜디오 어라운드그린 · 정소민 디자이너"
+    },
+    {
+      "type": "text",
+      "id": "material-intro",
+      "heading": "마감재와 디테일",
+      "body": "<p>동선은 최소한으로 개입하되 존재감은 분명하게, 라는 원칙 아래 디딤석을 골랐다. 화강암 대신 질감이 거친 현무암을 선택한 것도 같은 이유다. 매끈한 정원보다 손을 탄 흔적이 남는 정원이 더 오래 사랑받는다고 믿기 때문이다.</p>"
+    },
+    {
+      "type": "image",
+      "id": "stepping-stones",
+      "heading": "디딤석 디테일",
+      "src": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?q=80&w=2400",
+      "alt": "현무암 디딤석과 그라운드커버 식재가 어우러진 정원 동선",
+      "aspectRatio": "3 / 2",
+      "caption": "현무암 판석 디딤돌 사이로 그라운드커버가 자연스럽게 번지도록 유도했다.",
+      "pins": [
+        {
+          "id": "pin-material-01",
+          "type": "material",
+          "x": 50.0,
+          "y": 66.0,
+          "title": "현무암 버너구이 판석",
+          "shortDescription": "미끄럼 방지 버너구이 마감의 국내산 현무암 디딤석. 사계절 색 변화가 적어 정원의 기준선이 되어준다.",
+          "thumbnail": "https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=400",
+          "link": {
+            "type": "material-curation",
+            "targetSlug": "basalt-stepping-stone-burner-finish",
+            "ctaLabel": "자재 정보 보러가기"
+          },
+          "detail": {
+            "materialName": "현무암 판석",
+            "origin": "포천산",
+            "finish": "버너구이 마감",
+            "thickness": "30T",
+            "note": "우천 시 미끄럼을 줄이기 위해 거친 버너구이 마감을 전면 적용했다."
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "process",
+      "heading": "정원이 완성되기까지",
+      "body": "<p>착공 후 2주간은 대부분 흙을 만드는 데 쓰였다. 배수가 원활하지 않던 기존 대지에 유공관을 매설하고, 펄라이트와 부엽토를 섞어 식재 기반을 새로 조성했다. 좋은 정원은 눈에 보이지 않는 곳에서 먼저 완성된다는 것을, 이번 현장에서도 다시 확인했다.</p><p>이후 25일간 하드스케이프와 식재가 동시에 진행됐고, 마지막 5일은 오로지 식물의 자리를 미세하게 조정하는 데에만 할애했다. 도면상의 정원과 실제 대지 위의 정원은 늘 조금씩 다르기 때문이다.</p>"
+    },
+    {
+      "type": "video",
+      "id": "garden-tour",
+      "heading": "정원 투어 영상",
+      "provider": "youtube",
+      "videoId": "dQw4w9WgXcQ",
+      "title": "자연주의 식재를 활용한 모던 주택 정원 - 풀 투어",
+      "caption": "준공 2개월 후, 초화가 자리를 잡은 시점에 촬영한 정원 투어 영상."
+    }
+  ]
+}
