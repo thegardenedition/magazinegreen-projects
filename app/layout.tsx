@@ -1,19 +1,14 @@
 import type { Metadata } from 'next';
-import { Noto_Sans_KR, Noto_Serif_KR } from 'next/font/google';
+import { Montserrat } from 'next/font/google';
 import './globals.css';
 
-/* 본문: Noto Sans KR (가독성 중심) / 제목·인용구: Noto Serif KR (에디토리얼 톤) */
-const notoSans = Noto_Sans_KR({
+/* MAGAZINE GREEN 서체 시스템
+   - 국문 본문·제목: Pretendard (globals.css에서 로드, tailwind.config의 sans/serif에 매핑)
+   - 영문 강조 라벨(브랜드 홈페이지의 "Weekly"/"Green"과 동일한 패턴): Montserrat */
+const montserrat = Montserrat({
   subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-sans',
-  display: 'swap',
-});
-
-const notoSerif = Noto_Serif_KR({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-serif',
+  weight: ['500', '600', '700'],
+  variable: '--font-accent',
   display: 'swap',
 });
 
@@ -28,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${notoSans.variable} ${notoSerif.variable}`}>
+    <html lang="ko" className={montserrat.variable}>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );
