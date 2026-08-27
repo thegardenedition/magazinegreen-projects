@@ -1,0 +1,85 @@
+{
+  "id": "proj-2026-011",
+  "slug": "rooftop-kitchen-garden-seongsu",
+  "meta": {
+    "title": "성수동 옥상, 도시 한복판의 키친가든",
+    "subtitle": "출근 전 상추 한 장 뜯어가는 자리",
+    "category": "루프탑정원",
+    "location": "서울 성동구 성수동",
+    "heroImage": "https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5?q=80&w=2400",
+    "thumbnail": "https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5?q=80&w=1200",
+    "publishedAt": "2026-07-02",
+    "readingTime": 6,
+    "credit": {
+      "design": "스튜디오 어라운드그린",
+      "photography": "박지훈",
+      "editor": "이서연"
+    },
+    "specs": [
+      { "icon": "area", "label": "부지 면적", "value": "48", "unit": "㎡" },
+      { "icon": "duration", "label": "시공 기간", "value": "18", "unit": "일" },
+      { "icon": "style", "label": "식재 스타일", "value": "키친가든", "unit": "" },
+      { "icon": "completed", "label": "준공", "value": "2026.05", "unit": "" }
+    ]
+  },
+  "navigation": {
+    "next": {
+      "slug": "naturalistic-modern-house-garden",
+      "title": "자연주의 식재를 활용한 모던 주택 정원"
+    }
+  },
+  "contentBlocks": [
+    {
+      "type": "text",
+      "id": "intro",
+      "heading": "프로젝트 소개",
+      "body": "<p>서울 한복판, 그것도 옥상이라는 제약 위에서 시작된 정원이다. 하중 문제로 토심을 깊게 확보할 수 없었던 탓에 큰 나무 대신 콘테이너 재배가 가능한 허브와 채소, 관상용 초화를 조합했다. 결과적으로 이 옥상은 관상용 정원이자 매일 아침 식탁으로 이어지는 텃밭이 됐다.</p>"
+    },
+    {
+      "type": "image",
+      "id": "container-beds",
+      "heading": "컨테이너 식재 존",
+      "src": "https://images.unsplash.com/photo-1595855759920-86582396756c?q=80&w=2400",
+      "alt": "옥상 위 목재 컨테이너 화단에 심긴 허브와 채소",
+      "aspectRatio": "3 / 2",
+      "caption": "배수와 하중을 동시에 고려한 이중 바닥 목재 컨테이너.",
+      "pins": [
+        {
+          "id": "pin-plant-01",
+          "type": "plant",
+          "x": 40.0,
+          "y": 58.0,
+          "title": "바질 '제노베제'",
+          "shortDescription": "향이 진하고 생육이 빨라 옥상 텃밭 초보자에게 가장 먼저 추천하는 수입 신품종 바질이에요.",
+          "thumbnail": "https://images.unsplash.com/photo-1618375569909-3c8616cf7733?q=80&w=400",
+          "link": {
+            "type": "plant-curation",
+            "targetSlug": "basil-genovese",
+            "ctaLabel": "식물 큐레이션 보러가기"
+          },
+          "detail": {
+            "scientificName": "Ocimum basilicum 'Genovese'",
+            "commonName": "수입 신품종 제노베제 바질",
+            "origin": "이탈리아 육종 · 국내 종묘사 유통 신품종",
+            "growthStatus": "생육 상태 건강, 수확 주기 빠름",
+            "sunlight": "양지",
+            "heightRange": "30~45cm"
+          }
+        }
+      ]
+    },
+    {
+      "type": "quote",
+      "id": "designer-note",
+      "heading": "디자이너의 말",
+      "text": "옥상 정원의 진짜 어려움은 미관이 아니라 하중이다. 아름다움은 그 다음 문제였다.",
+      "author": "스튜디오 어라운드그린 · 정소민 디자이너"
+    },
+    {
+      "type": "text",
+      "id": "closing",
+      "heading": "완성 후",
+      "body": "<p>완공 두 달째, 건축주는 매일 아침 커피를 들고 옥상에 오른다고 전했다. 계획대로 정원이 일상의 동선 안으로 들어온 셈이다.</p>"
+    }
+  ]
+}
