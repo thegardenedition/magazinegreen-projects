@@ -8,6 +8,7 @@ const config: Config = {
                 'brand-green': '#1A4D2E',
                 'brand-teal': '#2E4F4F',
                 'brand-offwhite': '#F9F9F7',
+                'brand-cream': '#FDFBF7',
             },
             fontFamily: {
                 /* MAGAZINE GREEN 서체 시스템: 본문·제목 모두 Pretendard (세리프 미사용) */
