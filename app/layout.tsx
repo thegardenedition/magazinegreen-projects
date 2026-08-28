@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Montserrat } from 'next/font/google';
+import FloatingNav from '@/components/layout/FloatingNav';
 import './globals.css';
 
 /* MAGAZINE GREEN 서체 시스템
@@ -24,7 +25,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className={montserrat.variable}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <div aria-hidden className="noise-overlay pointer-events-none fixed inset-0 z-[60] opacity-[0.035]" />
+        <FloatingNav />
+        {children}
+      </body>
     </html>
   );
 }
