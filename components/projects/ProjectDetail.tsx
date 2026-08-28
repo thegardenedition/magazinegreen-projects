@@ -21,12 +21,18 @@
  * 줄이고(200px → 180px) justify-between으로 컨테이너 우측 끝까지 밀어냈으며,
  * 모바일/태블릿(lg 미만)에서는 TOC 래퍼 자체를 숨겨 더 이상 불필요하게
  * 공간을 점유하지 않도록 했습니다.
+ *
+ * UX 장치 추가(오늘의집·집닥 응용): 집닥 시공사례 상세의 "히어로 바로 아래
+ * 공유/문의 버튼 행"과 "우측 하단 맨 위로 버튼"을, 매거진그린 톤(오렌지
+ * 대신 딥그린, 각진 버튼 대신 필)으로 응용해 추가했습니다. 스크랩·공유는
+ * 원래 모바일 액션바에만 있던 상태 로직을 데스크톱 히어로 카드에도 그대로
+ * 노출해, 모바일에서만 접근 가능했던 기능을 전체 화면에서 쓸 수 있게 했습니다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, useScroll, useSpring } from 'framer-motion';
+import { AnimatePresence, motion, useScroll, useSpring } from 'framer-motion';
 import ImageWithPins, { type Pin } from './ImageWithPins';
 import { getProjectBySlug } from '@/lib/projects';
 
@@ -151,6 +157,41 @@ function ReadingProgressBar() {
       className="fixed inset-x-0 top-0 z-40 h-[3px] origin-left bg-[#1A4D2E]"
       style={{ scaleX: progress }}
     />
+  );
+}
+
+/** 집닥 시공사례 상세의 우측 하단 "맨 위로" 버튼을 딥그린 톤으로 응용 */
+function ScrollTopButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    function onScroll() {
+      setVisible(window.scrollY > 800);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="맨 위로"
+          initial={{ opacity: 0, y: 12, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.9 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed bottom-24 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#1A4D2E] shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)] ring-1 ring-black/[0.06] transition-transform duration-300 hover:-translate-y-0.5 lg:bottom-10 lg:right-8"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </motion.button>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -590,6 +631,43 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                     {meta.publishedAt} · {meta.readingTime}분 소요
                   </span>
                 </div>
+
+                {/* 집닥 시공사례 상세의 "공유하기 / 문의" 버튼 행을 스크랩/공유로 응용 */}
+                <div className="mt-5 flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsSaved((v) => !v)}
+                    aria-pressed={isSaved}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      isSaved
+                        ? 'bg-[#1A4D2E] text-white'
+                        : 'bg-[#1A4D2E]/[0.07] text-[#1A4D2E] hover:bg-[#1A4D2E]/[0.13]'
+                    }`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`h-4 w-4 ${isSaved ? 'fill-white' : 'fill-none'}`}
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                    >
+                      <path d="M12 20.5s-7.5-4.6-7.5-10.2a4.6 4.6 0 0 1 7.5-3.6 4.6 4.6 0 0 1 7.5 3.6c0 5.6-7.5 10.2-7.5 10.2Z" />
+                    </svg>
+                    {isSaved ? '스크랩됨' : '스크랩'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] px-4 py-2 text-[13px] font-medium text-[#5a5a55] transition-colors duration-300 hover:bg-black/[0.08]"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                      <circle cx="18" cy="5" r="2.5" />
+                      <circle cx="6" cy="12" r="2.5" />
+                      <circle cx="18" cy="19" r="2.5" />
+                      <path d="M8.2 10.7l7.6-4.4M8.2 13.3l7.6 4.4" />
+                    </svg>
+                    공유하기
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -625,6 +703,9 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
 
       {/* Mobile 하단 플로팅 액션바 */}
       <MobileActionBar isSaved={isSaved} onToggleSave={() => setIsSaved((v) => !v)} onShare={handleShare} />
+
+      {/* 우측 하단 맨 위로 버튼 (집닥 응용) */}
+      <ScrollTopButton />
     </div>
   );
 }
