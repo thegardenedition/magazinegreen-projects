@@ -15,6 +15,12 @@
  * max-width 컨테이너를 각자 mx-auto로 가운데 정렬하던 탓에 좌측 기준선이
  * 어긋나 있었습니다. 이제 두 섹션 모두 동일한 max-w-[1180px] 외곽 컨테이너를
  * 공유해 좌측 축이 정확히 일치합니다.
+ *
+ * 폭 재조정: 본문(article) 최대폭을 720px → 880px로 넓혀 브레드크럼/
+ * 스펙그리드 박스와 우측 라인이 일치하도록 했습니다. 우측 TOC는 폭을
+ * 줄이고(200px → 180px) justify-between으로 컨테이너 우측 끝까지 밀어냈으며,
+ * 모바일/태블릿(lg 미만)에서는 TOC 래퍼 자체를 숨겨 더 이상 불필요하게
+ * 공간을 점유하지 않도록 했습니다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
@@ -120,7 +126,10 @@ const SPEC_ICON: Record<ProjectSpec['icon'], ReactElement> = {
   ),
   style: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
-      <path d="M12 3c2 3 6 4.5 6 9a6 6 0 0 1-12 0c0-4.5 4-6 6-9Z" strokeLinejoin="round" />
+      <path
+        d="M12 3c2 3 6 4.5 6 9a6 6 0 0 1-12 0c0-4.5 4-6 6-9Z"
+        strokeLinejoin="round"
+      />
       <path d="M12 13v8" strokeLinecap="round" />
     </svg>
   ),
@@ -232,7 +241,7 @@ function DesktopToc({
   return (
     <nav
       aria-label="table of contents"
-      className="sticky top-28 hidden max-w-[200px] flex-col gap-3 border-l border-black/[0.06] pl-5 lg:flex"
+      className="sticky top-28 flex max-w-[180px] flex-col gap-3 border-l border-black/[0.06] pl-5"
     >
       {items.map((item) => {
         const isActive = item.id === activeId;
@@ -595,8 +604,8 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-[1180px] items-start gap-16 px-5 py-14 sm:px-8 sm:py-20">
-        <article className="min-w-0 flex-1 max-w-[720px]">
+      <div className="mx-auto flex max-w-[1180px] items-start justify-between gap-10 px-5 py-14 sm:px-8 sm:py-20">
+        <article className="min-w-0 max-w-[880px] flex-1">
           {contentBlocks.map((block) => (
             <ContentBlockRenderer key={block.id} block={block} onPinNavigate={onPinNavigate} />
           ))}
@@ -608,8 +617,8 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           </nav>
         </article>
 
-        {/* Desktop 우측 플로팅 TOC */}
-        <aside className="w-[200px] shrink-0">
+        {/* Desktop 우측 플로팅 TOC — lg 미만에서는 래퍼째로 숨겨 공간을 점유하지 않음 */}
+        <aside className="hidden w-[180px] shrink-0 lg:block">
           <DesktopToc items={tocItems} activeId={activeSectionId} />
         </aside>
       </div>
