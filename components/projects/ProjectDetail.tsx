@@ -10,6 +10,11 @@
  * 톤앤매너로 재구성했습니다. Supanova 프리미엄 패스에서 스크롤 연동 리딩
  * 프로그레스바(신규 기능), Double-Bezel 히어로/스펙그리드, 썸네일 포함
  * 이전·다음 프로젝트 프리뷰 카드를 더했습니다.
+ *
+ * 정렬 수정: 브레드크럼/스펙그리드 섹션이 본문(article+TOC) 섹션과 다른
+ * max-width 컨테이너를 각자 mx-auto로 가운데 정렬하던 탓에 좌측 기준선이
+ * 어긋나 있었습니다. 이제 두 섹션 모두 동일한 max-w-[1180px] 외곽 컨테이너를
+ * 공유해 좌측 축이 정확히 일치합니다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
@@ -548,42 +553,46 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
         </div>
 
-        <div className="mx-auto max-w-[880px] px-5 sm:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 -mt-24 rounded-[1.75rem] bg-black/[0.04] p-1.5 shadow-[0_28px_70px_-32px_rgba(26,77,46,0.28)] ring-1 ring-black/[0.05] sm:-mt-28"
-          >
-            <div className="rounded-[calc(1.75rem-0.375rem)] bg-white px-6 py-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] sm:px-10 sm:py-10">
-              <span className="inline-flex items-center rounded-full bg-[#1A4D2E]/[0.08] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[#1A4D2E]">
-                {meta.category}
-              </span>
-              <span className="ml-2 text-[13px] text-[#8a8a84]">{meta.location}</span>
-              <h1 className="mt-3 text-balance break-keep font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
-                {meta.title}
-              </h1>
-              <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
-                {meta.subtitle}
-              </p>
-
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-black/[0.06] pt-5 text-[13px] text-[#8a8a84]">
-                <span>디자인 {meta.credit.design}</span>
-                <span>사진 {meta.credit.photography}</span>
-                <span>글 {meta.credit.editor}</span>
-                <span className="ml-auto">
-                  {meta.publishedAt} · {meta.readingTime}분 소요
+        <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
+          <div className="max-w-[880px]">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="relative z-10 -mt-24 rounded-[1.75rem] bg-black/[0.04] p-1.5 shadow-[0_28px_70px_-32px_rgba(26,77,46,0.28)] ring-1 ring-black/[0.05] sm:-mt-28"
+            >
+              <div className="rounded-[calc(1.75rem-0.375rem)] bg-white px-6 py-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] sm:px-10 sm:py-10">
+                <span className="inline-flex items-center rounded-full bg-[#1A4D2E]/[0.08] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[#1A4D2E]">
+                  {meta.category}
                 </span>
+                <span className="ml-2 text-[13px] text-[#8a8a84]">{meta.location}</span>
+                <h1 className="mt-3 text-balance break-keep font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
+                  {meta.title}
+                </h1>
+                <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
+                  {meta.subtitle}
+                </p>
+
+                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-black/[0.06] pt-5 text-[13px] text-[#8a8a84]">
+                  <span>디자인 {meta.credit.design}</span>
+                  <span>사진 {meta.credit.photography}</span>
+                  <span>글 {meta.credit.editor}</span>
+                  <span className="ml-auto">
+                    {meta.publishedAt} · {meta.readingTime}분 소요
+                  </span>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </header>
 
       {/* Body */}
-      <div className="mx-auto max-w-[880px] px-5 pt-10 sm:px-8">
-        <Breadcrumb category={meta.category} />
-        <SpecGrid specs={meta.specs} />
+      <div className="mx-auto max-w-[1180px] px-5 pt-10 sm:px-8">
+        <div className="max-w-[880px]">
+          <Breadcrumb category={meta.category} />
+          <SpecGrid specs={meta.specs} />
+        </div>
       </div>
 
       <div className="mx-auto flex max-w-[1180px] items-start gap-16 px-5 py-14 sm:px-8 sm:py-20">
