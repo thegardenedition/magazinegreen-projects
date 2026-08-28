@@ -9,14 +9,21 @@
  * 컴포넌트입니다. 이미지 위에 x/y 퍼센트 좌표로 배치된 핀을 렌더링하고,
  * 클릭/탭 시 썸네일 + 타이틀 + 설명 + CTA가 담긴 툴팁을 띄웁니다.
  *
+ * 스와치 스트립: 오늘의집 집들이 상세페이지가 사진 아래 자재 썸네일을
+ * 나열해 "이 사진에 뭐가 쓰였는지"를 한눈에 보여주는 패턴을, 우리가 이미
+ * 갖고 있던 핀 데이터(식물/자재 큐레이션)로 그대로 구현했습니다. 정사각
+ * 스와치 대신 라운드 칩 + 하단 타입 라벨("식물"/"자재")로 톤을 다르게
+ * 가져가 매거진그린만의 표현으로 응용했습니다. 칩을 클릭하면 사진 위
+ * 해당 핀 툴팁이 함께 열립니다.
+ *
  * 설계 원칙
  * 1) 좌표 반응형: 핀은 컨테이너에 대한 상대 좌표(%)로 배치됩니다. 컨테이너가
- *    CSS aspect-ratio로 원본 비율을 유지하기 때문에, 창 크기가 바뀌어도
- *    별도의 리사이즈 계산 없이 핀이 이미지 위 정확한 위치에 고정됩니다.
+ * CSS aspect-ratio로 원본 비율을 유지하기 때문에, 창 크기가 바뀌어도
+ * 별도의 리사이즈 계산 없이 핀이 이미지 위 정확한 위치에 고정됩니다.
  * 2) 터치 친화성: 핀의 실제 히트박스는 44x44px 이상을 보장합니다(WCAG 2.5.5).
  * 3) 툴팁 오프스크린 보정: 1차로 핀의 % 좌표를 기준으로 좌/우/상/하 배치를
- *    휴리스틱하게 결정하고, 2차로 실제 렌더링된 툴팁의 DOMRect를 컨테이너
- *    영역과 비교해 필요한 만큼 px 단위로 미세 보정합니다.
+ * 휴리스틱하게 결정하고, 2차로 실제 렌더링된 툴팁의 DOMRect를 컨테이너
+ * 영역과 비교해 필요한 만큼 px 단위로 미세 보정합니다.
  */
 
 import {
@@ -275,8 +282,8 @@ export default function ImageWithPins({
                       h === 'left'
                         ? 'left-0'
                         : h === 'right'
-                        ? 'right-0'
-                        : 'left-1/2 -translate-x-1/2'
+                          ? 'right-0'
+                          : 'left-1/2 -translate-x-1/2'
                     }`}
                   >
                     <div className="relative h-28 w-full bg-[#F9F9F7]">
@@ -326,6 +333,41 @@ export default function ImageWithPins({
           );
         })}
       </div>
+
+      {pins.length > 0 && (
+        <div
+          className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="이 사진에 담긴 식물·자재"
+        >
+          {pins.map((pin) => {
+            const isActive = activePinId === pin.id;
+            return (
+              <button
+                key={`swatch-${pin.id}`}
+                type="button"
+                onClick={() => togglePin(pin.id)}
+                onMouseEnter={() => setActivePinId(pin.id)}
+                aria-label={`${pin.title} 정보 보기`}
+                aria-pressed={isActive}
+                className={`group relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#F9F9F7] ring-1 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isActive
+                    ? 'ring-2 ring-[#1A4D2E] ring-offset-2 ring-offset-white'
+                    : 'ring-black/[0.06] hover:ring-black/[0.16]'
+                }`}
+              >
+                <Image src={pin.thumbnail} alt={pin.title} fill sizes="56px" className="object-cover" />
+                <span
+                  className={`absolute inset-x-0 bottom-0 py-[3px] text-center text-[8.5px] font-medium tracking-wide text-white ${
+                    pin.type === 'plant' ? 'bg-[#1A4D2E]/85' : 'bg-[#2E4F4F]/85'
+                  }`}
+                >
+                  {pin.type === 'plant' ? '식물' : '자재'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {caption && (
         <figcaption className="mt-3 text-center text-[13px] leading-relaxed text-[#8a8a84]">
