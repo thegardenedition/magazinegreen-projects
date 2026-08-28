@@ -7,15 +7,17 @@
  *
  * 오늘의집 '집들이'의 직관적 정보 구조(브레드크럼 → 스펙 요약 → 이미지
  * 스토리텔링 → 플로팅 목차/액션바)를 매거진그린의 화이트 & 딥그린 에디토리얼
- * 톤앤매너로 재구성했습니다. Supanova 리디자인 패스로 스크롤 리빌 모션,
- * 틴트된 앰비언트 섀도, 스프링 호버/프레스 상태를 더했습니다.
+ * 톤앤매너로 재구성했습니다. Supanova 프리미엄 패스에서 스크롤 연동 리딩
+ * 프로그레스바(신규 기능), Double-Bezel 히어로/스펙그리드, 썸네일 포함
+ * 이전·다음 프로젝트 프리뷰 카드를 더했습니다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useSpring } from 'framer-motion';
 import ImageWithPins, { type Pin } from './ImageWithPins';
+import { getProjectBySlug } from '@/lib/projects';
 
 /* ------------------------------------------------------------------------ */
 /* Types — CMS 데이터 스키마                                                  */
@@ -113,10 +115,7 @@ const SPEC_ICON: Record<ProjectSpec['icon'], ReactElement> = {
   ),
   style: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
-      <path
-        d="M12 3c2 3 6 4.5 6 9a6 6 0 0 1-12 0c0-4.5 4-6 6-9Z"
-        strokeLinejoin="round"
-      />
+      <path d="M12 3c2 3 6 4.5 6 9a6 6 0 0 1-12 0c0-4.5 4-6 6-9Z" strokeLinejoin="round" />
       <path d="M12 13v8" strokeLinecap="round" />
     </svg>
   ),
@@ -127,6 +126,19 @@ const SPEC_ICON: Record<ProjectSpec['icon'], ReactElement> = {
     </svg>
   ),
 };
+
+function ReadingProgressBar() {
+  const { scrollYProgress } = useScroll();
+  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 26, mass: 0.3 });
+
+  return (
+    <motion.div
+      aria-hidden
+      className="fixed inset-x-0 top-0 z-40 h-[3px] origin-left bg-[#1A4D2E]"
+      style={{ scaleX: progress }}
+    />
+  );
+}
 
 function Breadcrumb({ category }: { category: string }) {
   return (
@@ -146,22 +158,24 @@ function Breadcrumb({ category }: { category: string }) {
 
 function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-black/[0.06] bg-black/[0.06] sm:grid-cols-4">
-      {specs.map((spec) => (
-        <div
-          key={spec.label}
-          className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[0_16px_40px_-16px_rgba(26,77,46,0.18)]"
-        >
-          <span className="text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110">
-            {SPEC_ICON[spec.icon]}
-          </span>
-          <span className="text-[13px] text-[#8a8a84]">{spec.label}</span>
-          <span className="font-serif text-[17px] text-[#1c1c1a]">
-            {spec.value}
-            {spec.unit && <span className="ml-0.5 text-[13px] text-[#8a8a84]">{spec.unit}</span>}
-          </span>
-        </div>
-      ))}
+    <div className="rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05]">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[calc(1.5rem-0.375rem)] bg-black/[0.06] sm:grid-cols-4">
+        {specs.map((spec) => (
+          <div
+            key={spec.label}
+            className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_16px_40px_-16px_rgba(26,77,46,0.18)]"
+          >
+            <span className="text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110">
+              {SPEC_ICON[spec.icon]}
+            </span>
+            <span className="text-[13px] text-[#8a8a84]">{spec.label}</span>
+            <span className="font-serif text-[17px] text-[#1c1c1a]">
+              {spec.value}
+              {spec.unit && <span className="ml-0.5 text-[13px] text-[#8a8a84]">{spec.unit}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -298,6 +312,68 @@ function MobileActionBar({
         </Link>
       </div>
     </div>
+  );
+}
+
+function NavPreviewCard({
+  direction,
+  project,
+  fallbackTitle,
+}: {
+  direction: 'prev' | 'next';
+  project?: ProjectData;
+  fallbackTitle?: string;
+}) {
+  if (!project && !fallbackTitle) return <div className="hidden sm:block" />;
+
+  const title = project?.meta.title ?? fallbackTitle ?? '';
+  const slug = project?.slug;
+  const isPrev = direction === 'prev';
+
+  const content = (
+    <div className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(26,77,46,0.22)]">
+      <div className="flex h-full flex-col overflow-hidden rounded-[calc(1.5rem-0.375rem)] bg-white">
+        {project && (
+          <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#F3F2EE]">
+            <Image
+              src={project.meta.thumbnail}
+              alt={title}
+              fill
+              sizes="(min-width: 640px) 50vw, 100vw"
+              loading="lazy"
+              className="object-cover transition-transform duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
+            />
+          </div>
+        )}
+        <div className={`flex flex-1 flex-col gap-1.5 px-5 py-5 ${isPrev ? '' : 'sm:items-end sm:text-right'}`}>
+          <span className="text-[11px] uppercase tracking-[0.12em] text-[#8a8a84]">
+            {isPrev ? '이전 프로젝트' : '다음 프로젝트'}
+          </span>
+          <span
+            className={`flex items-center gap-1.5 break-keep font-serif text-[16px] leading-snug text-[#1c1c1a] transition-colors duration-300 group-hover:text-[#1A4D2E] ${
+              isPrev ? '' : 'sm:flex-row-reverse'
+            }`}
+          >
+            <span
+              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1A4D2E]/[0.08] text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                isPrev ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'
+              }`}
+            >
+              {isPrev ? '←' : '→'}
+            </span>
+            {title}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return slug ? (
+    <Link href={`/projects/${slug}`} className="block h-full">
+      {content}
+    </Link>
+  ) : (
+    content
   );
 }
 
@@ -440,6 +516,9 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
   const sectionIds = useMemo(() => contentBlocks.map((b) => b.id), [contentBlocks]);
   const activeSectionId = useActiveSection(sectionIds);
 
+  const prevProject = navigation.prev ? getProjectBySlug(navigation.prev.slug) : undefined;
+  const nextProject = navigation.next ? getProjectBySlug(navigation.next.slug) : undefined;
+
   useEffect(() => {
     shareUrlRef.current = window.location.href;
   }, []);
@@ -460,6 +539,8 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
 
   return (
     <div className="bg-white pb-24 lg:pb-0">
+      <ReadingProgressBar />
+
       {/* Hero */}
       <header className="relative">
         <div className="relative h-[52vh] min-h-[380px] w-full sm:h-[64vh]">
@@ -472,25 +553,28 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 -mt-24 rounded-md bg-white px-6 py-8 shadow-[0_28px_70px_-32px_rgba(26,77,46,0.28)] sm:-mt-28 sm:px-10 sm:py-10"
+            className="relative z-10 -mt-24 rounded-[1.75rem] bg-black/[0.04] p-1.5 shadow-[0_28px_70px_-32px_rgba(26,77,46,0.28)] ring-1 ring-black/[0.05] sm:-mt-28"
           >
-            <span className="text-[13px] font-medium tracking-wide text-[#1A4D2E]">
-              {meta.category} · {meta.location}
-            </span>
-            <h1 className="mt-3 text-balance break-keep font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
-              {meta.title}
-            </h1>
-            <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
-              {meta.subtitle}
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-black/[0.06] pt-5 text-[13px] text-[#8a8a84]">
-              <span>디자인 {meta.credit.design}</span>
-              <span>사진 {meta.credit.photography}</span>
-              <span>글 {meta.credit.editor}</span>
-              <span className="ml-auto">
-                {meta.publishedAt} · {meta.readingTime}분 소요
+            <div className="rounded-[calc(1.75rem-0.375rem)] bg-white px-6 py-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] sm:px-10 sm:py-10">
+              <span className="inline-flex items-center rounded-full bg-[#1A4D2E]/[0.08] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[#1A4D2E]">
+                {meta.category}
               </span>
+              <span className="ml-2 text-[13px] text-[#8a8a84]">{meta.location}</span>
+              <h1 className="mt-3 text-balance break-keep font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
+                {meta.title}
+              </h1>
+              <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
+                {meta.subtitle}
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-black/[0.06] pt-5 text-[13px] text-[#8a8a84]">
+                <span>디자인 {meta.credit.design}</span>
+                <span>사진 {meta.credit.photography}</span>
+                <span>글 {meta.credit.editor}</span>
+                <span className="ml-auto">
+                  {meta.publishedAt} · {meta.readingTime}분 소요
+                </span>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -502,46 +586,16 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
         <SpecGrid specs={meta.specs} />
       </div>
 
-      <div className="mx-auto flex max-w-[1180px] items-start gap-16 px-5 py-14 sm:px-8">
+      <div className="mx-auto flex max-w-[1180px] items-start gap-16 px-5 py-14 sm:px-8 sm:py-20">
         <article className="min-w-0 flex-1 max-w-[720px]">
           {contentBlocks.map((block) => (
             <ContentBlockRenderer key={block.id} block={block} onPinNavigate={onPinNavigate} />
           ))}
 
-          {/* 이전/다음 글 내비게이션 */}
-          <nav className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-md border border-black/[0.06] bg-black/[0.06] sm:grid-cols-2">
-            {navigation.prev ? (
-              <Link
-                href={`/projects/${navigation.prev.slug}`}
-                className="group flex flex-col justify-center gap-1.5 bg-white px-6 py-6 transition-colors duration-300 hover:bg-[#F9F9F7]"
-              >
-                <span className="text-[12px] text-[#8a8a84]">이전 프로젝트</span>
-                <span className="flex items-center gap-1.5 break-keep font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
-                  <span className="transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-x-1">
-                    ←
-                  </span>
-                  {navigation.prev.title}
-                </span>
-              </Link>
-            ) : (
-              <span className="bg-white px-6 py-6" />
-            )}
-            {navigation.next ? (
-              <Link
-                href={`/projects/${navigation.next.slug}`}
-                className="group flex flex-col items-end justify-center gap-1.5 bg-white px-6 py-6 text-right transition-colors duration-300 hover:bg-[#F9F9F7]"
-              >
-                <span className="text-[12px] text-[#8a8a84]">다음 프로젝트</span>
-                <span className="flex items-center gap-1.5 break-keep font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
-                  {navigation.next.title}
-                  <span className="transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-1">
-                    →
-                  </span>
-                </span>
-              </Link>
-            ) : (
-              <span className="bg-white px-6 py-6" />
-            )}
+          {/* 이전/다음 프로젝트 프리뷰 카드 */}
+          <nav className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <NavPreviewCard direction="prev" project={prevProject} fallbackTitle={navigation.prev?.title} />
+            <NavPreviewCard direction="next" project={nextProject} fallbackTitle={navigation.next?.title} />
           </nav>
         </article>
 
