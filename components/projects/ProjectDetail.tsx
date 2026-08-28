@@ -7,7 +7,8 @@
  *
  * 오늘의집 '집들이'의 직관적 정보 구조(브레드크럼 → 스펙 요약 → 이미지
  * 스토리텔링 → 플로팅 목차/액션바)를 매거진그린의 화이트 & 딥그린 에디토리얼
- * 톤앤매너로 재구성했습니다.
+ * 톤앤매너로 재구성했습니다. Supanova 리디자인 패스로 스크롤 리빌 모션,
+ * 틴트된 앰비언트 섀도, 스프링 호버/프레스 상태를 더했습니다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
@@ -130,11 +131,11 @@ const SPEC_ICON: Record<ProjectSpec['icon'], ReactElement> = {
 function Breadcrumb({ category }: { category: string }) {
   return (
     <nav aria-label="breadcrumb" className="mb-8 flex items-center gap-1.5 text-[13px] text-[#8a8a84]">
-      <Link href="/" className="transition-colors hover:text-[#1A4D2E]">
+      <Link href="/" className="transition-colors duration-300 hover:text-[#1A4D2E]">
         Home
       </Link>
       <span className="text-[#c9c9c2]">/</span>
-      <Link href="/projects" className="transition-colors hover:text-[#1A4D2E]">
+      <Link href="/projects" className="transition-colors duration-300 hover:text-[#1A4D2E]">
         Projects
       </Link>
       <span className="text-[#c9c9c2]">/</span>
@@ -147,8 +148,13 @@ function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-black/[0.06] bg-black/[0.06] sm:grid-cols-4">
       {specs.map((spec) => (
-        <div key={spec.label} className="flex flex-col items-center gap-2 bg-white px-4 py-6 text-center">
-          <span className="text-[#1A4D2E]">{SPEC_ICON[spec.icon]}</span>
+        <div
+          key={spec.label}
+          className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[0_16px_40px_-16px_rgba(26,77,46,0.18)]"
+        >
+          <span className="text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110">
+            {SPEC_ICON[spec.icon]}
+          </span>
           <span className="text-[13px] text-[#8a8a84]">{spec.label}</span>
           <span className="font-serif text-[17px] text-[#1c1c1a]">
             {spec.value}
@@ -215,7 +221,7 @@ function DesktopToc({
           <a
             key={item.id}
             href={`#${item.id}`}
-            className={`relative text-[13px] leading-snug transition-colors ${
+            className={`relative text-[13px] leading-snug transition-colors duration-300 ${
               isActive ? 'font-medium text-[#1A4D2E]' : 'text-[#a3a39c] hover:text-[#5a5a55]'
             }`}
           >
@@ -223,7 +229,7 @@ function DesktopToc({
               <motion.span
                 layoutId="toc-indicator"
                 className="absolute -left-[21px] top-0.5 h-4 w-[2px] bg-[#1A4D2E]"
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               />
             )}
             {item.heading}
@@ -244,17 +250,17 @@ function MobileActionBar({
   onShare: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-2xl border-t border-black/[0.06] bg-white/90 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.1)] backdrop-blur-xl lg:hidden">
       <div className="mx-auto flex max-w-[520px] items-center justify-between gap-2 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={onToggleSave}
           aria-pressed={isSaved}
-          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55]"
+          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90"
         >
           <svg
             viewBox="0 0 24 24"
-            className={`h-5 w-5 transition-colors ${isSaved ? 'fill-[#1A4D2E] text-[#1A4D2E]' : 'fill-none text-[#5a5a55]'}`}
+            className={`h-5 w-5 transition-colors duration-300 ${isSaved ? 'fill-[#1A4D2E] text-[#1A4D2E]' : 'fill-none text-[#5a5a55]'}`}
             stroke="currentColor"
             strokeWidth={1.6}
           >
@@ -268,7 +274,7 @@ function MobileActionBar({
         <button
           type="button"
           onClick={onShare}
-          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55]"
+          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <circle cx="18" cy="5" r="2.5" />
@@ -281,7 +287,10 @@ function MobileActionBar({
 
         <span className="h-6 w-px bg-black/[0.06]" />
 
-        <Link href="/projects" className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55]">
+        <Link
+          href="/projects"
+          className="flex flex-1 flex-col items-center gap-1 text-[11px] text-[#5a5a55] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90"
+        >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
           </svg>
@@ -296,6 +305,10 @@ function MobileActionBar({
 /* Content block renderer                                                    */
 /* ------------------------------------------------------------------------ */
 
+const revealTransition = { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const };
+const revealInitial = { opacity: 0, y: 24, filter: 'blur(4px)' };
+const revealAnimate = { opacity: 1, y: 0, filter: 'blur(0px)' };
+
 function ContentBlockRenderer({
   block,
   onPinNavigate,
@@ -306,24 +319,38 @@ function ContentBlockRenderer({
   switch (block.type) {
     case 'text':
       return (
-        <section id={block.id} className="scroll-mt-28 py-6">
+        <motion.section
+          id={block.id}
+          className="scroll-mt-28 py-6"
+          initial={revealInitial}
+          whileInView={revealAnimate}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={revealTransition}
+        >
           {block.heading && (
-            <h2 className="mb-5 font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+            <h2 className="mb-5 text-balance break-keep font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
               {block.heading}
             </h2>
           )}
           <div
-            className="space-y-5 text-[16px] leading-[1.75] text-[#3a3a37] [&_p]:leading-[1.75]"
+            className="space-y-5 break-keep text-[16px] leading-[1.75] text-[#3a3a37] [&_p]:leading-[1.75]"
             dangerouslySetInnerHTML={{ __html: block.body }}
           />
-        </section>
+        </motion.section>
       );
 
     case 'image':
       return (
-        <section id={block.id} className="scroll-mt-28 py-6">
+        <motion.section
+          id={block.id}
+          className="scroll-mt-28 py-6"
+          initial={revealInitial}
+          whileInView={revealAnimate}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={revealTransition}
+        >
           {block.heading && (
-            <h2 className="mb-5 font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+            <h2 className="mb-5 text-balance break-keep font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
               {block.heading}
             </h2>
           )}
@@ -335,28 +362,42 @@ function ContentBlockRenderer({
             pins={block.pins}
             onPinNavigate={onPinNavigate}
           />
-        </section>
+        </motion.section>
       );
 
     case 'quote':
       return (
-        <section id={block.id} className="scroll-mt-28 py-10">
+        <motion.section
+          id={block.id}
+          className="scroll-mt-28 py-10"
+          initial={revealInitial}
+          whileInView={revealAnimate}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={revealTransition}
+        >
           <blockquote className="border-l-2 border-[#1A4D2E] pl-6">
-            <p className="font-serif text-[20px] italic leading-[1.7] text-[#1c1c1a] sm:text-[23px]">
+            <p className="break-keep font-serif text-[20px] italic leading-[1.7] text-[#1c1c1a] sm:text-[23px]">
               “{block.text}”
             </p>
             {block.author && (
               <cite className="mt-4 block text-[13px] not-italic text-[#8a8a84]">— {block.author}</cite>
             )}
           </blockquote>
-        </section>
+        </motion.section>
       );
 
     case 'video':
       return (
-        <section id={block.id} className="scroll-mt-28 py-6">
+        <motion.section
+          id={block.id}
+          className="scroll-mt-28 py-6"
+          initial={revealInitial}
+          whileInView={revealAnimate}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={revealTransition}
+        >
           {block.heading && (
-            <h2 className="mb-5 font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+            <h2 className="mb-5 text-balance break-keep font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
               {block.heading}
             </h2>
           )}
@@ -372,7 +413,7 @@ function ContentBlockRenderer({
           {block.caption && (
             <p className="mt-3 text-center text-[13px] leading-relaxed text-[#8a8a84]">{block.caption}</p>
           )}
-        </section>
+        </motion.section>
       );
 
     default:
@@ -427,14 +468,19 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
         </div>
 
         <div className="mx-auto max-w-[880px] px-5 sm:px-8">
-          <div className="relative z-10 -mt-24 rounded-md bg-white px-6 py-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:-mt-28 sm:px-10 sm:py-10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 -mt-24 rounded-md bg-white px-6 py-8 shadow-[0_28px_70px_-32px_rgba(26,77,46,0.28)] sm:-mt-28 sm:px-10 sm:py-10"
+          >
             <span className="text-[13px] font-medium tracking-wide text-[#1A4D2E]">
               {meta.category} · {meta.location}
             </span>
-            <h1 className="mt-3 font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
+            <h1 className="mt-3 text-balance break-keep font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
               {meta.title}
             </h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
+            <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
               {meta.subtitle}
             </p>
 
@@ -446,7 +492,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                 {meta.publishedAt} · {meta.readingTime}분 소요
               </span>
             </div>
-          </div>
+          </motion.div>
         </div>
       </header>
 
@@ -467,11 +513,14 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
             {navigation.prev ? (
               <Link
                 href={`/projects/${navigation.prev.slug}`}
-                className="group flex flex-col justify-center gap-1.5 bg-white px-6 py-6 transition-colors hover:bg-[#F9F9F7]"
+                className="group flex flex-col justify-center gap-1.5 bg-white px-6 py-6 transition-colors duration-300 hover:bg-[#F9F9F7]"
               >
                 <span className="text-[12px] text-[#8a8a84]">이전 프로젝트</span>
-                <span className="font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
-                  ← {navigation.prev.title}
+                <span className="flex items-center gap-1.5 break-keep font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
+                  <span className="transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-x-1">
+                    ←
+                  </span>
+                  {navigation.prev.title}
                 </span>
               </Link>
             ) : (
@@ -480,11 +529,14 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
             {navigation.next ? (
               <Link
                 href={`/projects/${navigation.next.slug}`}
-                className="group flex flex-col items-end justify-center gap-1.5 bg-white px-6 py-6 text-right transition-colors hover:bg-[#F9F9F7]"
+                className="group flex flex-col items-end justify-center gap-1.5 bg-white px-6 py-6 text-right transition-colors duration-300 hover:bg-[#F9F9F7]"
               >
                 <span className="text-[12px] text-[#8a8a84]">다음 프로젝트</span>
-                <span className="font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
-                  {navigation.next.title} →
+                <span className="flex items-center gap-1.5 break-keep font-serif text-[15px] text-[#1c1c1a] group-hover:text-[#1A4D2E]">
+                  {navigation.next.title}
+                  <span className="transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-1">
+                    →
+                  </span>
                 </span>
               </Link>
             ) : (
