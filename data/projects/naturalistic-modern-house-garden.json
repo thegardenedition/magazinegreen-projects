@@ -6,6 +6,8 @@
     "subtitle": "군더더기 없는 건축에 자연의 리듬을 들이다",
     "category": "주택정원",
     "location": "경기도 양평군",
+	"lat": 37.4913,
+"lng": 127.4874,
     "heroImage": "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=2400",
     "thumbnail": "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=1200",
     "publishedAt": "2026-08-20",
