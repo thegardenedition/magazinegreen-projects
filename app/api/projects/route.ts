@@ -40,7 +40,7 @@ export async function GET() {
       lat: p.meta.lat,
       lng: p.meta.lng,
       thumbnail: p.meta.thumbnail,
-      url: `https://project.magazinegreen.co.kr/projects/${p.slug}`,
+      url: `https://projects.magazinegreen.co.kr/projects/${p.slug}`,
     }));
 
   return NextResponse.json({ results: projects }, { headers: CORS_HEADERS });
