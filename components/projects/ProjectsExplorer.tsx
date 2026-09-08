@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { ProjectData } from './ProjectDetail';
 import ProjectCard from './ProjectCard';
 
@@ -23,6 +23,7 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
     return ['전체', ...Array.from(set)];
   }, [projects]);
 
+  const reduceMotion = useReducedMotion();
   const [activeCategory, setActiveCategory] = useState('전체');
 
   const stats = useMemo(() => {
@@ -65,7 +66,7 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
       <div className="mb-14 grid grid-cols-2 gap-px overflow-hidden rounded-[1.5rem] border border-black/[0.06] bg-black/[0.06] sm:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="flex flex-col items-start gap-1 bg-[#FDFBF7] px-5 py-6 sm:px-6">
-            <span className="font-serif text-[26px] leading-none text-[#1A4D2E] sm:text-[30px]">
+            <span className="font-semibold tracking-[-0.02em] text-[26px] leading-none text-[#0B5345] sm:text-[30px]">
               {stat.value}
               <span className="ml-1 text-[13px] font-sans text-[#8a8a84]">{stat.unit}</span>
             </span>
@@ -87,7 +88,7 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
               onClick={() => setActiveCategory(category)}
               className={`rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 isActive
-                  ? 'bg-[#1A4D2E] text-white shadow-[0_8px_20px_-8px_rgba(26,77,46,0.5)]'
+                  ? 'bg-[#0B5345] text-white shadow-[0_8px_20px_-8px_rgba(11,83,69,0.5)]'
                   : 'bg-black/[0.04] text-[#5a5a55] hover:bg-black/[0.07]'
               }`}
             >
@@ -101,10 +102,10 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
       <AnimatePresence mode="wait">
         <motion.div
           key={activeCategory}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
+          transition={{ duration: reduceMotion ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
           {filtered.length === 0 ? (
             <p className="py-20 text-center text-[14px] text-[#8a8a84]">

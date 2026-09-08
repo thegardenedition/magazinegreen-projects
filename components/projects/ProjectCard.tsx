@@ -1,8 +1,8 @@
 'use client';
 
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { ReactElement } from 'react';
 import type { ProjectData, ProjectSpec } from './ProjectDetail';
 
@@ -10,7 +10,7 @@ import type { ProjectData, ProjectSpec } from './ProjectDetail';
  * ProjectCard.tsx
  * ------------------------------------------------------------------------
  * /projects 목록 그리드에서 쓰이는 카드. 상세 페이지와 톤앤매너를 맞추기 위해
- * 같은 컬러 팔레트(딥그린 #1A4D2E · 오프화이트 #F9F9F7)와 세리프/산세리프
+ * 같은 컬러 팔레트(딥그린 #0B5345 · 오프화이트 #F9F9F7)와 세리프/산세리프
  * 믹스매치를 그대로 사용합니다. size="lg"는 비대칭 벤토 그리드의 피처드
  * 카드용 변형으로, Double-Bezel 카드 구조와 실데이터 스펙 프리뷰를 더했습니다.
  *
@@ -58,6 +58,7 @@ export default function ProjectCard({
   index?: number;
   size?: 'lg' | 'sm';
 }) {
+  const reduceMotion = useReducedMotion();
   const isLg = size === 'lg';
   const previewSpecs = project.meta.specs.filter((s) => s.icon === 'area' || s.icon === 'duration');
   const photoCount = 1 + project.contentBlocks.filter((b) => b.type === 'image').length;
@@ -65,10 +66,14 @@ export default function ProjectCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.6, delay: (index % 3) * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { duration: 0.6, delay: (index % 3) * 0.08, ease: [0.16, 1, 0.3, 1] }
+      }
       className="h-full"
     >
       <Link
@@ -77,13 +82,13 @@ export default function ProjectCard({
         style={{ transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}
       >
         {/* Double-bezel 외곽 셸 */}
-        <div className="flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:bg-black/[0.02] group-hover:shadow-[0_28px_60px_-24px_rgba(26,77,46,0.22)]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:bg-black/[0.02] group-hover:shadow-[0_28px_60px_-24px_rgba(11,83,69,0.22)]">
           {/* Double-bezel 이너 코어 */}
           <div className="flex h-full flex-col overflow-hidden rounded-[calc(1.75rem-0.375rem)] bg-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">
             <div
               className={`relative w-full overflow-hidden bg-[#F3F2EE] ${isLg ? 'aspect-[16/11]' : 'aspect-[4/3]'}`}
             >
-              <Image
+              <SafeImage
                 src={project.meta.thumbnail}
                 alt={project.meta.title}
                 fill
@@ -92,7 +97,7 @@ export default function ProjectCard({
                 priority={isLg && index === 0}
               />
               <div className="absolute left-4 top-4">
-                <span className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#1A4D2E] backdrop-blur-sm">
+                <span className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#0B5345] backdrop-blur-sm">
                   {project.meta.category}
                 </span>
               </div>
@@ -107,7 +112,7 @@ export default function ProjectCard({
             <div className={`flex flex-1 flex-col ${isLg ? 'px-6 pb-6 pt-5 sm:px-7 sm:pb-7' : 'px-4 pb-5 pt-4'}`}>
               <span className="text-[12px] text-[#8a8a84]">{project.meta.location}</span>
               <h3
-                className={`mt-1.5 break-keep font-serif leading-snug text-[#1c1c1a] ${
+                className={`mt-1.5 break-keep font-semibold tracking-[-0.02em] leading-snug text-[#1c1c1a] ${
                   isLg ? 'text-[24px] sm:text-[28px]' : 'text-[17px]'
                 }`}
               >
@@ -122,7 +127,7 @@ export default function ProjectCard({
               </p>
 
               <span className="mt-3 flex items-center gap-1.5 text-[11px] text-[#a3a39c]">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#1A4D2E]/[0.08] text-[8.5px] font-medium text-[#1A4D2E]">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0B5345]/[0.08] text-[8.5px] font-medium text-[#0B5345]">
                   {creditInitial}
                 </span>
                 {project.meta.credit.design}
@@ -132,12 +137,12 @@ export default function ProjectCard({
                 <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-black/[0.06] pt-4 text-[12.5px] text-[#5a5a55]">
                   {previewSpecs.map((spec) => (
                     <span key={spec.label} className="flex items-center gap-1.5">
-                      <span className="text-[#1A4D2E]">{MINI_ICON[spec.icon]}</span>
+                      <span className="text-[#0B5345]">{MINI_ICON[spec.icon]}</span>
                       {spec.value}
                       {spec.unit}
                     </span>
                   ))}
-                  <span className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1A4D2E]/[0.08] text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5">
+                  <span className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#0B5345]/[0.08] text-[#0B5345] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5">
                     →
                   </span>
                 </div>

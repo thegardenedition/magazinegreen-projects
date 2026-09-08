@@ -30,9 +30,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
-import { AnimatePresence, motion, useScroll, useSpring } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'framer-motion';
 import ImageWithPins, { type Pin } from './ImageWithPins';
 import { getProjectBySlug } from '@/lib/projects';
 
@@ -154,7 +154,7 @@ function ReadingProgressBar() {
   return (
     <motion.div
       aria-hidden
-      className="fixed inset-x-0 top-0 z-40 h-[3px] origin-left bg-[#1A4D2E]"
+      className="fixed inset-x-0 top-0 z-40 h-[3px] origin-left bg-[#0B5345]"
       style={{ scaleX: progress }}
     />
   );
@@ -184,7 +184,7 @@ function ScrollTopButton() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 12, scale: 0.9 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-24 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#1A4D2E] shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)] ring-1 ring-black/[0.06] transition-transform duration-300 hover:-translate-y-0.5 lg:bottom-10 lg:right-8"
+          className="fixed bottom-24 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0B5345] shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)] ring-1 ring-black/[0.06] transition-transform duration-300 hover:-translate-y-0.5 lg:bottom-10 lg:right-8"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 19V5M5 12l7-7 7 7" />
@@ -195,18 +195,18 @@ function ScrollTopButton() {
   );
 }
 
-function Breadcrumb({ category }: { category: string }) {
+function Breadcrumb({ category, className = 'mb-8' }: { category: string; className?: string }) {
   return (
-    <nav aria-label="breadcrumb" className="mb-8 flex items-center gap-1.5 text-[13px] text-[#8a8a84]">
-      <Link href="/" className="transition-colors duration-300 hover:text-[#1A4D2E]">
+    <nav aria-label="breadcrumb" className={`flex items-center gap-1.5 text-[13px] text-[#8a8a84] ${className}`}>
+      <Link href="/" className="transition-colors duration-300 hover:text-[#0B5345]">
         Home
       </Link>
       <span className="text-[#c9c9c2]">/</span>
-      <Link href="/projects" className="transition-colors duration-300 hover:text-[#1A4D2E]">
+      <Link href="/projects" className="transition-colors duration-300 hover:text-[#0B5345]">
         Projects
       </Link>
       <span className="text-[#c9c9c2]">/</span>
-      <span className="font-medium text-[#1A4D2E]">{category}</span>
+      <span className="font-medium text-[#0B5345]">{category}</span>
     </nav>
   );
 }
@@ -218,13 +218,13 @@ function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
         {specs.map((spec) => (
           <div
             key={spec.label}
-            className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_16px_40px_-16px_rgba(26,77,46,0.18)]"
+            className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_16px_40px_-16px_rgba(11,83,69,0.18)]"
           >
-            <span className="text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110">
+            <span className="text-[#0B5345] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110">
               {SPEC_ICON[spec.icon]}
             </span>
             <span className="text-[13px] text-[#8a8a84]">{spec.label}</span>
-            <span className="font-serif text-[17px] text-[#1c1c1a]">
+            <span className="font-semibold tracking-[-0.02em] text-[17px] text-[#1c1c1a]">
               {spec.value}
               {spec.unit && <span className="ml-0.5 text-[13px] text-[#8a8a84]">{spec.unit}</span>}
             </span>
@@ -291,13 +291,13 @@ function DesktopToc({
             key={item.id}
             href={`#${item.id}`}
             className={`relative text-[13px] leading-snug transition-colors duration-300 ${
-              isActive ? 'font-medium text-[#1A4D2E]' : 'text-[#a3a39c] hover:text-[#5a5a55]'
+              isActive ? 'font-medium text-[#0B5345]' : 'text-[#a3a39c] hover:text-[#5a5a55]'
             }`}
           >
             {isActive && (
               <motion.span
                 layoutId="toc-indicator"
-                className="absolute -left-[21px] top-0.5 h-4 w-[2px] bg-[#1A4D2E]"
+                className="absolute -left-[21px] top-0.5 h-4 w-[2px] bg-[#0B5345]"
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               />
             )}
@@ -329,7 +329,7 @@ function MobileActionBar({
         >
           <svg
             viewBox="0 0 24 24"
-            className={`h-5 w-5 transition-colors duration-300 ${isSaved ? 'fill-[#1A4D2E] text-[#1A4D2E]' : 'fill-none text-[#5a5a55]'}`}
+            className={`h-5 w-5 transition-colors duration-300 ${isSaved ? 'fill-[#0B5345] text-[#0B5345]' : 'fill-none text-[#5a5a55]'}`}
             stroke="currentColor"
             strokeWidth={1.6}
           >
@@ -386,11 +386,11 @@ function NavPreviewCard({
   const isPrev = direction === 'prev';
 
   const content = (
-    <div className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(26,77,46,0.22)]">
+    <div className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(11,83,69,0.22)]">
       <div className="flex h-full flex-col overflow-hidden rounded-[calc(1.5rem-0.375rem)] bg-white">
         {project && (
           <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#F3F2EE]">
-            <Image
+            <SafeImage
               src={project.meta.thumbnail}
               alt={title}
               fill
@@ -405,12 +405,12 @@ function NavPreviewCard({
             {isPrev ? '이전 프로젝트' : '다음 프로젝트'}
           </span>
           <span
-            className={`flex items-center gap-1.5 break-keep font-serif text-[16px] leading-snug text-[#1c1c1a] transition-colors duration-300 group-hover:text-[#1A4D2E] ${
+            className={`flex items-center gap-1.5 break-keep font-semibold tracking-[-0.02em] text-[16px] leading-snug text-[#1c1c1a] transition-colors duration-300 group-hover:text-[#0B5345] ${
               isPrev ? '' : 'sm:flex-row-reverse'
             }`}
           >
             <span
-              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1A4D2E]/[0.08] text-[#1A4D2E] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0B5345]/[0.08] text-[#0B5345] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 isPrev ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'
               }`}
             >
@@ -447,19 +447,26 @@ function ContentBlockRenderer({
   block: ContentBlock;
   onPinNavigate?: (pin: Pin) => void;
 }) {
+  /* 모션 감축을 켠 사용자에게는 리빌을 걸지 않는다. 켜져 있으면 블러 4px 로
+     시작하던 본문이 처음부터 선명한 채로 그냥 놓인다. */
+  const reduce = useReducedMotion();
+  const initial = reduce ? false : revealInitial;
+  const inView = reduce ? undefined : revealAnimate;
+  const transition = reduce ? { duration: 0 } : revealTransition;
+
   switch (block.type) {
     case 'text':
       return (
         <motion.section
           id={block.id}
           className="scroll-mt-28 py-6"
-          initial={revealInitial}
-          whileInView={revealAnimate}
+          initial={initial}
+          whileInView={inView}
           viewport={{ once: true, margin: '-100px' }}
-          transition={revealTransition}
+          transition={transition}
         >
           {block.heading && (
-            <h2 className="mb-5 text-balance break-keep font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+            <h2 className="mb-5 text-balance break-keep font-semibold tracking-[-0.02em] text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
               {block.heading}
             </h2>
           )}
@@ -475,13 +482,13 @@ function ContentBlockRenderer({
         <motion.section
           id={block.id}
           className="scroll-mt-28 py-6"
-          initial={revealInitial}
-          whileInView={revealAnimate}
+          initial={initial}
+          whileInView={inView}
           viewport={{ once: true, margin: '-100px' }}
-          transition={revealTransition}
+          transition={transition}
         >
           {block.heading && (
-            <h2 className="mb-5 text-balance break-keep font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+            <h2 className="mb-5 text-balance break-keep font-semibold tracking-[-0.02em] text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
               {block.heading}
             </h2>
           )}
@@ -501,13 +508,13 @@ function ContentBlockRenderer({
         <motion.section
           id={block.id}
           className="scroll-mt-28 py-10"
-          initial={revealInitial}
-          whileInView={revealAnimate}
+          initial={initial}
+          whileInView={inView}
           viewport={{ once: true, margin: '-100px' }}
-          transition={revealTransition}
+          transition={transition}
         >
-          <blockquote className="border-l-2 border-[#1A4D2E] pl-6">
-            <p className="break-keep font-serif text-[20px] italic leading-[1.7] text-[#1c1c1a] sm:text-[23px]">
+          <blockquote className="border-l-2 border-[#0B5345] pl-6">
+            <p className="break-keep font-medium text-[20px] leading-[1.7] text-[#1c1c1a] sm:text-[23px]">
               “{block.text}”
             </p>
             {block.author && (
@@ -522,13 +529,13 @@ function ContentBlockRenderer({
         <motion.section
           id={block.id}
           className="scroll-mt-28 py-6"
-          initial={revealInitial}
-          whileInView={revealAnimate}
+          initial={initial}
+          whileInView={inView}
           viewport={{ once: true, margin: '-100px' }}
-          transition={revealTransition}
+          transition={transition}
         >
           {block.heading && (
-            <h2 className="mb-5 text-balance break-keep font-serif text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+            <h2 className="mb-5 text-balance break-keep font-semibold tracking-[-0.02em] text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
               {block.heading}
             </h2>
           )}
@@ -558,6 +565,7 @@ function ContentBlockRenderer({
 
 export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProps) {
   const { meta, navigation, contentBlocks } = data;
+  const reduceMotion = useReducedMotion();
   const [isSaved, setIsSaved] = useState(false);
   const shareUrlRef = useRef<string>('');
 
@@ -599,24 +607,28 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
       {/* Hero */}
       <header className="relative">
         <div className="relative h-[52vh] min-h-[380px] w-full sm:h-[64vh]">
-          <Image src={meta.heroImage} alt={meta.title} fill priority className="object-cover" />
+          <SafeImage src={meta.heroImage} alt={meta.title} fill priority className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
         </div>
 
         <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
           <div className="max-w-[880px]">
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-10 -mt-24 rounded-[1.75rem] bg-black/[0.04] p-1.5 shadow-[0_28px_70px_-32px_rgba(26,77,46,0.28)] ring-1 ring-black/[0.05] sm:-mt-28"
+              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="relative z-10 -mt-24 rounded-[1.75rem] bg-black/[0.04] p-1.5 shadow-[0_28px_70px_-32px_rgba(11,83,69,0.28)] ring-1 ring-black/[0.05] sm:-mt-28"
             >
               <div className="rounded-[calc(1.75rem-0.375rem)] bg-white px-6 py-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] sm:px-10 sm:py-10">
-                <span className="inline-flex items-center rounded-full bg-[#1A4D2E]/[0.08] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[#1A4D2E]">
+                {/* 브레드크럼은 제목 위에 온다. 이전에는 히어로 → 제목 카드 →
+                    브레드크럼 → 스펙 순서라, 지금 어디에 있는지 알려주는 줄이
+                    정작 제목을 다 읽은 뒤에 나왔다. */}
+                <Breadcrumb category={meta.category} className="mb-5" />
+                <span className="inline-flex items-center rounded-full bg-[#0B5345]/[0.08] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[#0B5345]">
                   {meta.category}
                 </span>
                 <span className="ml-2 text-[13px] text-[#8a8a84]">{meta.location}</span>
-                <h1 className="mt-3 text-balance break-keep font-serif text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
+                <h1 className="mt-3 text-balance break-keep font-semibold tracking-[-0.02em] text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
                   {meta.title}
                 </h1>
                 <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
@@ -640,8 +652,8 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                     aria-pressed={isSaved}
                     className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                       isSaved
-                        ? 'bg-[#1A4D2E] text-white'
-                        : 'bg-[#1A4D2E]/[0.07] text-[#1A4D2E] hover:bg-[#1A4D2E]/[0.13]'
+                        ? 'bg-[#0B5345] text-white'
+                        : 'bg-[#0B5345]/[0.07] text-[#0B5345] hover:bg-[#0B5345]/[0.13]'
                     }`}
                   >
                     <svg
@@ -677,7 +689,6 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
       {/* Body */}
       <div className="mx-auto max-w-[1180px] px-5 pt-10 sm:px-8">
         <div className="max-w-[880px]">
-          <Breadcrumb category={meta.category} />
           <SpecGrid specs={meta.specs} />
         </div>
       </div>

@@ -15,7 +15,7 @@ export default function ProjectsPage() {
       {/* 앰비언트 뎁스 — 퍼페추얼 마이크로모션이 더해진 라디얼 메쉬 */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-32 right-[-8%] h-[480px] w-[480px] animate-float-slow rounded-full bg-[radial-gradient(circle,rgba(26,77,46,0.08),transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute -top-32 right-[-8%] h-[480px] w-[480px] animate-float-slow rounded-full bg-[radial-gradient(circle,rgba(11,83,69,0.08),transparent_70%)] blur-3xl"
       />
       <div
         aria-hidden
@@ -23,10 +23,10 @@ export default function ProjectsPage() {
       />
 
       <header className="relative mx-auto max-w-[1180px] px-5 pt-28 pb-16 sm:px-8 sm:pt-36 sm:pb-20 lg:pt-40">
-        <span className="font-accent inline-flex items-center rounded-full bg-[#1A4D2E]/[0.08] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#1A4D2E]">
+        <span className="font-accent inline-flex items-center rounded-full bg-[#0B5345]/[0.08] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#0B5345]">
           Projects Archive
         </span>
-        <h1 className="mt-5 max-w-xl text-balance break-keep font-serif text-[34px] leading-snug text-[#1c1c1a] sm:text-[48px]">
+        <h1 className="mt-5 max-w-xl text-balance break-keep font-semibold tracking-[-0.02em] text-[34px] leading-snug text-[#1c1c1a] sm:text-[48px]">
           정원이 완성되는 과정을 기록합니다
         </h1>
         <p className="mt-4 max-w-lg break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[16px]">

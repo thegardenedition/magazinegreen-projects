@@ -1,17 +1,15 @@
 import type { Metadata } from 'next';
-import { Montserrat } from 'next/font/google';
 import FloatingNav from '@/components/layout/FloatingNav';
 import './globals.css';
 
 /* MAGAZINE GREEN 서체 시스템
-   - 국문 본문·제목: Pretendard (globals.css에서 로드, tailwind.config의 sans/serif에 매핑)
-   - 영문 강조 라벨(브랜드 홈페이지의 "Weekly"/"Green"과 동일한 패턴): Montserrat */
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-accent',
-  display: 'swap',
-});
+   본 사이트와 같이 Pretendard 하나로 간다(globals.css 에서 로드,
+   tailwind.config 의 sans/accent 에 매핑).
+
+   [2026-09-08] 영문 강조 라벨용으로 next/font 의 Montserrat 를 따로 받고
+   있었는데, 본 사이트에서는 한글 글리프가 없어 글자마다 폴백으로 떨어져
+   서체가 뒤섞이는 문제 때문에 이미 걷어낸 서체다. 여기만 되살아나 있어
+   같이 제거한다. 라벨의 성격(대문자·넓은 자간)은 tracking 으로 유지된다. */
 
 export const metadata: Metadata = {
   title: {
@@ -24,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={montserrat.variable}>
+    <html lang="ko">
       <body className="font-sans antialiased">
         <div aria-hidden className="noise-overlay pointer-events-none fixed inset-0 z-[60] opacity-[0.035]" />
         <FloatingNav />

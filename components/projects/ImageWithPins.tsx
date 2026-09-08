@@ -33,8 +33,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import Image from 'next/image';
-import { AnimatePresence, motion } from 'framer-motion';
+import SafeImage from '@/components/ui/SafeImage';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 /* ------------------------------------------------------------------------ */
 /* Types                                                                     */
@@ -109,25 +109,54 @@ export default function ImageWithPins({
 }: ImageWithPinsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [activePinId, setActivePinId] = useState<string | null>(null);
+  /* 고정(클릭)과 미리보기(호버)를 나눠 둔다.
+     이전에는 상태 하나를 둘이 같이 썼는데, 여는 쪽에만 onMouseEnter 가 있고
+     onMouseLeave 가 없어서 마우스를 치워도 툴팁이 그대로 붙어 있었다. 사진
+     위를 지나가기만 해도 툴팁이 하나씩 남아, 바깥을 클릭하거나 ESC 를
+     눌러야 사라졌다. */
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [canHover, setCanHover] = useState(false);
   const [tooltipOffset, setTooltipOffset] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
   });
+  const reduceMotion = useReducedMotion();
 
+  const activePinId = pinnedId ?? hoveredId;
   const activePin = pins.find((p) => p.id === activePinId) ?? null;
 
+  /* 호버가 없는 기기(터치)에서는 hover 로 열지 않는다. 여닫기를 전부 탭에
+     맡겨야 같은 자리를 한 번 더 눌러 닫을 수 있다. */
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const sync = () => setCanHover(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   const closeTooltip = useCallback(() => {
-    setActivePinId(null);
+    setPinnedId(null);
+    setHoveredId(null);
     setTooltipOffset({ x: 0, y: 0 });
   }, []);
 
-  const togglePin = useCallback(
-    (pinId: string) => {
-      setActivePinId((prev) => (prev === pinId ? null : pinId));
+  const togglePin = useCallback((pinId: string) => {
+    setPinnedId((prev) => (prev === pinId ? null : pinId));
+    setHoveredId(null);
+    setTooltipOffset({ x: 0, y: 0 });
+  }, []);
+
+  /* 호버 미리보기. 핀을 감싼 래퍼에 걸어 두므로 툴팁 안으로 마우스를
+     옮겨도 닫히지 않는다(툴팁이 래퍼 안에 있다). */
+  const previewPin = useCallback(
+    (pinId: string | null) => {
+      if (!canHover) return;
+      setHoveredId(pinId);
       setTooltipOffset({ x: 0, y: 0 });
     },
-    [],
+    [canHover],
   );
 
   /* 바깥 영역 클릭 / ESC 키로 툴팁 닫기 (모바일 탭 UX 포함) */
@@ -204,7 +233,7 @@ export default function ImageWithPins({
         className="relative w-full overflow-visible rounded-sm bg-[#F9F9F7]"
         style={{ aspectRatio }}
       >
-        <Image
+        <SafeImage
           src={src}
           alt={alt}
           fill
@@ -221,6 +250,8 @@ export default function ImageWithPins({
             <div
               key={pin.id}
               className="absolute z-10"
+              onMouseEnter={() => previewPin(pin.id)}
+              onMouseLeave={() => previewPin(null)}
               style={{
                 left: `${pin.x}%`,
                 top: `${pin.y}%`,
@@ -233,19 +264,21 @@ export default function ImageWithPins({
                 aria-label={`${pin.title} 정보 보기`}
                 aria-expanded={isActive}
                 onClick={() => togglePin(pin.id)}
-                onMouseEnter={() => setActivePinId(pin.id)}
                 className="group relative flex h-11 w-11 items-center justify-center focus:outline-none"
               >
-                {/* Pulsing ring: Tailwind 기본 ping 애니메이션 활용 (순수 CSS) */}
+                {/* 링은 세 번 뛰고 멈춘다(globals.css 의 pin-pulse).
+                    이전에는 Tailwind 의 animate-ping 이라 페이지의 모든 핀이
+                    끝없이 뛰었다 — 사진을 읽는 내내 움직이는 요소가 됐다. */}
                 <span
+                  aria-hidden
                   className={`absolute inline-flex h-6 w-6 rounded-full ${
-                    pin.type === 'plant' ? 'bg-[#1A4D2E]/40' : 'bg-[#2E4F4F]/40'
-                  } ${isActive ? '' : 'animate-ping'}`}
+                    pin.type === 'plant' ? 'bg-[#0B5345]/40' : 'bg-[#2E4F4F]/40'
+                  } ${isActive ? 'opacity-0' : 'animate-pin-pulse'}`}
                 />
                 {/* 핀 본체 */}
                 <span
                   className={`relative inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/70 shadow-md transition-transform duration-200 group-hover:scale-110 ${
-                    pin.type === 'plant' ? 'bg-[#1A4D2E]' : 'bg-[#2E4F4F]'
+                    pin.type === 'plant' ? 'bg-[#0B5345]' : 'bg-[#2E4F4F]'
                   } ${isActive ? 'scale-110' : ''}`}
                 >
                   <svg
@@ -267,15 +300,15 @@ export default function ImageWithPins({
                   <motion.div
                     ref={tooltipRef}
                     role="dialog"
-                    initial={{ opacity: 0, scale: 0.94, y: v === 'top' ? 6 : -6 }}
+                    initial={reduceMotion ? false : { opacity: 0, scale: 0.94, y: v === 'top' ? 6 : -6 }}
                     animate={{
                       opacity: 1,
                       scale: 1,
                       x: tooltipOffset.x,
                       y: tooltipOffset.y,
                     }}
-                    exit={{ opacity: 0, scale: 0.94 }}
-                    transition={{ duration: 0.16, ease: 'easeOut' }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
                     className={`absolute z-20 w-64 overflow-hidden rounded-md border border-black/5 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${
                       v === 'top' ? 'bottom-full mb-3' : 'top-full mt-3'
                     } ${
@@ -287,20 +320,20 @@ export default function ImageWithPins({
                     }`}
                   >
                     <div className="relative h-28 w-full bg-[#F9F9F7]">
-                      <Image
+                      <SafeImage
                         src={pin.thumbnail}
                         alt={pin.title}
                         fill
                         sizes="256px"
                         className="object-cover"
                       />
-                      <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium tracking-wide text-[#1A4D2E]">
+                      <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium tracking-wide text-[#0B5345]">
                         {pin.type === 'plant' ? '식물 큐레이션' : '조경 자재'}
                       </span>
                     </div>
 
                     <div className="p-3.5">
-                      <h4 className="font-serif text-[15px] leading-snug text-[#1c1c1a]">
+                      <h4 className="font-semibold tracking-[-0.02em] text-[15px] leading-snug text-[#1c1c1a]">
                         {pin.title}
                       </h4>
                       <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#5a5a55]">
@@ -310,7 +343,7 @@ export default function ImageWithPins({
                       <button
                         type="button"
                         onClick={() => onPinNavigate?.(pin)}
-                        className="mt-3 flex w-full items-center justify-between rounded-sm bg-[#F9F9F7] px-3 py-2 text-[12.5px] font-medium text-[#1A4D2E] transition-colors hover:bg-[#1A4D2E] hover:text-white"
+                        className="mt-3 flex w-full items-center justify-between rounded-sm bg-[#F9F9F7] px-3 py-2 text-[12.5px] font-medium text-[#0B5345] transition-colors hover:bg-[#0B5345] hover:text-white"
                       >
                         {pin.link.ctaLabel}
                         <svg
@@ -346,19 +379,20 @@ export default function ImageWithPins({
                 key={`swatch-${pin.id}`}
                 type="button"
                 onClick={() => togglePin(pin.id)}
-                onMouseEnter={() => setActivePinId(pin.id)}
+                onMouseEnter={() => previewPin(pin.id)}
+                onMouseLeave={() => previewPin(null)}
                 aria-label={`${pin.title} 정보 보기`}
                 aria-pressed={isActive}
                 className={`group relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#F9F9F7] ring-1 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                   isActive
-                    ? 'ring-2 ring-[#1A4D2E] ring-offset-2 ring-offset-white'
+                    ? 'ring-2 ring-[#0B5345] ring-offset-2 ring-offset-white'
                     : 'ring-black/[0.06] hover:ring-black/[0.16]'
                 }`}
               >
-                <Image src={pin.thumbnail} alt={pin.title} fill sizes="56px" className="object-cover" />
+                <SafeImage src={pin.thumbnail} alt={pin.title} fill sizes="56px" className="object-cover" />
                 <span
                   className={`absolute inset-x-0 bottom-0 py-[3px] text-center text-[8.5px] font-medium tracking-wide text-white ${
-                    pin.type === 'plant' ? 'bg-[#1A4D2E]/85' : 'bg-[#2E4F4F]/85'
+                    pin.type === 'plant' ? 'bg-[#0B5345]/85' : 'bg-[#2E4F4F]/85'
                   }`}
                 >
                   {pin.type === 'plant' ? '식물' : '자재'}
