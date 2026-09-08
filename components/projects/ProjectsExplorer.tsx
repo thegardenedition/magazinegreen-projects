@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-motion';
 import type { ProjectData } from './ProjectDetail';
 import ProjectCard from './ProjectCard';
 
@@ -70,7 +70,6 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
     [projects, activeCategory],
   );
 
-  const showBento = activeCategory === '전체' && filtered.length >= 3;
   const [featured, ...rest] = filtered;
 
   return (
@@ -111,39 +110,43 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
         })}
       </div>
 
-      {/* 벤토 그리드 / 필터 결과 그리드 */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeCategory}
-          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
-          transition={{ duration: reduceMotion ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {filtered.length === 0 ? (
-            <p className="py-20 text-center text-[14px] text-[#8a8a84]">
-              해당 카테고리의 프로젝트가 아직 없습니다.
-            </p>
-          ) : showBento ? (
-            <div className="flex flex-col gap-5 md:flex-row md:gap-6">
-              <div className="md:w-[58%]">
-                <ProjectCard project={featured} index={0} size="lg" />
-              </div>
+      {/* 결과 — 필터를 바꿔도 구조가 그대로다.
+          이전에는 '전체'일 때만 벤토(큰 카드 1 + 작은 카드 스택)였고 필터를
+          켜면 2열 그리드로 통째로 바뀌었다. 거르는 게 아니라 다른 페이지로
+          넘어간 것처럼 보였고, 판 전체가 사라졌다 다시 나타났다.
+          이제 어떤 상태에서도 '맨 앞이 크고 나머지가 옆에 쌓이는' 한 구조다.
+          한 건뿐이면 그 한 장이 폭을 다 쓴다.
+
+          전환도 판 단위에서 카드 단위로 내렸다. 남는 카드는 제자리에서
+          움직이고(layout), 빠지는 카드만 사라진다. 카드가 몇 장 안 될 때
+          판 전체를 페이드시키면 필터가 실제보다 큰 동작처럼 느껴진다. */}
+      {filtered.length === 0 ? (
+        <p className="py-20 text-center text-[14px] text-[#8a8a84]">
+          해당 카테고리의 프로젝트가 아직 없습니다.
+        </p>
+      ) : (
+        <LayoutGroup>
+          <div className="flex flex-col gap-5 md:flex-row md:gap-6">
+            {/* 한 건뿐이어도 폭을 넓히지 않는다. 넓히면 필터를 옮길 때마다
+                같은 카드가 커졌다 작아져 크기가 계속 바뀐다. 오른쪽이 비는
+                편이 낫다. */}
+            <div className="md:w-[58%]">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <ProjectCard key={featured.id} project={featured} index={0} size="lg" />
+              </AnimatePresence>
+            </div>
+            {rest.length > 0 && (
               <div className="flex flex-col gap-5 md:w-[42%] md:gap-6">
-                {rest.map((project, i) => (
-                  <ProjectCard key={project.id} project={project} index={i + 1} size="sm" />
-                ))}
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {rest.map((project, i) => (
+                    <ProjectCard key={project.id} project={project} index={i + 1} size="sm" />
+                  ))}
+                </AnimatePresence>
               </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2">
-              {filtered.map((project, i) => (
-                <ProjectCard key={project.id} project={project} index={i} size="sm" />
-              ))}
-            </div>
-          )}
-        </motion.div>
-      </AnimatePresence>
+            )}
+          </div>
+        </LayoutGroup>
+      )}
     </>
   );
 }

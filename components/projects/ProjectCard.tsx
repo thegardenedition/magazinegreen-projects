@@ -64,10 +64,33 @@ export default function ProjectCard({
   const photoCount = 1 + project.contentBlocks.filter((b) => b.type === 'image').length;
   const creditInitial = project.meta.credit.design.charAt(0);
 
+  /* 이 사이트만 가진 것이 사진 위 핀(어느 자리에 무슨 식물·자재를 썼는지)인데,
+     목록에서는 그게 전혀 안 보였다. 몇 개가 붙어 있는지를 카드에 적어 둔다 —
+     눌러 볼 이유가 된다. */
+  const pinCount = project.contentBlocks.reduce(
+    (acc, block) => {
+      if (block.type !== 'image' || !block.pins) return acc;
+      block.pins.forEach((pin) => {
+        acc[pin.type] += 1;
+      });
+      return acc;
+    },
+    { plant: 0, material: 0 },
+  );
+  const pinSummary = [
+    pinCount.plant ? `식물 ${pinCount.plant}` : null,
+    pinCount.material ? `자재 ${pinCount.material}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <motion.div
+      /* 필터가 바뀌면 남는 카드는 제자리에서 움직인다 */
+      layout={reduceMotion ? false : 'position'}
       initial={reduceMotion ? false : { opacity: 0, y: 24 }}
       whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
       viewport={{ once: true, margin: '-80px' }}
       transition={
         reduceMotion
@@ -132,6 +155,25 @@ export default function ProjectCard({
                 </span>
                 {project.meta.credit.design}
               </span>
+
+              {pinSummary && (
+                <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#a3a39c]">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0 text-[#0B5345]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.7}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M12 21s-6.5-5.1-6.5-10a6.5 6.5 0 0 1 13 0c0 4.9-6.5 10-6.5 10Z" />
+                    <circle cx="12" cy="11" r="2.2" />
+                  </svg>
+                  사진 속 정보 {pinSummary}
+                </span>
+              )}
 
               {isLg && previewSpecs.length > 0 && (
                 <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-black/[0.06] pt-4 text-[12.5px] text-[#5a5a55]">
