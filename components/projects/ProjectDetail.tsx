@@ -211,6 +211,12 @@ function Breadcrumb({ category, className = 'mb-8' }: { category: string; classN
   );
 }
 
+// [모노스페이스는 숫자에만] "스타일" 스펙(예: "미니멀")처럼 값이 한글 텍스트인
+// 경우가 섞여 있다. 모노스페이스 스택(font-mono)에는 한글 글리프가 없어 그 값에
+// 적용하면 폰트가 Pretendard에서 시스템 폴백으로 갈라진다 — 예전에 영문 라벨용
+// Montserrat를 걷어낸 것과 같은 종류의 문제라, 숫자·기호로만 이뤄진 값에만 건다.
+const NUMERIC_SPEC_VALUE = /^[\d.,\s]+$/;
+
 function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
   return (
     <div className="rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05]">
@@ -224,9 +230,13 @@ function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
               {SPEC_ICON[spec.icon]}
             </span>
             <span className="text-[13px] text-[#8a8a84]">{spec.label}</span>
-            <span className="font-semibold tracking-[-0.02em] text-[17px] text-[#1c1c1a]">
+            <span
+              className={`font-semibold tracking-[-0.02em] text-[17px] text-[#1c1c1a] ${
+                NUMERIC_SPEC_VALUE.test(spec.value) ? 'font-mono' : ''
+              }`}
+            >
               {spec.value}
-              {spec.unit && <span className="ml-0.5 text-[13px] text-[#8a8a84]">{spec.unit}</span>}
+              {spec.unit && <span className="ml-0.5 font-sans text-[13px] text-[#8a8a84]">{spec.unit}</span>}
             </span>
           </div>
         ))}
@@ -560,6 +570,35 @@ function ContentBlockRenderer({
 }
 
 /* ------------------------------------------------------------------------ */
+/* 스크랩 — localStorage 저장                                                 */
+/* ------------------------------------------------------------------------ */
+
+// 스크랩 버튼은 있었지만 useState(false) 하나뿐이라 페이지를 벗어나면(뒤로가기,
+// 새로고침) 항상 꺼진 상태로 돌아왔다. 계정 시스템이 없는 사이트라 로그인 없이도
+// 남는 localStorage에 slug 목록만 담아 둔다.
+const SCRAPPED_PROJECTS_KEY = 'mg-scrapped-projects';
+
+function readScrappedSlugs(): string[] {
+  try {
+    const raw = localStorage.getItem(SCRAPPED_PROJECTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    // 프라이빗 브라우징 등으로 접근이 막힌 경우, 스크랩은 편의 기능이라
+    // 조용히 빈 목록으로 처리하고 페이지 사용 자체는 막지 않는다.
+    return [];
+  }
+}
+
+function writeScrappedSlugs(slugs: string[]) {
+  try {
+    localStorage.setItem(SCRAPPED_PROJECTS_KEY, JSON.stringify(slugs));
+  } catch {
+    /* 위와 같은 이유로 조용히 무시 */
+  }
+}
+
+/* ------------------------------------------------------------------------ */
 /* Main component                                                            */
 /* ------------------------------------------------------------------------ */
 
@@ -568,6 +607,24 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
   const reduceMotion = useReducedMotion();
   const [isSaved, setIsSaved] = useState(false);
   const shareUrlRef = useRef<string>('');
+
+  // 서버에는 이 값이 없으므로 항상 false로 먼저 렌더한 뒤(하이드레이션 불일치 방지),
+  // 마운트 시점에 localStorage를 확인해 실제 스크랩 여부로 맞춘다.
+  useEffect(() => {
+    setIsSaved(readScrappedSlugs().includes(data.slug));
+  }, [data.slug]);
+
+  function toggleSaved() {
+    setIsSaved((prev) => {
+      const next = !prev;
+      const current = readScrappedSlugs();
+      const updated = next
+        ? [...new Set([...current, data.slug])]
+        : current.filter((slug) => slug !== data.slug);
+      writeScrappedSlugs(updated);
+      return next;
+    });
+  }
 
   const tocItems = useMemo(
     () =>
@@ -640,7 +697,8 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                   <span>사진 {meta.credit.photography}</span>
                   <span>글 {meta.credit.editor}</span>
                   <span className="ml-auto">
-                    {meta.publishedAt} · {meta.readingTime}분 소요
+                    <span className="font-mono">{meta.publishedAt}</span> ·{' '}
+                    <span className="font-mono">{meta.readingTime}</span>분 소요
                   </span>
                 </div>
 
@@ -648,7 +706,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                 <div className="mt-5 flex items-center gap-2.5">
                   <button
                     type="button"
-                    onClick={() => setIsSaved((v) => !v)}
+                    onClick={toggleSaved}
                     aria-pressed={isSaved}
                     className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                       isSaved
@@ -713,7 +771,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
       </div>
 
       {/* Mobile 하단 플로팅 액션바 */}
-      <MobileActionBar isSaved={isSaved} onToggleSave={() => setIsSaved((v) => !v)} onShare={handleShare} />
+      <MobileActionBar isSaved={isSaved} onToggleSave={toggleSaved} onShare={handleShare} />
 
       {/* 우측 하단 맨 위로 버튼 (집닥 응용) */}
       <ScrollTopButton />

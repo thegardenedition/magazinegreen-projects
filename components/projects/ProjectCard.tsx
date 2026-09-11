@@ -44,7 +44,7 @@ function PhotoCountBadge({ count }: { count: number }) {
         <circle cx="8.5" cy="10.5" r="1.5" />
         <path d="M20.5 15l-5-4.5-4 3.5-2.5-2L3.5 16" />
       </svg>
-      {count}
+      <span className="font-mono">{count}</span>
     </span>
   );
 }
@@ -180,7 +180,9 @@ export default function ProjectCard({
                   {previewSpecs.map((spec) => (
                     <span key={spec.label} className="flex items-center gap-1.5">
                       <span className="text-[#0B5345]">{MINI_ICON[spec.icon]}</span>
-                      {spec.value}
+                      {/* previewSpecs는 area/duration만 걸러 둔 목록이라 값이 항상 숫자다
+                          (스타일 스펙의 한글 값은 애초에 여기 섞이지 않는다). */}
+                      <span className="font-mono">{spec.value}</span>
                       {spec.unit}
                     </span>
                   ))}
