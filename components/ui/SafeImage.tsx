@@ -16,9 +16,15 @@ import { useState } from 'react';
  *
  * 사진을 실사진으로 갈아끼워도 외부 이미지가 사라지는 일은 또 생기므로,
  * 데이터를 고치는 것과 별개로 이 방어막을 둔다.
+ *
+ * [로딩 스켈레톤] 외부(Unsplash 등) 원본은 로드가 늦게 끝날 때가 있는데, 그 사이엔
+ * 완전한 백지였다. 실패 상태와 같은 중립색(#F3F2EE)을 펄스로 깜빡여 "불러오는 중"임을
+ * 알린다. fill 레이아웃(자체 크기가 없어 겹쳐 그릴 자리가 필요한 경우)에서만 의미가
+ * 있고, 이 저장소의 모든 SafeImage 호출부가 실제로 fill을 쓰고 있다.
  */
-export default function SafeImage({ alt, className = '', onError, ...rest }: ImageProps) {
+export default function SafeImage({ alt, className = '', onError, onLoad, ...rest }: ImageProps) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   if (failed) {
     return (
@@ -48,14 +54,23 @@ export default function SafeImage({ alt, className = '', onError, ...rest }: Ima
   }
 
   return (
-    <Image
-      alt={alt}
-      className={className}
-      onError={(e) => {
-        setFailed(true);
-        onError?.(e);
-      }}
-      {...rest}
-    />
+    <>
+      {rest.fill && !loaded && (
+        <span aria-hidden className={`absolute inset-0 animate-pulse bg-[#F3F2EE] ${className}`} />
+      )}
+      <Image
+        alt={alt}
+        className={`${className} ${rest.fill ? `transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}` : ''}`}
+        onLoad={(e) => {
+          setLoaded(true);
+          onLoad?.(e);
+        }}
+        onError={(e) => {
+          setFailed(true);
+          onError?.(e);
+        }}
+        {...rest}
+      />
+    </>
   );
 }
