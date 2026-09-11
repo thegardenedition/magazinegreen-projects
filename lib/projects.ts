@@ -37,3 +37,21 @@ export function getProjectBySlug(slug: string): ProjectData | undefined {
 export function getAllProjectSlugs(): string[] {
   return ALL_PROJECTS.map((p) => p.slug);
 }
+
+/**
+ * 같은 카테고리(예: 주택정원)를 먼저 채우고, 그래도 자리가 남으면 같은 지역(location
+ * 문자열 완전 일치)까지 넓혀서 관련 프로젝트를 고른다. 발행일 최신순으로 이미 정렬된
+ * getAllProjects()를 그대로 쓴다.
+ */
+export function getRelatedProjects(slug: string, limit = 3): ProjectData[] {
+  const current = getProjectBySlug(slug);
+  if (!current) return [];
+
+  const others = getAllProjects().filter((p) => p.slug !== slug);
+  const sameCategory = others.filter((p) => p.meta.category === current.meta.category);
+  const sameLocationOnly = others.filter(
+    (p) => p.meta.category !== current.meta.category && p.meta.location === current.meta.location,
+  );
+
+  return [...sameCategory, ...sameLocationOnly].slice(0, limit);
+}
