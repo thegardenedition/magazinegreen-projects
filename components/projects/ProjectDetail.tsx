@@ -34,7 +34,8 @@ import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'framer-motion';
 import ImageWithPins, { type Pin } from './ImageWithPins';
-import { getProjectBySlug } from '@/lib/projects';
+import ProjectCard from './ProjectCard';
+import { getProjectBySlug, getRelatedProjects } from '@/lib/projects';
 
 /* ------------------------------------------------------------------------ */
 /* Types — CMS 데이터 스키마                                                  */
@@ -638,6 +639,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
 
   const prevProject = navigation.prev ? getProjectBySlug(navigation.prev.slug) : undefined;
   const nextProject = navigation.next ? getProjectBySlug(navigation.next.slug) : undefined;
+  const relatedProjects = useMemo(() => getRelatedProjects(data.slug, 3), [data.slug]);
 
   useEffect(() => {
     shareUrlRef.current = window.location.href;
@@ -769,6 +771,23 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           <DesktopToc items={tocItems} activeId={activeSectionId} />
         </aside>
       </div>
+
+      {/* [관련 프로젝트] 같은 카테고리(부족하면 같은 지역까지)를 lib/projects.ts의
+          getRelatedProjects가 고른다. 지금 표본이 3건뿐이라 항상 여러 건이 나오진
+          않는데, 그래서 0건이면 섹션 자체를 감춘다 — 빈 "관련 프로젝트" 제목만 떠
+          있는 게 더 어색하다. */}
+      {relatedProjects.length > 0 && (
+        <section className="mx-auto max-w-[1180px] px-5 pb-20 sm:px-8">
+          <h2 className="mb-6 font-semibold tracking-[-0.02em] text-[20px] text-[#1c1c1a] sm:text-[22px]">
+            관련 프로젝트
+          </h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedProjects.map((project, i) => (
+              <ProjectCard key={project.slug} project={project} index={i} size="sm" />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Mobile 하단 플로팅 액션바 */}
       <MobileActionBar isSaved={isSaved} onToggleSave={toggleSaved} onShare={handleShare} />

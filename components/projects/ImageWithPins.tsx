@@ -24,6 +24,11 @@
  * 3) 툴팁 오프스크린 보정: 1차로 핀의 % 좌표를 기준으로 좌/우/상/하 배치를
  * 휴리스틱하게 결정하고, 2차로 실제 렌더링된 툴팁의 DOMRect를 컨테이너
  * 영역과 비교해 필요한 만큼 px 단위로 미세 보정합니다.
+ *
+ * 4) 라이트박스: 사진 자체(핀이 아닌 바탕)를 누르면 원본을 크게 보여준다.
+ * 핀은 사진과 같은 relative 컨테이너 안의 형제 요소로, 사진을 감싼 버튼
+ * 안에는 들어있지 않다 — 그래서 핀 버튼 클릭이 이 버튼까지 버블링되지
+ * 않고, 별도로 stopPropagation을 걸 필요가 없다.
  */
 
 import {
@@ -33,6 +38,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import SafeImage from '@/components/ui/SafeImage';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
@@ -121,7 +127,35 @@ export default function ImageWithPins({
     x: 0,
     y: 0,
   });
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  /* [Portal 필요 이유] 이 사진은 스크롤 리빌 애니메이션을 거는 motion.section
+     안에 있다. Framer Motion은 애니메이션이 끝난 뒤에도 transform 인라인
+     스타일을 남겨 두는데, transform이 none이 아닌 조상은 그 안의
+     position:fixed 자손을 뷰포트가 아니라 자기 자신 기준으로 가둬 버린다
+     (CSS 스펙 동작). 라이트박스를 document.body에 그대로 옮겨(Portal) 그
+     조상 체인 밖으로 빼내야 화면 전체를 정확히 덮는다. 마운트 이전(SSR)에는
+     document가 없으므로 mounted로 한 번 감싼다. */
+  const [mounted, setMounted] = useState(false);
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /* ESC로 닫기 + 열려 있는 동안 배경 스크롤 잠금(표준 라이트박스 동작) */
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightboxOpen(false);
+    }
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [lightboxOpen]);
 
   const activePinId = pinnedId ?? hoveredId;
   const activePin = pins.find((p) => p.id === activePinId) ?? null;
@@ -233,14 +267,21 @@ export default function ImageWithPins({
         className="relative w-full overflow-visible rounded-sm bg-[#F9F9F7]"
         style={{ aspectRatio }}
       >
-        <SafeImage
-          src={src}
-          alt={alt}
-          fill
-          priority={priority}
-          sizes="(min-width: 1024px) 768px, 100vw"
-          className="rounded-sm object-cover"
-        />
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          aria-label={`${alt} 크게 보기`}
+          className="absolute inset-0 h-full w-full cursor-zoom-in"
+        >
+          <SafeImage
+            src={src}
+            alt={alt}
+            fill
+            priority={priority}
+            sizes="(min-width: 1024px) 768px, 100vw"
+            className="rounded-sm object-cover"
+          />
+        </button>
 
         {pins.map((pin) => {
           const { h, v } = getBasePlacement(pin);
@@ -408,6 +449,54 @@ export default function ImageWithPins({
           {caption}
         </figcaption>
       )}
+
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {lightboxOpen && (
+              <motion.div
+                key="lightbox"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${alt} 확대 보기`}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 sm:p-10"
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                onClick={() => setLightboxOpen(false)}
+              >
+                <motion.div
+                  className="relative h-full w-full max-w-5xl"
+                  initial={reduceMotion ? false : { scale: 0.96 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SafeImage src={src} alt={alt} fill sizes="100vw" className="object-contain" />
+                </motion.div>
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(false)}
+                  aria-label="닫기"
+                  className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                  >
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
+        )}
     </figure>
   );
 }
