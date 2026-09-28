@@ -157,13 +157,13 @@ function ReadingProgressBar() {
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 26, mass: 0.3 });
 
-  /* 헤더(Header.tsx, sticky, 모바일 110px·lg 128px)와 같은 z(=40)·같은
-     top:0 자리를 다투면 헤더 위쪽 가장자리를 초록 선이 가로지른다 —
-     헤더 바로 아래로 내려 겹치지 않게 한다. */
+  /* 새 플로팅 내비(Header.tsx, fixed top-3/h-11 모바일 · top-5/h-12 데스크톱, 대표
+     09-28 헤더 재설계) 아래로 여유를 두고 내린다 — 라이브 헤더를 흉내내던 이전
+     버전의 110/128px 기준은 더 이상 해당하지 않는다. */
   return (
     <motion.div
       aria-hidden
-      className="fixed inset-x-0 top-[110px] z-40 h-[3px] origin-left bg-[#0B5345] lg:top-[128px]"
+      className="fixed inset-x-0 top-16 z-40 h-[3px] origin-left bg-[#0B5345] sm:top-20"
       style={{ scaleX: progress }}
     />
   );

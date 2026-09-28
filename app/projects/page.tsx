@@ -12,7 +12,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="bg-white">
-      <header className="mx-auto max-w-[1280px] px-6 pb-10 pt-14 sm:px-10 sm:pb-14 sm:pt-22 lg:px-12">
+      <header className="mx-auto max-w-[1280px] px-6 pb-10 pt-20 sm:px-10 sm:pb-14 sm:pt-24 lg:px-12">
         <h1 className="text-[44px] font-bold leading-[1.05] tracking-[-0.03em] text-[#121212] sm:text-[64px] lg:text-[80px]">
           프로젝트
         </h1>
