@@ -227,13 +227,19 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
             href={`/projects/${p.slug}`}
             className="group relative isolate block aspect-video overflow-hidden bg-brand-green text-white"
           >
-            <SafeImage
-              src={p.meta.thumbnail}
-              alt={p.meta.title}
-              fill
-              sizes="(min-width: 640px) 48vw, 100vw"
-              className="scale-[1.02] object-cover opacity-55 mix-blend-luminosity transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06] group-hover:opacity-70"
-            />
+            {/* opacity/mix-blend은 SafeImage 바깥 래퍼에 둔다 — SafeImage 안쪽 <Image>는
+                로딩 완료 시 스스로 opacity-0→opacity-100 전환 클래스를 붙이는데, 같은
+                엘리먼트에 opacity-55를 같이 얹으면 두 유틸리티가 같은 속성을 다퉈
+                (소스 순서상 나중 것이 이기는) 사진이 아예 안 보이는 것처럼 보일 수 있다. */}
+            <div className="absolute inset-0 opacity-55 mix-blend-luminosity transition-opacity duration-500 group-hover:opacity-70">
+              <SafeImage
+                src={p.meta.thumbnail}
+                alt={p.meta.title}
+                fill
+                sizes="(min-width: 640px) 48vw, 100vw"
+                className="scale-[1.02] object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
+              />
+            </div>
             <div className="absolute inset-0 z-[1] bg-gradient-to-b from-[rgba(11,83,69,0.35)] to-[rgba(11,83,69,0.85)]" />
             <div className="relative z-[2] flex h-full flex-col justify-between p-5 sm:p-7">
               <span className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-85">아카이브에서 고른 프로젝트</span>
