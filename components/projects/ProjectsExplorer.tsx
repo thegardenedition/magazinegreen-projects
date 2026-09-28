@@ -236,6 +236,7 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
                 src={p.meta.thumbnail}
                 alt={p.meta.title}
                 fill
+                priority
                 sizes="(min-width: 640px) 48vw, 100vw"
                 className="scale-[1.02] object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
               />
