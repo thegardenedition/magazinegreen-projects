@@ -59,6 +59,11 @@ export interface ProjectMeta {
   subtitle: string;
   category: string;
   location: string;
+  /** 가든맵 REGION_LIST(시·도 17개) 중 하나. location(자유 텍스트)과 별개로
+   *  필터링 전용 — location의 표기·형식은 그대로 둔다(가든맵 /api/projects 호환). */
+  region: string;
+  /** 목록 상단 "아카이브에서 고른 프로젝트" 2건 고정 노출용. 없으면 최신 2건이 대신 쓰인다. */
+  pick?: boolean;
   heroImage: string;
   thumbnail: string;
   publishedAt: string;
@@ -152,10 +157,13 @@ function ReadingProgressBar() {
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 26, mass: 0.3 });
 
+  /* 헤더(Header.tsx, sticky, 모바일 110px·lg 128px)와 같은 z(=40)·같은
+     top:0 자리를 다투면 헤더 위쪽 가장자리를 초록 선이 가로지른다 —
+     헤더 바로 아래로 내려 겹치지 않게 한다. */
   return (
     <motion.div
       aria-hidden
-      className="fixed inset-x-0 top-0 z-40 h-[3px] origin-left bg-[#0B5345]"
+      className="fixed inset-x-0 top-[110px] z-40 h-[3px] origin-left bg-[#0B5345] lg:top-[128px]"
       style={{ scaleX: progress }}
     />
   );
@@ -185,7 +193,7 @@ function ScrollTopButton() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 12, scale: 0.9 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-24 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0B5345] shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)] ring-1 ring-black/[0.06] transition-transform duration-300 hover:-translate-y-0.5 lg:bottom-10 lg:right-8"
+          className="fixed bottom-24 right-5 z-30 flex h-11 w-11 items-center justify-center border border-black/[0.12] bg-white text-[#0B5345] shadow-[0_12px_30px_-10px_rgba(0,0,0,0.25)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-brand-green hover:text-white lg:bottom-10 lg:right-8"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 19V5M5 12l7-7 7 7" />
@@ -218,14 +226,21 @@ function Breadcrumb({ category, className = 'mb-8' }: { category: string; classN
 // Montserrat를 걷어낸 것과 같은 종류의 문제라, 숫자·기호로만 이뤄진 값에만 건다.
 const NUMERIC_SPEC_VALUE = /^[\d.,\s]+$/;
 
+const CATEGORY_EN: Record<string, string> = {
+  주택정원: 'Residential',
+  옥상정원: 'Rooftop',
+  상업공간: 'Commercial',
+  오픈스페이스: 'Open Space',
+};
+
 function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
   return (
-    <div className="rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05]">
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[calc(1.5rem-0.375rem)] bg-black/[0.06] sm:grid-cols-4">
+    <div className="border border-black/[0.06] bg-black/[0.06]">
+      <div className="grid grid-cols-2 gap-px sm:grid-cols-4">
         {specs.map((spec) => (
           <div
             key={spec.label}
-            className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_16px_40px_-16px_rgba(11,83,69,0.18)]"
+            className="group flex flex-col items-center gap-2 bg-white px-4 py-6 text-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:z-10 hover:shadow-[0_16px_40px_-16px_rgba(11,83,69,0.18)]"
           >
             <span className="text-[#0B5345] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110">
               {SPEC_ICON[spec.icon]}
@@ -330,7 +345,7 @@ function MobileActionBar({
   onShare: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-2xl border-t border-black/[0.06] bg-white/90 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.1)] backdrop-blur-xl lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.06] bg-white/90 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.1)] backdrop-blur-xl lg:hidden">
       <div className="mx-auto flex max-w-[520px] items-center justify-between gap-2 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <button
           type="button"
@@ -397,8 +412,8 @@ function NavPreviewCard({
   const isPrev = direction === 'prev';
 
   const content = (
-    <div className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-black/[0.04] p-1.5 ring-1 ring-black/[0.05] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(11,83,69,0.22)]">
-      <div className="flex h-full flex-col overflow-hidden rounded-[calc(1.5rem-0.375rem)] bg-white">
+    <div className="group flex h-full flex-col overflow-hidden border border-black/[0.08] bg-white transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(11,83,69,0.22)]">
+      <div className="flex h-full flex-col overflow-hidden bg-white">
         {project && (
           <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#F3F2EE]">
             <SafeImage
@@ -421,7 +436,7 @@ function NavPreviewCard({
             }`}
           >
             <span
-              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0B5345]/[0.08] text-[#0B5345] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center bg-[#0B5345]/[0.08] text-[#0B5345] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 isPrev ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'
               }`}
             >
@@ -676,15 +691,15 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
               initial={reduceMotion ? false : { opacity: 0, y: 16 }}
               animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-10 -mt-24 rounded-[1.75rem] bg-black/[0.04] p-1.5 shadow-[0_28px_70px_-32px_rgba(11,83,69,0.28)] ring-1 ring-black/[0.05] sm:-mt-28"
+              className="relative z-10 -mt-24 border border-black/[0.06] bg-white px-6 py-8 shadow-[0_28px_70px_-32px_rgba(11,83,69,0.28)] sm:-mt-28 sm:px-10 sm:py-10"
             >
-              <div className="rounded-[calc(1.75rem-0.375rem)] bg-white px-6 py-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] sm:px-10 sm:py-10">
+              <div>
                 {/* 브레드크럼은 제목 위에 온다. 이전에는 히어로 → 제목 카드 →
                     브레드크럼 → 스펙 순서라, 지금 어디에 있는지 알려주는 줄이
                     정작 제목을 다 읽은 뒤에 나왔다. */}
                 <Breadcrumb category={meta.category} className="mb-5" />
-                <span className="inline-flex items-center rounded-full bg-[#0B5345]/[0.08] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.15em] text-[#0B5345]">
-                  {meta.category}
+                <span className="inline-flex items-center bg-[#0B5345]/[0.08] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0B5345]">
+                  {meta.category} · {CATEGORY_EN[meta.category] ?? meta.category}
                 </span>
                 <span className="ml-2 text-[13px] text-[#8a8a84]">{meta.location}</span>
                 <h1 className="mt-3 text-balance break-keep font-semibold tracking-[-0.02em] text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
@@ -710,10 +725,10 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                     type="button"
                     onClick={toggleSaved}
                     aria-pressed={isSaved}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    className={`inline-flex items-center gap-1.5 border px-4 py-2 text-[13px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                       isSaved
-                        ? 'bg-[#0B5345] text-white'
-                        : 'bg-[#0B5345]/[0.07] text-[#0B5345] hover:bg-[#0B5345]/[0.13]'
+                        ? 'border-[#0B5345] bg-[#0B5345] text-white'
+                        : 'border-[#0B5345]/20 bg-[#0B5345]/[0.07] text-[#0B5345] hover:bg-[#0B5345]/[0.13]'
                     }`}
                   >
                     <svg
@@ -729,7 +744,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                   <button
                     type="button"
                     onClick={handleShare}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] px-4 py-2 text-[13px] font-medium text-[#5a5a55] transition-colors duration-300 hover:bg-black/[0.08]"
+                    className="inline-flex items-center gap-1.5 border border-black/[0.1] bg-black/[0.04] px-4 py-2 text-[13px] font-medium text-[#5a5a55] transition-colors duration-300 hover:bg-black/[0.08]"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
                       <circle cx="18" cy="5" r="2.5" />
@@ -783,7 +798,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           </h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {relatedProjects.map((project, i) => (
-              <ProjectCard key={project.slug} project={project} index={i} size="sm" />
+              <ProjectCard key={project.slug} project={project} index={i} />
             ))}
           </div>
         </section>

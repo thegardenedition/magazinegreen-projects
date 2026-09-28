@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import FloatingNav from '@/components/layout/FloatingNav';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 import './globals.css';
 
 /* MAGAZINE GREEN 서체 시스템
@@ -23,10 +24,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="font-sans antialiased">
-        <div aria-hidden className="noise-overlay pointer-events-none fixed inset-0 z-[60] opacity-[0.035]" />
-        <FloatingNav />
+      <body className="bg-white font-sans antialiased">
+        <Header />
         {children}
+        <Footer />
       </body>
     </html>
   );
