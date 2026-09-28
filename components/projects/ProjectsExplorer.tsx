@@ -261,7 +261,10 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
       </div>
 
       {/* 분류: 유형 · 회사 · 지역 */}
-      <section aria-label="분류" className="sticky top-[110px] z-30 mb-12 border-t border-[#121212] border-b border-[#E4E4E0] bg-white/95 backdrop-blur-md lg:top-[128px]">
+      {/* sticky top 값은 새 플로팅 내비(Header.tsx, fixed top-3/h-11 모바일 · top-5/h-12 데스크톱)
+          아래로 여유를 두고 잡는다 — 라이브 헤더를 흉내내던 이전 버전의 110/128px 기준은
+          더 이상 해당하지 않는다(대표 09-28, 헤더 재설계). */}
+      <section aria-label="분류" className="sticky top-16 z-30 mb-12 border-t border-[#121212] border-b border-[#E4E4E0] bg-white/95 backdrop-blur-md sm:top-20">
         <div ref={barRef} className="hidden sm:grid sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] sm:items-stretch">
           <FilterButton filterKey="type" />
           <FilterButton filterKey="studio" />
