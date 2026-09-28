@@ -28,6 +28,15 @@ export function getAllProjects(): ProjectData[] {
   );
 }
 
+/** "아카이브에서 고른 프로젝트" 2건. meta.pick이 있으면 그걸 우선하고,
+ *  모자라면 최신순으로 채운다. */
+export function getPickedProjects(limit = 2): ProjectData[] {
+  const all = getAllProjects();
+  const picked = all.filter((p) => p.meta.pick);
+  const rest = all.filter((p) => !p.meta.pick);
+  return [...picked, ...rest].slice(0, limit);
+}
+
 /** slug으로 단일 프로젝트 조회. 없으면 undefined. */
 export function getProjectBySlug(slug: string): ProjectData | undefined {
   return ALL_PROJECTS.find((p) => p.slug === slug);
