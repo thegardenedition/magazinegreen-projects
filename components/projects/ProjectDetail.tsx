@@ -36,6 +36,7 @@ import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 
 import ImageWithPins, { type Pin } from './ImageWithPins';
 import ProjectCard from './ProjectCard';
 import { getProjectBySlug, getRelatedProjects } from '@/lib/projects';
+import { buildMapLink } from '@/lib/mapLink';
 
 /* ------------------------------------------------------------------------ */
 /* Types — CMS 데이터 스키마                                                  */
@@ -59,6 +60,9 @@ export interface ProjectMeta {
   subtitle: string;
   category: string;
   location: string;
+  /** 정원 위치 좌표. 둘 다 있을 때만 상세에 「지도에서 보기」가 나온다. */
+  lat?: number;
+  lng?: number;
   /** 가든맵 REGION_LIST(시·도 17개) 중 하나. location(자유 텍스트)과 별개로
    *  필터링 전용 — location의 표기·형식은 그대로 둔다(가든맵 /api/projects 호환). */
   region: string;
@@ -232,6 +236,44 @@ const CATEGORY_EN: Record<string, string> = {
   상업공간: 'Commercial',
   오픈스페이스: 'Open Space',
 };
+
+function LocationBlock({ location, lat, lng }: { location: string; lat: number; lng: number }) {
+  return (
+    <section
+      aria-labelledby="project-location"
+      className="mt-16 flex flex-col gap-5 border border-black/[0.08] bg-white p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-8"
+    >
+      <div className="min-w-0">
+        <p id="project-location" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0B5345]">
+          Location · 위치
+        </p>
+        <p className="mt-2 break-keep font-semibold tracking-[-0.02em] text-[18px] leading-snug text-[#1c1c1a]">
+          {location}
+        </p>
+        <p className="mt-1 break-keep text-[14px] leading-relaxed text-[#5a5a55]">
+          이 정원이 있는 곳을 지도에서 보고, 주변 조경회사도 찾아보세요.
+        </p>
+      </div>
+      <a
+        href={buildMapLink(lat, lng)}
+        className="group inline-flex shrink-0 items-stretch self-start border border-[#0B5345] text-[14px] font-semibold text-[#0B5345] transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-[#0B5345] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B5345] sm:self-auto"
+      >
+        <span className="flex min-h-[46px] items-center px-5">지도에서 보기</span>
+        <span className="grid w-11 place-items-center border-l border-current/40">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+          >
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </span>
+      </a>
+    </section>
+  );
+}
 
 function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
   return (
@@ -773,6 +815,10 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           {contentBlocks.map((block) => (
             <ContentBlockRenderer key={block.id} block={block} onPinNavigate={onPinNavigate} />
           ))}
+
+          {typeof meta.lat === 'number' && typeof meta.lng === 'number' && (
+            <LocationBlock location={meta.location} lat={meta.lat} lng={meta.lng} />
+          )}
 
           {/* 이전/다음 프로젝트 프리뷰 카드 */}
           <nav className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2">
