@@ -61,19 +61,19 @@ export default function Header() {
         hidden ? '-translate-y-[calc(100%+2rem)]' : 'translate-y-0'
       }`}
     >
-      <div className="pointer-events-auto flex max-w-full items-stretch overflow-x-auto border border-[#121212] bg-white shadow-[0_16px_40px_-20px_rgba(11,83,69,0.35)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="pointer-events-auto flex max-w-full items-center overflow-x-auto border border-[#D2D2CC] bg-white shadow-[0_18px_40px_-26px_rgba(11,83,69,0.45)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <a
           href={SITE}
-          className="flex items-center whitespace-nowrap border-r border-[#E4E4E0] px-4 text-[12px] font-bold tracking-[0.01em] text-[#121212] transition-colors duration-300 hover:text-brand-green sm:px-5 sm:text-[13px]"
+          className="flex h-[46px] items-center whitespace-nowrap border-r border-[#E4E4E0] px-3 text-[12px] font-bold tracking-[0.01em] text-[#121212] transition-colors duration-300 hover:text-brand-green sm:pl-4 sm:pr-[18px] sm:text-[13px]"
         >
           MAGAZINE GREEN
         </a>
-        <nav aria-label="매거진 그린 다른 콘텐츠" className="flex items-stretch">
+        <nav aria-label="매거진 그린 다른 콘텐츠" className="flex items-center px-1.5">
           {LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="flex h-11 items-center whitespace-nowrap border-r border-[#E4E4E0] px-3.5 text-[12px] font-medium text-[#6E6E6E] transition-colors duration-300 hover:bg-[#F3F2EE] hover:text-brand-green sm:h-12 sm:px-[18px] sm:text-[13px]"
+              className="flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#6E6E6E] transition-colors duration-300 hover:text-[#121212] sm:px-3 sm:text-[13px]"
             >
               {link.label}
             </a>
@@ -81,7 +81,7 @@ export default function Header() {
           <a
             href="/projects"
             aria-current="page"
-            className="flex h-11 items-center whitespace-nowrap bg-brand-green px-3.5 text-[12px] font-semibold text-white transition-colors duration-300 hover:bg-brand-green-dark sm:h-12 sm:px-[18px] sm:text-[13px]"
+            className="relative flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#121212] after:absolute after:inset-x-[9px] after:bottom-0 after:h-0.5 after:bg-brand-green sm:px-3 sm:text-[13px] sm:after:inset-x-3"
           >
             Projects
           </a>
