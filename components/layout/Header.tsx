@@ -13,12 +13,13 @@
  *
  * 대표 결정(2026-09-29): 상세 페이지처럼 긴 페이지에서 헤더가 계속
  * 떠 있으면 본문을 가린다는 지적 — 스크롤 방향에 따라 숨김/노출한다.
- * 맨 위(80px 이내)에서는 항상 보이고, 아래로 스크롤하면 숨고, 위로
- * 스크롤하면 다시 뜬다. 자잘한 떨림(8px 이하)은 무시해 스크롤 관성
- * 끝에서 깜빡이지 않게 한다.
+ * 맨 위(80px 이내)에서는 항상 보이고, 아래로 스크롤하면 숨는다. 다시 나오는
+ * 규칙은 lib/headerScroll.ts 에 있다 — 읽다가 조금 올린 것만으로는 나오지
+ * 않고, 위로 길게 올릴 때만 나온다.
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { INITIAL_HEADER_STATE, nextHeaderState, type HeaderScrollState } from '@/lib/headerScroll';
 
 const SITE = 'https://www.magazinegreen.co.kr';
 
@@ -27,12 +28,10 @@ const LINKS = [
   { label: '식물도감', href: `${SITE}/plant-guide` },
 ];
 
-const REVEAL_ZONE_PX = 80;
-const DIRECTION_THRESHOLD_PX = 8;
-
 export default function Header() {
   const [hidden, setHidden] = useState(false);
   const lastScrollY = useRef(0);
+  const stateRef = useRef<HeaderScrollState>(INITIAL_HEADER_STATE);
   const ticking = useRef(false);
 
   useEffect(() => {
@@ -43,15 +42,9 @@ export default function Header() {
       ticking.current = true;
       window.requestAnimationFrame(() => {
         const currentY = window.scrollY;
-        const delta = currentY - lastScrollY.current;
-
-        if (currentY < REVEAL_ZONE_PX) {
-          setHidden(false);
-        } else if (delta > DIRECTION_THRESHOLD_PX) {
-          setHidden(true);
-        } else if (delta < -DIRECTION_THRESHOLD_PX) {
-          setHidden(false);
-        }
+        const next = nextHeaderState(stateRef.current, currentY, lastScrollY.current);
+        stateRef.current = next;
+        setHidden(next.hidden);
 
         lastScrollY.current = currentY;
         ticking.current = false;
