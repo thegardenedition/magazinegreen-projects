@@ -37,6 +37,7 @@ import ImageWithPins, { type Pin } from './ImageWithPins';
 import ProjectCard from './ProjectCard';
 import { getProjectBySlug, getRelatedProjects } from '@/lib/projects';
 import { buildMapLink } from '@/lib/mapLink';
+import LeadModal from './LeadModal';
 
 /* ------------------------------------------------------------------------ */
 /* Types — CMS 데이터 스키마                                                  */
@@ -272,6 +273,49 @@ function LocationBlock({ location, lat, lng }: { location: string; lat: number; 
         </span>
       </a>
     </section>
+  );
+}
+
+function LeadEntry({ slug }: { slug: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <section
+        aria-labelledby="project-lead"
+        className="mt-6 flex flex-col gap-5 bg-[#0B5345] p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-8"
+      >
+        <div className="min-w-0">
+          <h2 id="project-lead" className="break-keep font-semibold tracking-[-0.02em] text-[20px] leading-snug sm:text-[22px]">
+            이 분위기의 정원, 상담받기
+          </h2>
+          <p className="mt-2 break-keep text-[14px] leading-relaxed text-white/80">
+            정원 위치와 예산대를 남기면 전문가가 연락드립니다. 상담 신청은 무료입니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          data-mg-lead
+          data-source="project"
+          data-source-ref={slug}
+          onClick={() => setOpen(true)}
+          className="group inline-flex shrink-0 items-stretch self-start border border-white text-[14px] font-semibold transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-white hover:text-[#0B5345] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:self-auto"
+        >
+          <span className="flex min-h-[46px] items-center px-5">무료 견적 상담 신청</span>
+          <span className="grid w-11 place-items-center border-l border-current/40">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </span>
+        </button>
+      </section>
+      {open && <LeadModal slug={slug} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -819,6 +863,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           {typeof meta.lat === 'number' && typeof meta.lng === 'number' && (
             <LocationBlock location={meta.location} lat={meta.lat} lng={meta.lng} />
           )}
+          <LeadEntry slug={data.slug} />
 
           {/* 이전/다음 프로젝트 프리뷰 카드 */}
           <nav className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2">
