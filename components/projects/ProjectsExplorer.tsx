@@ -261,10 +261,12 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
       </div>
 
       {/* 분류: 유형 · 회사 · 지역 */}
-      {/* sticky top 값은 새 플로팅 내비(Header.tsx, fixed top-3/h-11 모바일 · top-5/h-12 데스크톱)
-          아래로 여유를 두고 잡는다 — 라이브 헤더를 흉내내던 이전 버전의 110/128px 기준은
-          더 이상 해당하지 않는다(대표 09-28, 헤더 재설계). */}
-      <section aria-label="분류" className="sticky top-16 z-30 mb-12 border-t border-[#121212] border-b border-[#E4E4E0] bg-white/95 backdrop-blur-md sm:top-20">
+      {/* 분류 막대는 따라다니지 않는다(대표 10-11 지적). 예전에는 메뉴박스가 항상 떠 있다는 전제로
+          sticky top-16/20 이었는데, 메뉴박스가 스크롤하면 숨도록 바뀐 뒤부터 막대만 64~80px 아래 허공에 남아
+          카드 사진 위를 떠다녔다. 지금은 프로젝트가 3건뿐이라 따라다닐 이유가 없다. 목록이 12건을 넘어 필터를
+          자주 쓰게 되면 메뉴박스처럼 「내리면 숨고 올리면 나오는」 방식으로 다시 고정한다. 드롭다운이 카드 위로
+          뜨도록 relative z-30 은 남긴다. */}
+      <section aria-label="분류" className="relative z-30 mb-12 border-t border-[#121212] border-b border-[#E4E4E0] bg-white">
         <div ref={barRef} className="hidden sm:grid sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] sm:items-stretch">
           <FilterButton filterKey="type" />
           <FilterButton filterKey="studio" />
