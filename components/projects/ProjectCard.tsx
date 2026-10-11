@@ -26,8 +26,8 @@ export default function ProjectCard({
   return (
     <motion.div
       layout={reduceMotion ? false : 'position'}
-      initial={reduceMotion ? false : { opacity: 0, y: 24, filter: 'blur(4px)' }}
-      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+      initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
       viewport={{ once: true, margin: '-80px' }}
       transition={

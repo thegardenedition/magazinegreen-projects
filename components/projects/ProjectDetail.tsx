@@ -32,7 +32,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import ImageWithPins, { type Pin } from './ImageWithPins';
 import ProjectCard from './ProjectCard';
 import { getProjectBySlug, getRelatedProjects } from '@/lib/projects';
@@ -157,22 +157,6 @@ const SPEC_ICON: Record<ProjectSpec['icon'], ReactElement> = {
     </svg>
   ),
 };
-
-function ReadingProgressBar() {
-  const { scrollYProgress } = useScroll();
-  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 26, mass: 0.3 });
-
-  /* 새 플로팅 내비(Header.tsx, fixed top-3/h-11 모바일 · top-5/h-12 데스크톱, 대표
-     09-28 헤더 재설계) 아래로 여유를 두고 내린다 — 라이브 헤더를 흉내내던 이전
-     버전의 110/128px 기준은 더 이상 해당하지 않는다. */
-  return (
-    <motion.div
-      aria-hidden
-      className="fixed inset-x-0 top-16 z-40 h-[3px] origin-left bg-[#0B5345] sm:top-20"
-      style={{ scaleX: progress }}
-    />
-  );
-}
 
 /** 집닥 시공사례 상세의 우측 하단 "맨 위로" 버튼을 딥그린 톤으로 응용 */
 function ScrollTopButton() {
@@ -549,8 +533,8 @@ function NavPreviewCard({
 /* ------------------------------------------------------------------------ */
 
 const revealTransition = { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const };
-const revealInitial = { opacity: 0, y: 24, filter: 'blur(4px)' };
-const revealAnimate = { opacity: 1, y: 0, filter: 'blur(0px)' };
+const revealInitial = { opacity: 0, y: 24 };
+const revealAnimate = { opacity: 1, y: 0 };
 
 function ContentBlockRenderer({
   block,
@@ -762,7 +746,6 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
 
   return (
     <div className="bg-white pb-24 lg:pb-0">
-      <ReadingProgressBar />
 
       {/* Hero */}
       <header className="relative">
