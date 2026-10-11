@@ -533,8 +533,8 @@ function NavPreviewCard({
 /* ------------------------------------------------------------------------ */
 
 const revealTransition = { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const };
-const revealInitial = { opacity: 0, y: 24, filter: 'blur(4px)' };
-const revealAnimate = { opacity: 1, y: 0, filter: 'blur(0px)' };
+const revealInitial = { opacity: 0, y: 24 };
+const revealAnimate = { opacity: 1, y: 0 };
 
 function ContentBlockRenderer({
   block,
