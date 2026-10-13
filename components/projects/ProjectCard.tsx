@@ -17,10 +17,12 @@ import { showToast } from '@/components/ui/Toast';
  * 카드. 랜드진 Projects 참고 시안(2026-09-28)을 그대로 이식 — 라디우스 0,
  * 사진 → 태그 줄(위치—유형—연도) → 제목 → 회사명 순.
  *
- * 2026-10-12 랜딩 업그레이드 1단계: 사진 아래쪽에 「지도에서 보기 · 저장」 막대를 올렸다.
- * 마우스가 있는 기기에서는 카드에 올렸을 때(또는 키보드로 들어왔을 때) 아래서 올라오고,
- * 터치 기기에서는 호버가 없으므로 항상 보인다. 막대는 링크 바깥에 둔다(링크 안에
- * 버튼·링크를 넣으면 안 되기 때문).
+ * 2026-10-12 랜딩 업그레이드 1단계: 「지도에서 보기 · 저장」 행동을 붙였다. 행동 요소는 링크 바깥에
+ * 둔다(링크 안에 버튼·링크를 넣으면 안 되기 때문).
+ * - 마우스가 있는 기기(호버+정밀 포인터): 카드에 올렸을 때(또는 키보드로 들어왔을 때) 사진 아래서
+ *   올라오는 「지도에서 보기 · 저장」 막대.
+ * - 터치 기기: 사진을 가리는 고정 막대는 두지 않는다(디자인 검토 10-13). 저장 하트는 사진 오른쪽 위
+ *   44px 각진 흰 칸, 「지도에서 보기」는 사진 아래 위치 줄 오른쪽의 텍스트 링크(터치 높이 44px).
  */
 
 function MapPinIcon() {
@@ -96,7 +98,7 @@ export default function ProjectCard({
             </span>
           )}
         </div>
-        <div className="mt-4 text-[14px] leading-relaxed text-brand-green">
+        <div className={`mt-4 text-[14px] leading-relaxed text-brand-green ${hasCoords ? 'pr-[104px] [@media(hover:hover)_and_(pointer:fine)]:pr-0' : ''}`}>
           {project.meta.location}
           <span className="px-1.5 text-[#ABABAB]">&mdash;</span>
           {project.meta.category}
@@ -113,7 +115,7 @@ export default function ProjectCard({
 
       {/* 행동 막대: 사진 영역(4:3)과 같은 크기의 투명 덮개 안에서만 클릭을 받는다. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 aspect-[4/3] overflow-hidden">
-        <div className="pointer-events-auto absolute inset-x-0 bottom-0 flex bg-white/[0.97] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-focus-within:translate-y-0 group-hover:translate-y-0 [@media(hover:hover)_and_(pointer:fine)]:translate-y-[101%]">
+        <div className="pointer-events-auto absolute inset-x-0 bottom-0 hidden bg-white/[0.97] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-focus-within:translate-y-0 group-hover:translate-y-0 [@media(hover:hover)_and_(pointer:fine)]:flex [@media(hover:hover)_and_(pointer:fine)]:translate-y-[101%]">
           {hasCoords && (
             <a href={buildMapLink(lat, lng, 'list')} className={actionBase} aria-label={`${project.meta.title} 지도에서 보기`}>
               <MapPinIcon />
@@ -133,6 +135,31 @@ export default function ProjectCard({
             {saved ? '저장됨' : '저장'}
           </button>
         </div>
+      </div>
+
+      {/* 터치 기기 전용: 하트(사진 오른쪽 위)와 「지도에서 보기」(사진 아래 위치 줄 오른쪽). 호버 있는 PC 에서는 숨김. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 aspect-[4/3] [@media(hover:hover)_and_(pointer:fine)]:hidden">
+        <button
+          type="button"
+          onClick={onSave}
+          aria-pressed={saved}
+          aria-label={saved ? `${project.meta.title} 저장 취소` : `${project.meta.title} 저장`}
+          className={`pointer-events-auto absolute right-0 top-0 flex h-11 w-11 items-center justify-center bg-white transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green ${saved ? 'text-brand-green' : 'text-[#121212]'}`}
+        >
+          <span className={popping ? 'animate-heart-pop' : ''} onAnimationEnd={() => setPopping(false)}>
+            <HeartIcon filled={saved} />
+          </span>
+        </button>
+        {hasCoords && (
+          <a
+            href={buildMapLink(lat, lng, 'list')}
+            aria-label={`${project.meta.title} 지도에서 보기`}
+            className="pointer-events-auto absolute right-0 top-full mt-[5px] flex h-11 items-center gap-1 text-[13px] font-semibold text-brand-green underline decoration-brand-green/30 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green"
+          >
+            <MapPinIcon />
+            지도에서 보기
+          </a>
+        )}
       </div>
     </motion.div>
   );
