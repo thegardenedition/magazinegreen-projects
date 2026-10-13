@@ -102,14 +102,21 @@ export default function ProjectCard({
           {project.meta.location}
           <span className="px-1.5 text-[#ABABAB]">&mdash;</span>
           {project.meta.category}
-          <span className="px-1.5 text-[#ABABAB]">&mdash;</span>
-          {year}
+          {/* 연도: PC 는 위치 줄 끝, 터치는 좁은 폭에서 줄 끝에 구분선만 남지 않도록 아래 「by …」 줄로 옮긴다 */}
+          <span className="hidden [@media(hover:hover)_and_(pointer:fine)]:inline">
+            <span className="px-1.5 text-[#ABABAB]">&mdash;</span>
+            {year}
+          </span>
         </div>
         <h3 className="mt-1.5 break-keep text-[19px] font-semibold leading-[1.35] tracking-[-0.015em] text-[#1c1c1a] transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:text-brand-green lg:text-[21px]">
           {project.meta.title}
         </h3>
         <div className="mt-1.5 text-[14px] text-[#787878]">
           by <b className="font-medium text-[#6E6E6E]">{project.meta.credit.design}</b>
+          <span className="[@media(hover:hover)_and_(pointer:fine)]:hidden">
+            <span className="px-1.5 text-[#ABABAB]">&middot;</span>
+            {year}
+          </span>
         </div>
       </Link>
 
@@ -144,7 +151,7 @@ export default function ProjectCard({
           onClick={onSave}
           aria-pressed={saved}
           aria-label={saved ? `${project.meta.title} 저장 취소` : `${project.meta.title} 저장`}
-          className={`pointer-events-auto absolute right-0 top-0 flex h-11 w-11 items-center justify-center bg-white transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green ${saved ? 'text-brand-green' : 'text-[#121212]'}`}
+          className={`pointer-events-auto absolute right-0 top-0 flex h-11 w-11 items-center justify-center border border-[rgba(18,18,18,0.14)] bg-white transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green ${saved ? 'text-brand-green' : 'text-[#121212]'}`}
         >
           <span className={popping ? 'animate-heart-pop' : ''} onAnimationEnd={() => setPopping(false)}>
             <HeartIcon filled={saved} />
