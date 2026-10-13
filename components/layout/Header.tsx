@@ -57,6 +57,11 @@ export default function Header() {
 
   return (
     <header
+      onFocusCapture={() => {
+        // 키보드 Tab 으로 숨은 헤더에 포커스가 들어오면 보이게 한다(안 보이는 링크에 포커스가 머물지 않게)
+        stateRef.current = INITIAL_HEADER_STATE;
+        setHidden(false);
+      }}
       className={`pointer-events-none fixed inset-x-0 top-3 z-50 flex justify-center px-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none sm:top-5 sm:px-4 ${
         hidden ? '-translate-y-[calc(100%+2rem)]' : 'translate-y-0'
       }`}
@@ -64,7 +69,7 @@ export default function Header() {
       <div className="pointer-events-auto flex max-w-full items-center overflow-x-auto border border-[#D2D2CC] bg-white shadow-[0_18px_40px_-26px_rgba(11,83,69,0.45)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <a
           href={SITE}
-          className="flex h-[46px] items-center whitespace-nowrap border-r border-[#E4E4E0] px-3 text-[12px] font-bold tracking-[0.01em] text-[#121212] transition-colors duration-300 hover:text-brand-green sm:pl-4 sm:pr-[18px] sm:text-[13px]"
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green flex h-[46px] items-center whitespace-nowrap border-r border-[#E4E4E0] px-3 text-[12px] font-bold tracking-[0.01em] text-[#121212] transition-colors duration-300 hover:text-brand-green sm:pl-4 sm:pr-[18px] sm:text-[13px]"
         >
           MAGAZINE GREEN
         </a>
@@ -73,7 +78,7 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#6E6E6E] transition-colors duration-300 hover:text-[#121212] sm:px-3 sm:text-[13px]"
+              className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#6E6E6E] transition-colors duration-300 hover:text-[#121212] sm:px-3 sm:text-[13px]"
             >
               {link.label}
             </a>
@@ -81,7 +86,7 @@ export default function Header() {
           <a
             href="/projects"
             aria-current="page"
-            className="relative flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#121212] after:absolute after:inset-x-[9px] after:bottom-0 after:h-0.5 after:bg-brand-green sm:px-3 sm:text-[13px] sm:after:inset-x-3"
+            className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green relative flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#121212] after:absolute after:inset-x-[9px] after:bottom-0 after:h-0.5 after:bg-brand-green sm:px-3 sm:text-[13px] sm:after:inset-x-3"
           >
             Projects
           </a>
