@@ -13,12 +13,13 @@
  *
  * 대표 결정(2026-09-29): 상세 페이지처럼 긴 페이지에서 헤더가 계속
  * 떠 있으면 본문을 가린다는 지적 — 스크롤 방향에 따라 숨김/노출한다.
- * 맨 위(80px 이내)에서는 항상 보이고, 아래로 스크롤하면 숨고, 위로
- * 스크롤하면 다시 뜬다. 자잘한 떨림(8px 이하)은 무시해 스크롤 관성
- * 끝에서 깜빡이지 않게 한다.
+ * 맨 위(80px 이내)에서는 항상 보이고, 아래로 스크롤하면 숨는다. 다시 나오는
+ * 규칙은 lib/headerScroll.ts 에 있다 — 읽다가 조금 올린 것만으로는 나오지
+ * 않고, 위로 길게 올릴 때만 나온다.
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { INITIAL_HEADER_STATE, nextHeaderState, type HeaderScrollState } from '@/lib/headerScroll';
 
 const SITE = 'https://www.magazinegreen.co.kr';
 
@@ -27,12 +28,10 @@ const LINKS = [
   { label: '식물도감', href: `${SITE}/plant-guide` },
 ];
 
-const REVEAL_ZONE_PX = 80;
-const DIRECTION_THRESHOLD_PX = 8;
-
 export default function Header() {
   const [hidden, setHidden] = useState(false);
   const lastScrollY = useRef(0);
+  const stateRef = useRef<HeaderScrollState>(INITIAL_HEADER_STATE);
   const ticking = useRef(false);
 
   useEffect(() => {
@@ -43,15 +42,9 @@ export default function Header() {
       ticking.current = true;
       window.requestAnimationFrame(() => {
         const currentY = window.scrollY;
-        const delta = currentY - lastScrollY.current;
-
-        if (currentY < REVEAL_ZONE_PX) {
-          setHidden(false);
-        } else if (delta > DIRECTION_THRESHOLD_PX) {
-          setHidden(true);
-        } else if (delta < -DIRECTION_THRESHOLD_PX) {
-          setHidden(false);
-        }
+        const next = nextHeaderState(stateRef.current, currentY, lastScrollY.current);
+        stateRef.current = next;
+        setHidden(next.hidden);
 
         lastScrollY.current = currentY;
         ticking.current = false;
@@ -64,23 +57,28 @@ export default function Header() {
 
   return (
     <header
+      onFocusCapture={() => {
+        // 키보드 Tab 으로 숨은 헤더에 포커스가 들어오면 보이게 한다(안 보이는 링크에 포커스가 머물지 않게)
+        stateRef.current = INITIAL_HEADER_STATE;
+        setHidden(false);
+      }}
       className={`pointer-events-none fixed inset-x-0 top-3 z-50 flex justify-center px-3 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none sm:top-5 sm:px-4 ${
         hidden ? '-translate-y-[calc(100%+2rem)]' : 'translate-y-0'
       }`}
     >
-      <div className="pointer-events-auto flex max-w-full items-stretch overflow-x-auto border border-[#121212] bg-white shadow-[0_16px_40px_-20px_rgba(11,83,69,0.35)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="pointer-events-auto flex max-w-full items-center overflow-x-auto border border-[#D2D2CC] bg-white shadow-[0_18px_40px_-26px_rgba(11,83,69,0.45)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <a
           href={SITE}
-          className="flex items-center whitespace-nowrap border-r border-[#E4E4E0] px-4 text-[12px] font-bold tracking-[0.01em] text-[#121212] transition-colors duration-300 hover:text-brand-green sm:px-5 sm:text-[13px]"
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green flex h-[46px] items-center whitespace-nowrap border-r border-[#E4E4E0] px-3 text-[12px] font-bold tracking-[0.01em] text-[#121212] transition-colors duration-300 hover:text-brand-green sm:pl-4 sm:pr-[18px] sm:text-[13px]"
         >
           MAGAZINE GREEN
         </a>
-        <nav aria-label="매거진 그린 다른 콘텐츠" className="flex items-stretch">
+        <nav aria-label="매거진 그린 다른 콘텐츠" className="flex items-center px-1.5">
           {LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="flex h-11 items-center whitespace-nowrap border-r border-[#E4E4E0] px-3.5 text-[12px] font-medium text-[#6E6E6E] transition-colors duration-300 hover:bg-[#F3F2EE] hover:text-brand-green sm:h-12 sm:px-[18px] sm:text-[13px]"
+              className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#6E6E6E] transition-colors duration-300 hover:text-[#121212] sm:px-3 sm:text-[13px]"
             >
               {link.label}
             </a>
@@ -88,7 +86,7 @@ export default function Header() {
           <a
             href="/projects"
             aria-current="page"
-            className="flex h-11 items-center whitespace-nowrap bg-brand-green px-3.5 text-[12px] font-semibold text-white transition-colors duration-300 hover:bg-brand-green-dark sm:h-12 sm:px-[18px] sm:text-[13px]"
+            className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-green relative flex h-[46px] items-center whitespace-nowrap px-[9px] text-[12px] font-medium text-[#121212] after:absolute after:inset-x-[9px] after:bottom-0 after:h-0.5 after:bg-brand-green sm:px-3 sm:text-[13px] sm:after:inset-x-3"
           >
             Projects
           </a>
