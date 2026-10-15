@@ -32,11 +32,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import ImageWithPins, { type Pin } from './ImageWithPins';
 import ProjectCard from './ProjectCard';
 import { getProjectBySlug, getRelatedProjects } from '@/lib/projects';
 import { buildMapLink } from '@/lib/mapLink';
+import { openSavedView, toggleScrap, useScrapped } from '@/lib/scraps';
+import { showToast } from '@/components/ui/Toast';
 import LeadModal from './LeadModal';
 
 /* ------------------------------------------------------------------------ */
@@ -431,7 +434,7 @@ function MobileActionBar({
           >
             <path d="M12 20.5s-7.5-4.6-7.5-10.2a4.6 4.6 0 0 1 7.5-3.6 4.6 4.6 0 0 1 7.5 3.6c0 5.6-7.5 10.2-7.5 10.2Z" />
           </svg>
-          {isSaved ? '스크랩됨' : '스크랩'}
+          {isSaved ? '저장됨' : '저장'}
         </button>
 
         <span className="h-6 w-px bg-black/[0.06]" />
@@ -655,34 +658,7 @@ function ContentBlockRenderer({
   }
 }
 
-/* ------------------------------------------------------------------------ */
-/* 스크랩 — localStorage 저장                                                 */
-/* ------------------------------------------------------------------------ */
-
-// 스크랩 버튼은 있었지만 useState(false) 하나뿐이라 페이지를 벗어나면(뒤로가기,
-// 새로고침) 항상 꺼진 상태로 돌아왔다. 계정 시스템이 없는 사이트라 로그인 없이도
-// 남는 localStorage에 slug 목록만 담아 둔다.
-const SCRAPPED_PROJECTS_KEY = 'mg-scrapped-projects';
-
-function readScrappedSlugs(): string[] {
-  try {
-    const raw = localStorage.getItem(SCRAPPED_PROJECTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    // 프라이빗 브라우징 등으로 접근이 막힌 경우, 스크랩은 편의 기능이라
-    // 조용히 빈 목록으로 처리하고 페이지 사용 자체는 막지 않는다.
-    return [];
-  }
-}
-
-function writeScrappedSlugs(slugs: string[]) {
-  try {
-    localStorage.setItem(SCRAPPED_PROJECTS_KEY, JSON.stringify(slugs));
-  } catch {
-    /* 위와 같은 이유로 조용히 무시 */
-  }
-}
+/* 저장(스크랩)은 목록 카드와 같은 값을 쓰도록 lib/scraps.ts 로 옮겼다(2026-10-12). */
 
 /* ------------------------------------------------------------------------ */
 /* Main component                                                            */
@@ -691,25 +667,20 @@ function writeScrappedSlugs(slugs: string[]) {
 export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProps) {
   const { meta, navigation, contentBlocks } = data;
   const reduceMotion = useReducedMotion();
-  const [isSaved, setIsSaved] = useState(false);
+  const router = useRouter();
   const shareUrlRef = useRef<string>('');
 
-  // 서버에는 이 값이 없으므로 항상 false로 먼저 렌더한 뒤(하이드레이션 불일치 방지),
-  // 마운트 시점에 localStorage를 확인해 실제 스크랩 여부로 맞춘다.
-  useEffect(() => {
-    setIsSaved(readScrappedSlugs().includes(data.slug));
-  }, [data.slug]);
+  // 서버 렌더에서는 항상 false 로 시작하고(하이드레이션 불일치 방지), 화면이 뜬 뒤 실제 저장 여부로 맞춰진다.
+  const { has } = useScrapped();
+  const isSaved = has(data.slug);
 
   function toggleSaved() {
-    setIsSaved((prev) => {
-      const next = !prev;
-      const current = readScrappedSlugs();
-      const updated = next
-        ? [...new Set([...current, data.slug])]
-        : current.filter((slug) => slug !== data.slug);
-      writeScrappedSlugs(updated);
-      return next;
-    });
+    const on = toggleScrap(data.slug);
+    if (on) {
+      showToast('저장했어요', { label: '저장한 프로젝트 보기', onClick: () => openSavedView((url) => router.push(url)) });
+    } else {
+      showToast('저장을 취소했어요');
+    }
   }
 
   const tocItems = useMemo(
@@ -738,9 +709,14 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
       } catch {
         /* 사용자가 공유를 취소한 경우 조용히 무시 */
       }
-    } else {
+      return;
+    }
+    // 예전에는 alert() 창으로 알렸다. 복사가 막힌 환경(보안 연결이 아니거나 권한 거부)도 알려 준다.
+    try {
       await navigator.clipboard.writeText(shareUrlRef.current);
-      alert('링크가 복사되었습니다.');
+      showToast('링크를 복사했어요');
+    } catch {
+      showToast('링크를 복사하지 못했어요. 주소창의 주소를 복사해 주세요.');
     }
   }
 
@@ -808,7 +784,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                     >
                       <path d="M12 20.5s-7.5-4.6-7.5-10.2a4.6 4.6 0 0 1 7.5-3.6 4.6 4.6 0 0 1 7.5 3.6c0 5.6-7.5 10.2-7.5 10.2Z" />
                     </svg>
-                    {isSaved ? '스크랩됨' : '스크랩'}
+                    {isSaved ? '저장됨' : '저장'}
                   </button>
                   <button
                     type="button"
