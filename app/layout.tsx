@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ToastHost from '@/components/ui/Toast';
+import { ARCHIVE_PUBLIC } from '@/lib/exposure';
 import './globals.css';
 
 /* MAGAZINE GREEN 서체 시스템
@@ -20,6 +21,10 @@ export const metadata: Metadata = {
   },
   description: '매거진그린이 기록한 정원 프로젝트 아카이브.',
   metadataBase: new URL('https://projects.magazinegreen.co.kr'),
+  // 비공개 단계: 모든 페이지에 robots 메타(noindex, nofollow 외 보관·미리보기·이미지 색인 금지). 공개 때 ARCHIVE_PUBLIC=on.
+  robots: ARCHIVE_PUBLIC
+    ? undefined
+    : { index: false, follow: false, noarchive: true, nosnippet: true, noimageindex: true, nocache: true },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
