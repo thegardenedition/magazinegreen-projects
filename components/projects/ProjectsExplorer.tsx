@@ -6,6 +6,7 @@ import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
 import type { ProjectData } from './ProjectDetail';
 import ProjectCard from './ProjectCard';
+import { SHOW_SAVED_EVENT, useScrapped } from '@/lib/scraps';
 
 /**
  * ProjectsExplorer.tsx
@@ -13,7 +14,13 @@ import ProjectCard from './ProjectCard';
  * /projects 목록의 실제 기능 레이어 — 랜드진 Projects 참고 시안(2026-09-28,
  * 정본: projects-archive-mockup-2026-09-28.html)을 이식. 유형·회사·지역
  * 3축 드롭다운(패싯 카운트 포함) + 아카이브 큐레이션 2건 + 라디우스 0 격자.
- * 데스크톱은 헤더 아래 sticky 도구막대, 640px 미만은 「필터」 막대 + 바텀시트.
+ * 640px 미만은 「필터」 막대 + 바텀시트.
+ *
+ * 2026-10-12 랜딩 업그레이드 1단계:
+ *  - 고른 분류와 「저장한 것만 보기」를 주소(?type=&studio=&region=&saved=1)에 남긴다. 상세에서
+ *    뒤로 와도 그대로 복원되고, 주소를 보내면 같은 목록이 열린다. 필터를 바꿀 때마다 기록이
+ *    쌓이지 않도록 replaceState 만 쓴다.
+ *  - 분류 줄에 「저장 N」 버튼을 두어 저장한 프로젝트만 모아 본다.
  */
 
 type FilterKey = 'type' | 'studio' | 'region';
@@ -51,6 +58,27 @@ function CaretIcon({ className = 'h-[18px] w-[18px]' }: { className?: string }) 
   );
 }
 
+function SavedToggle({ active, count, onToggle }: { active: boolean; count: number; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`inline-flex h-10 items-center gap-2 border px-3 text-[14px] font-semibold transition-colors duration-300 ${
+        active
+          ? 'border-brand-green bg-brand-green text-white'
+          : 'border-[#E4E4E0] text-[#6E6E6E] hover:border-[#121212] hover:text-[#121212]'
+      }`}
+    >
+      <svg viewBox="0 0 24 24" className={`h-4 w-4 ${active ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M12 20.5s-7.5-4.6-7.5-10.2a4.6 4.6 0 0 1 7.5-3.6 4.6 4.6 0 0 1 7.5 3.6c0 5.6-7.5 10.2-7.5 10.2Z" />
+      </svg>
+      저장
+      <span className="tabular-nums">{count}</span>
+    </button>
+  );
+}
+
 export default function ProjectsExplorer({ projects }: { projects: ProjectData[] }) {
   const typeOptions = useMemo(() => {
     const extra = Array.from(new Set(projects.map((p) => p.meta.category))).filter(
@@ -72,6 +100,11 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
   const [sheetOpen, setSheetOpen] = useState(false);
   const [shown, setShown] = useState(PAGE_SIZE);
   const barRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [savedOnly, setSavedOnly] = useState(false);
+  // 주소에서 분류를 읽기 전에는 주소를 쓰지 않는다(읽기 전에 쓰면 주소의 분류가 지워진다).
+  const [urlReady, setUrlReady] = useState(false);
+  const { slugs: scrapSlugs } = useScrapped();
 
   const picks = useMemo(() => {
     const picked = projects.filter((p) => p.meta.pick);
@@ -79,12 +112,64 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
     return [...picked, ...rest].slice(0, 2);
   }, [projects]);
 
-  const filtered = useMemo(() => projects.filter((p) => matches(p, filters)), [projects, filters]);
+  // 저장한 것만 보기일 때의 범위. 분류 숫자도 이 범위 안에서 센다.
+  const scoped = useMemo(
+    () => (savedOnly ? projects.filter((p) => scrapSlugs.includes(p.slug)) : projects),
+    [projects, savedOnly, scrapSlugs],
+  );
+  const savedCount = useMemo(
+    () => projects.filter((p) => scrapSlugs.includes(p.slug)).length,
+    [projects, scrapSlugs],
+  );
+  const filtered = useMemo(() => scoped.filter((p) => matches(p, filters)), [scoped, filters]);
   const activeFilters = (Object.entries(filters) as [FilterKey, string | null][]).filter(([, v]) => v);
 
   useEffect(() => {
     setShown(PAGE_SIZE);
-  }, [filters]);
+  }, [filters, savedOnly]);
+
+  // 주소 → 분류. 목록에 없는 값은 무시한다.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const pick = (name: string, allowed: string[]) => {
+      const v = q.get(name);
+      return v && allowed.includes(v) ? v : null;
+    };
+    setFilters({
+      type: pick('type', typeOptions),
+      studio: pick('studio', studioOptions),
+      region: pick('region', REGIONS),
+    });
+    setSavedOnly(q.get('saved') === '1');
+    setUrlReady(true);
+  }, [typeOptions, studioOptions]);
+
+  // 분류 → 주소. 다른 값(utm 등)은 그대로 둔다. history.state 를 그대로 넘겨야 Next 의 뒤로 가기가 깨지지 않는다.
+  useEffect(() => {
+    if (!urlReady) return;
+    const q = new URLSearchParams(window.location.search);
+    (Object.keys(filters) as FilterKey[]).forEach((k) => {
+      const v = filters[k];
+      if (v) q.set(k, v);
+      else q.delete(k);
+    });
+    if (savedOnly) q.set('saved', '1');
+    else q.delete('saved');
+    const qs = q.toString();
+    const next = window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash;
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (next !== current) window.history.replaceState(window.history.state, '', next);
+  }, [filters, savedOnly, urlReady]);
+
+  // 카드·상세의 알림에서 「저장한 프로젝트 보기」를 눌렀을 때
+  useEffect(() => {
+    const onShowSaved = () => {
+      setSavedOnly(true);
+      sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    };
+    window.addEventListener(SHOW_SAVED_EVENT, onShowSaved);
+    return () => window.removeEventListener(SHOW_SAVED_EVENT, onShowSaved);
+  }, []);
 
   useEffect(() => {
     if (!openDropdown) return;
@@ -113,13 +198,14 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
 
   function reset() {
     setFilters({ type: null, studio: null, region: null });
+    setSavedOnly(false);
     setStudioQuery('');
   }
 
   function OptionList({ filterKey }: { filterKey: FilterKey }) {
     const options = optionsFor(filterKey);
     const visible = filterKey === 'studio' && studioQuery ? options.filter((v) => v.includes(studioQuery)) : options;
-    const totalForAll = projects.filter((p) => matches(p, filters, filterKey)).length;
+    const totalForAll = scoped.filter((p) => matches(p, filters, filterKey)).length;
     const list = (
       <>
         <button
@@ -137,7 +223,7 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
         ) : (
           <div className={filterKey === 'region' ? 'grid grid-cols-2' : ''}>
             {visible.map((value) => {
-              const count = projects.filter((p) => matches(p, filters, filterKey) && accessor(filterKey, p) === value).length;
+              const count = scoped.filter((p) => matches(p, filters, filterKey) && accessor(filterKey, p) === value).length;
               const selected = filters[filterKey] === value;
               return (
                 <button
@@ -220,7 +306,7 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
   return (
     <>
       {/* 아카이브에서 고른 프로젝트 */}
-      <div className="mb-14 grid gap-4 sm:grid-cols-2 sm:gap-6">
+      <div className={`mb-14 grid gap-4 sm:grid-cols-2 sm:gap-6 ${savedOnly ? 'hidden' : ''}`}>
         {picks.map((p) => (
           <Link
             key={p.slug}
@@ -266,12 +352,13 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
           카드 사진 위를 떠다녔다. 지금은 프로젝트가 3건뿐이라 따라다닐 이유가 없다. 목록이 12건을 넘어 필터를
           자주 쓰게 되면 메뉴박스처럼 「내리면 숨고 올리면 나오는」 방식으로 다시 고정한다. 드롭다운이 카드 위로
           뜨도록 relative z-30 은 남긴다. */}
-      <section aria-label="분류" className="relative z-30 mb-12 border-t border-[#121212] border-b border-[#E4E4E0] bg-white">
+      <section ref={sectionRef} aria-label="분류" className="relative z-30 mb-12 scroll-mt-24 border-t border-[#121212] border-b border-[#E4E4E0] bg-white">
         <div ref={barRef} className="hidden sm:grid sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] sm:items-stretch">
           <FilterButton filterKey="type" />
           <FilterButton filterKey="studio" />
           <FilterButton filterKey="region" />
           <div className="flex items-center gap-4 whitespace-nowrap py-0 pl-6 text-[14px] text-[#6E6E6E]">
+            <SavedToggle active={savedOnly} count={savedCount} onToggle={() => setSavedOnly((v) => !v)} />
             <span>
               <b className="font-semibold tabular-nums text-[#121212]">{filtered.length}</b>건
             </span>
@@ -316,9 +403,12 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
               </span>
             )}
           </button>
-          <span className="text-[14px] text-[#6E6E6E]">
-            <b className="font-semibold tabular-nums text-[#121212]">{filtered.length}</b>건
-          </span>
+          <div className="flex items-center gap-3 text-[14px] text-[#6E6E6E]">
+            <SavedToggle active={savedOnly} count={savedCount} onToggle={() => setSavedOnly((v) => !v)} />
+            <span>
+              <b className="font-semibold tabular-nums text-[#121212]">{filtered.length}</b>건
+            </span>
+          </div>
         </div>
       </section>
 
@@ -373,7 +463,11 @@ export default function ProjectsExplorer({ projects }: { projects: ProjectData[]
 
       {/* 격자 */}
       {filtered.length === 0 ? (
-        <p className="py-20 text-center text-[16px] text-[#787878]">조건에 맞는 프로젝트가 아직 없습니다.</p>
+        <p className="py-20 text-center text-[16px] text-[#787878]">
+          {savedOnly && savedCount === 0
+            ? '아직 저장한 프로젝트가 없어요. 카드의 「저장」으로 담아 두세요.'
+            : '조건에 맞는 프로젝트가 아직 없습니다.'}
+        </p>
       ) : (
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 sm:gap-x-7 sm:gap-y-12 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-16">
           {visibleProjects.map((project, i) => (

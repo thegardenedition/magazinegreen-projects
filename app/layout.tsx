@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import ToastHost from '@/components/ui/Toast';
 import './globals.css';
 
 /* MAGAZINE GREEN 서체 시스템
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         {children}
         <Footer />
+        <ToastHost />
       </body>
     </html>
   );
