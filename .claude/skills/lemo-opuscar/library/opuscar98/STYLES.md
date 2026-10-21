@@ -1,8 +1,11 @@
-# OPUSCAR 98 — 98 reusable film-style prompts
+# OPUSCAR 98 — 다시 쓸 수 있는 영화 스타일 프롬프트 98종
 
-One style per film. t0/dur: where the film sits in OPUSCAR 98 (seconds). render: 2D / 2.5D (3D models rendered into flat layers) / 3D; dim adds the tone (B&W, sepia). prompt_*: a reusable style prompt. shots: the cuts as they appear in the finished film.
+아카데미 작품상 수상작 98편을 작품마다 다른 화풍으로 다시 그린 영상 OPUSCAR 98의 스타일 목록입니다.
+- **render**: 2D / 2.5D(3D 모델을 평면 레이어로 렌더링) / 3D. 뒤에 붙은 값은 톤(흑백, 세피아 등)입니다.
+- **blend**: 섞어 쓴 기법
+- **Prompt**: 그대로 복사해 다른 주제에 쓸 수 있는 스타일 프롬프트입니다. 생성 모델에 넣을 문장이라 원문(영어)을 유지했습니다.
 
-Source: https://lemomo-ai.github.io/lemo-opuscar/opuscar98/ · full data incl. shots/direction: `styles.json`
+출처: https://lemomo-ai.github.io/lemo-opuscar/opuscar98/ · 컷 구성과 연출 지시까지 포함한 전체 데이터: `styles.json`
 
 
 ## C1 Silents & Talkies (1927–1938)
