@@ -19,6 +19,20 @@ async function solapiAuthHeader(env) {
 }
 
 // 템플릿 변수는 카카오에 등록한 문안의 #{...} 이름과 글자 하나까지 같아야 한다.
+// 빈 변수는 발송이 거절되므로, 고객이 고르지 않은 항목은 "미선택"으로 채운다.
+function leadReceiptVariables(lead) {
+  const or = (v) => (v == null || v === "" ? "미선택" : String(v));
+  return {
+    "#{이름}": lead.name,
+    "#{접수번호}": lead.id,
+    "#{지역}": or(lead.region),
+    "#{정원유형}": or(LABEL.gtype[lead.gtype]),
+    "#{면적}": lead.area_m2 ? `약 ${lead.area_m2}㎡` : "미입력",
+    "#{예산}": or(LABEL.budget_band[lead.budget_band]),
+    "#{시기}": or(LABEL.timing[lead.timing])
+  };
+}
+
 async function sendLeadReceipt(env, lead) {
   if (!alimtalkConfigured(env)) return;
   let ok = false, code = -1;
@@ -33,7 +47,7 @@ async function sendLeadReceipt(env, lead) {
           kakaoOptions: {
             pfId: env.KAKAO_PF_ID,
             templateId: env.KAKAO_TEMPLATE_ID,
-            variables: { "#{이름}": lead.name, "#{접수번호}": lead.id },
+            variables: leadReceiptVariables(lead),
             // 카카오톡을 안 쓰는 고객에게는 같은 문안을 문자로 대체 발송한다.
             disableSms: false
           }
