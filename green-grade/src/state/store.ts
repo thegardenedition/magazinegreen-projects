@@ -21,6 +21,17 @@ import {
   type CustomCurveName,
   type HueCurveName,
 } from '../engine/curves';
+import {
+  defaultDetail,
+  defaultDevelop,
+  defaultGeometry,
+  DETAIL_SPECS,
+  updateGeometry,
+  type DetailName,
+  type Develop,
+  type Geometry,
+  type Rect,
+} from '../engine/develop';
 import type { LoadedImage } from '../engine/image';
 import type { CubeLut } from '../engine/lut';
 import type { Preset } from '../engine/presets';
@@ -46,14 +57,16 @@ export interface GradeNode {
   window: WindowParams;
 }
 
-export type CorrectionTab = 'primary' | 'curves' | 'qualifier' | 'window';
+export type CorrectionTab = 'primary' | 'curves' | 'qualifier' | 'window' | 'transform' | 'detail';
 export type MaskView = 'off' | 'highlight' | 'bw';
-/** 뷰어 클릭 동작: 스포이드(새로/더하기) 또는 펜(폴리곤 점 추가) */
-export type ViewerTool = 'none' | 'pick' | 'pick-add' | 'pen';
+/** 뷰어 클릭 동작: 스포이드(새로/더하기), 펜(폴리곤 점 추가), 수평 기준선 */
+export type ViewerTool = 'none' | 'pick' | 'pick-add' | 'pen' | 'level';
 
 /** 되돌리기 대상이 되는 보정 상태 */
 interface Grade {
   nodes: GradeNode[];
+  /** 사진 단위의 형태·디테일 (노드 체인 앞에서 한 번) */
+  develop: Develop;
 }
 
 interface GradeState extends Grade {
@@ -83,6 +96,12 @@ interface GradeState extends Grade {
   setLutIntensity(v: number): void;
   setQualifier(fn: (q: Qualifier) => Qualifier): void;
   setWindow(fn: (w: WindowParams) => WindowParams): void;
+  // 형태·디테일 (사진 전체)
+  setGeometry(patch: Partial<Geometry>): void;
+  setCrop(crop: Rect): void;
+  resetGeometry(): void;
+  setDetail(name: DetailName, value: number): void;
+  resetDetail(): void;
   setCorrectionTab(t: CorrectionTab): void;
   setMaskView(v: MaskView): void;
   setViewerTool(t: ViewerTool): void;
@@ -150,8 +169,16 @@ export const useGrade = create<GradeState>((set, get) => {
     return s.nodes.indexOf(selectedNode(s));
   };
 
+  /** 형태 계산에 쓰는 원본 크기 (사진이 없으면 3:2로 가정) */
+  const fullSize = () => {
+    const img = get().image;
+    return img ? ([img.width, img.height] as const) : ([3000, 2000] as const);
+  };
+  const setGeom = (fn: (g: Geometry) => Geometry) => set((s) => ({ develop: { ...s.develop, geometry: fn(s.develop.geometry) } }));
+
   return {
     nodes: [initialNode],
+    develop: defaultDevelop(),
     selectedId: initialNode.id,
     image: null,
     bypass: false,
@@ -186,12 +213,23 @@ export const useGrade = create<GradeState>((set, get) => {
     setLutIntensity: (v) => updateSel(() => ({ lutIntensity: Math.min(1, Math.max(0, v)) })),
     setQualifier: (fn) => updateSel((n) => ({ qualifier: fn(n.qualifier) })),
     setWindow: (fn) => updateSel((n) => ({ window: fn(n.window) })),
+    setGeometry: (patch) => setGeom((g) => updateGeometry(g, patch, ...fullSize())),
+    setCrop: (crop) => setGeom((g) => updateGeometry(g, { crop }, ...fullSize())),
+    resetGeometry: () => setGeom(() => defaultGeometry()),
+    setDetail: (name, value) => {
+      const spec = DETAIL_SPECS[name];
+      const v = Math.min(spec.max, Math.max(spec.min, value));
+      set((s) => ({ develop: { ...s.develop, detail: { ...s.develop.detail, [name]: v } } }));
+    },
+    resetDetail: () => set((s) => ({ develop: { ...s.develop, detail: defaultDetail() } })),
     setCorrectionTab: (correctionTab) =>
       set((s) => ({
         correctionTab,
         // 탭을 떠나면 그 탭의 뷰어 도구는 끈다
         viewerTool:
-          (correctionTab !== 'qualifier' && s.viewerTool.startsWith('pick')) || (correctionTab !== 'window' && s.viewerTool === 'pen')
+          (correctionTab !== 'qualifier' && s.viewerTool.startsWith('pick')) ||
+          (correctionTab !== 'window' && s.viewerTool === 'pen') ||
+          (correctionTab !== 'transform' && s.viewerTool === 'level')
             ? 'none'
             : s.viewerTool,
       })),
@@ -275,8 +313,8 @@ const HISTORY_LIMIT = 200;
 /** 드래그·연속 입력이 멈춘 뒤 이 시간이 지나면 한 단계로 기록한다 */
 export const HISTORY_IDLE_MS = 250;
 
-const pick = (s: Grade): Grade => ({ nodes: s.nodes });
-const same = (a: Grade, b: Grade) => a.nodes === b.nodes;
+const pick = (s: Grade): Grade => ({ nodes: s.nodes, develop: s.develop });
+const same = (a: Grade, b: Grade) => a.nodes === b.nodes && a.develop === b.develop;
 
 let committed: Grade = pick(useGrade.getState());
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -320,7 +358,7 @@ export function nodeUniforms(n: GradeNode): GradeUniforms {
 }
 
 /** 노드 체인 전체의 셰이더 값. 커브 표는 커브가 바뀐 노드만 다시 굽는다. */
-export function currentUniforms(s: Grade = useGrade.getState()): GradeUniforms[] {
+export function currentUniforms(s: Pick<Grade, 'nodes'> = useGrade.getState()): GradeUniforms[] {
   return s.nodes.map(nodeUniforms);
 }
 
@@ -330,7 +368,7 @@ export function presetToNodes(p: Preset): GradeNode[] {
   return p.nodes.map((n) => ({ ...n, id: newNodeId() }));
 }
 
-export function currentPreset(name: string, s: Grade = useGrade.getState()): Preset {
+export function currentPreset(name: string, s: Pick<Grade, 'nodes'> = useGrade.getState()): Preset {
   return { name, nodes: s.nodes.map(({ id: _id, ...rest }) => rest) };
 }
 

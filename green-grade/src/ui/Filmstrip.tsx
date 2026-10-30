@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { downloadBlob } from '../engine/image';
+import { LongEdgeField } from './ExportDialog';
 import {
   copyGrade,
   exportBatch,
@@ -104,13 +105,14 @@ export function Filmstrip({ onOpen }: { onOpen: () => void }) {
 
 function BatchExportDialog({ ids, onClose }: { ids: string[]; onClose(): void }) {
   const [quality, setQuality] = useState(92);
+  const [longEdge, setLongEdge] = useState<number | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
     setError(null);
     try {
-      const zip = await exportBatch(ids, quality / 100, (done, total, name) => setProgress({ done, total, name }));
+      const zip = await exportBatch(ids, { quality: quality / 100, longEdge }, (done, total, name) => setProgress({ done, total, name }));
       downloadBlob(zip, `GREEN_GRADE_${ids.length}장.zip`);
       onClose();
     } catch (e) {
@@ -125,8 +127,9 @@ function BatchExportDialog({ ids, onClose }: { ids: string[]; onClose(): void })
       <div className="modal" role="dialog" aria-label="일괄 내보내기" onClick={(e) => e.stopPropagation()}>
         <h2>선택 {ids.length}장 내보내기</h2>
         <p className="muted small">
-          사진마다 자기 그레이드로, 원본 해상도 JPG를 만들어 ZIP 하나로 묶습니다. 파일 이름은 원래 이름 뒤에 _GG가 붙습니다.
+          사진마다 자기 그레이드·크롭·디테일로 JPG를 만들어 ZIP 하나로 묶습니다. 파일 이름은 원래 이름 뒤에 _GG가 붙습니다.
         </p>
+        <LongEdgeField value={longEdge} onChange={setLongEdge} />
         <label className="quality">
           <span>품질</span>
           <input type="range" min={50} max={100} value={quality} onChange={(e) => setQuality(Number(e.target.value))} aria-label="JPG 품질" />

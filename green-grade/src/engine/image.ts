@@ -1,10 +1,13 @@
 import type { GradeUniforms } from './color';
-import type { Renderer } from './renderer';
+import { computeBase, planDevelop, type Develop, type PixelSource } from './develop';
+import type { DevelopInput, Renderer } from './renderer';
 
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** 화면 미리보기용 프록시의 긴 변 최대 길이 */
 export const PROXY_LONG_EDGE = 3072;
+/** 선명도·디헤이즈 기준을 만들 작은 사본의 긴 변 */
+export const BASE_SOURCE_LONG = 512;
 
 export interface LoadedImage {
   name: string;
@@ -14,6 +17,36 @@ export interface LoadedImage {
   full: ImageBitmap;
   /** 미리보기용 축소본 */
   proxy: ImageBitmap;
+  /** 선명도·디헤이즈 기준용 작은 사본 (CPU 픽셀) */
+  baseSource: PixelSource;
+}
+
+/** 비트맵을 긴 변 BASE_SOURCE_LONG으로 줄여 CPU 픽셀로 읽는다 */
+export async function makeBaseSource(bmp: ImageBitmap): Promise<PixelSource> {
+  const k = Math.min(1, BASE_SOURCE_LONG / Math.max(bmp.width, bmp.height));
+  const width = Math.max(1, Math.round(bmp.width * k));
+  const height = Math.max(1, Math.round(bmp.height * k));
+  const small =
+    k < 1
+      ? await createImageBitmap(bmp, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high', premultiplyAlpha: 'none' })
+      : bmp;
+  const c = new OffscreenCanvas(width, height);
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(small, 0, 0);
+  if (small !== bmp) small.close();
+  return { data: ctx.getImageData(0, 0, width, height).data, width, height };
+}
+
+/** 내보내기·썸네일용 현상 입력. 원본(fullW×fullH)을 src 해상도로 렌더할 때. */
+export function developInput(
+  dev: Develop,
+  baseSource: PixelSource,
+  fullW: number,
+  fullH: number,
+  srcW: number,
+): DevelopInput {
+  const plan = planDevelop(dev, fullW, fullH, srcW / fullW);
+  return { plan, base: plan.needsBase ? computeBase(baseSource, dev.geometry, fullW, fullH) : null };
 }
 
 export async function loadImage(file: File): Promise<LoadedImage> {
@@ -37,7 +70,7 @@ export async function loadImage(file: File): Promise<LoadedImage> {
           premultiplyAlpha: 'none',
         })
       : full;
-  return { name: file.name, width, height, full, proxy };
+  return { name: file.name, width, height, full, proxy, baseSource: await makeBaseSource(proxy) };
 }
 
 export function exportFileName(original: string, ext: string) {
@@ -45,20 +78,46 @@ export function exportFileName(original: string, ext: string) {
   return `${base}_GG.${ext}`;
 }
 
+export interface ExportOptions {
+  quality: number;
+  develop: Develop;
+  /** 긴 변을 이 크기로 줄인다 (원본보다 크면 그대로) */
+  longEdge?: number | null;
+  onProgress?: (p: number) => void;
+}
+
+/** 긴 변 제한을 적용한 크기 */
+export function resizedSize(w: number, h: number, longEdge?: number | null): [number, number] {
+  if (!longEdge || Math.max(w, h) <= longEdge) return [w, h];
+  const k = longEdge / Math.max(w, h);
+  return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
+}
+
 export async function exportJpeg(
   renderer: Renderer,
-  image: Pick<LoadedImage, 'full' | 'width' | 'height'>,
+  image: Pick<LoadedImage, 'full' | 'width' | 'height' | 'baseSource'>,
   uniforms: GradeUniforms[],
-  quality: number,
-  onProgress?: (p: number) => void,
+  opts: ExportOptions,
 ): Promise<Blob> {
-  const pixels = renderer.renderFull(image.full, uniforms, { dither: true, onProgress });
+  const develop = developInput(opts.develop, image.baseSource, image.width, image.height, image.width);
+  const r = renderer.renderFull(image.full, uniforms, { dither: true, onProgress: opts.onProgress, develop });
+  const [w, h] = resizedSize(r.width, r.height, opts.longEdge);
+  let bitmap: ImageBitmap | null = null;
+  const data = new ImageData(r.pixels, r.width, r.height);
+  if (w !== r.width || h !== r.height) {
+    bitmap = await createImageBitmap(data, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high', premultiplyAlpha: 'none' });
+  }
   const canvas = document.createElement('canvas');
-  canvas.width = image.width;
-  canvas.height = image.height;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d', { colorSpace: 'srgb' })!;
-  ctx.putImageData(new ImageData(pixels, image.width, image.height), 0, 0);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+  if (bitmap) {
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+  } else {
+    ctx.putImageData(data, 0, 0);
+  }
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', opts.quality));
   canvas.width = canvas.height = 0;
   if (!blob) throw new Error('JPG 인코딩에 실패했습니다.');
   return blob;

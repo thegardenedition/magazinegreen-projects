@@ -2,6 +2,7 @@
 
 import { MAX_NODES } from './constants';
 import { HUE_SHIFT_MAX_DEG, LUT_SIZE, RED_ANGLE } from './curves';
+import { GRAIN_STRENGTH } from './develop';
 import { MAX_POLY_POINTS, SAT_SCALE } from './mask';
 
 export const VERTEX_SHADER = /* glsl */ `#version 300 es
@@ -48,6 +49,7 @@ uniform float u_aspect;             // 이미지 가로/세로
 uniform int u_maskNode;             // 마스크를 보여 줄 노드 (-1: 없음)
 uniform highp sampler2D u_polys;    // 폴리곤 꼭짓점: 노드 n의 행 n
 uniform bool u_dither;
+uniform vec3 u_grain;               // 양, 격자 배율 x, y (develop.ts grainUniforms)
 // 커브 표: 노드 i의 행 3i = Y/R/G/B, 3i+1 = Hue 3종, 3i+2 = Lum vs Sat
 uniform highp sampler2D u_curves;
 ${LUT_SAMPLERS}
@@ -290,9 +292,42 @@ float hash12(vec2 p) {
   return fract((p3.x + p3.y) * p3.z);
 }
 
+// 그레인: 정수 해시 격자의 값 노이즈 두 옥타브 (develop.ts grainNoise와 같다)
+uint hashU(ivec2 c) {
+  uvec2 p = uvec2(c);
+  uint h = (p.x * 0x8da6b343u) ^ (p.y * 0xd8163841u);
+  h ^= h >> 16u;
+  h *= 0x7feb352du;
+  h ^= h >> 15u;
+  h *= 0x846ca68bu;
+  h ^= h >> 16u;
+  return h;
+}
+
+float lattice(ivec2 c) { return float(hashU(c) >> 8u) / 16777216.0 * 2.0 - 1.0; }
+
+float valueNoise(vec2 q) {
+  vec2 fl = floor(q);
+  vec2 f = q - fl;
+  f = f * f * (3.0 - 2.0 * f);
+  ivec2 i = ivec2(fl);
+  float a = mix(lattice(i), lattice(i + ivec2(1, 0)), f.x);
+  float b = mix(lattice(i + ivec2(0, 1)), lattice(i + ivec2(1, 1)), f.x);
+  return mix(a, b, f.y);
+}
+
+vec3 applyGrain(vec3 s, vec2 uv) {
+  vec2 q = uv * u_grain.yz;
+  float n = (0.65 * valueNoise(q) + 0.35 * valueNoise(q * 2.0 + vec2(7.0, 13.0))) * 1.6;
+  float y = dot(s, LUMA);
+  float w = 0.3 + 0.7 * clamp(4.0 * y * (1.0 - y), 0.0, 1.0);
+  return s + u_grain.x * ${GRAIN_STRENGTH.toFixed(6)} * n * w;
+}
+
 // 8bit 양자화 직전, 1 LSB 진폭의 삼각 분포 디더 → 그라디언트 밴딩 방지
-vec3 encodeOutput(vec3 lin, vec2 pixel) {
+vec3 encodeOutput(vec3 lin, vec2 pixel, vec2 uv, bool grain) {
   vec3 s = linearToSrgb(clamp(lin, 0.0, 1.0));
+  if (grain && u_grain.x > 0.0) s = applyGrain(s, uv);
   if (u_dither) {
     float n = hash12(pixel) + hash12(pixel + 71.37) - 1.0;
     s += n / 255.0;
@@ -304,9 +339,12 @@ vec3 encodeOutput(vec3 lin, vec2 pixel) {
 /** 화면 뷰어: 확대/이동, Before/After 분할, 원본 보기 */
 export const VIEWER_FRAGMENT = /* glsl */ `#version 300 es
 ${GRADE_CHUNK}
-uniform sampler2D u_image;
+uniform sampler2D u_image;   // 원본 축소본 (8bit sRGB, 밉맵)
+uniform bool u_developed;    // 형태·디테일을 거친 결과(u_dev)를 쓸지
+uniform sampler2D u_dev;     // 현상 결과 (선형, 밉맵)
+uniform mat3 u_matrix;       // 보이는 영역 0–1 → 원본 0–1 (원본 보기에 쓴다)
 uniform vec2 u_canvasSize;   // 캔버스 픽셀
-uniform vec2 u_imageSize;    // 원본 해상도 기준 픽셀
+uniform vec2 u_imageSize;    // 보이는 영역의 원본 해상도 기준 픽셀
 uniform float u_scale;       // 캔버스 픽셀 / 원본 픽셀
 uniform vec2 u_offset;       // 이미지 좌상단의 캔버스 좌표
 uniform float u_split;       // 이 x좌표 왼쪽은 원본 (음수면 분할 없음)
@@ -322,15 +360,26 @@ void main() {
     outColor = vec4(u_background, 1.0);
     return;
   }
-  vec3 lin = srgbToLinear(texture(u_image, uv).rgb);
   bool original = u_bypass || pos.x < u_split;
-  vec3 graded = original ? lin : gradeLinear(lin, uv);
-  if (!original && u_maskView == 2) {
+  if (original) {
+    // 원본: 같은 틀(회전·크롭)로 보되 디테일·색 보정은 없다
+    vec3 q = u_matrix * vec3(uv, 1.0);
+    vec2 s = q.xy / q.z;
+    if (any(lessThan(s, vec2(0.0))) || any(greaterThan(s, vec2(1.0)))) {
+      outColor = vec4(u_background, 1.0);
+      return;
+    }
+    outColor = vec4(encodeOutput(srgbToLinear(texture(u_image, s).rgb), floor(pos), uv, false), 1.0);
+    return;
+  }
+  vec3 lin = u_developed ? texture(u_dev, uv).rgb : srgbToLinear(texture(u_image, uv).rgb);
+  vec3 graded = gradeLinear(lin, uv);
+  if (u_maskView == 2) {
     outColor = vec4(vec3(g_mask), 1.0);
     return;
   }
-  if (!original && u_maskView == 1) graded = mix(vec3(dot(graded, LUMA) * 0.18), graded, g_mask);
-  outColor = vec4(encodeOutput(graded, floor(pos)), 1.0);
+  if (u_maskView == 1) graded = mix(vec3(dot(graded, LUMA) * 0.18), graded, g_mask);
+  outColor = vec4(encodeOutput(graded, floor(pos), uv, true), 1.0);
 }
 `;
 
@@ -338,16 +387,20 @@ void main() {
 export const EXPORT_FRAGMENT = /* glsl */ `#version 300 es
 ${GRADE_CHUNK}
 uniform sampler2D u_image;
-uniform ivec2 u_tileOrigin;  // 타일 좌상단의 이미지 좌표
+uniform bool u_developed;    // 현상 타일(u_dev, 선형 실수)을 읽을지
+uniform sampler2D u_dev;
+uniform ivec2 u_devOrigin;   // 현상 타일 (0,0)의 출력 좌표
+uniform ivec2 u_outSize;     // 출력 이미지 크기
+uniform ivec2 u_tileOrigin;  // 타일 좌상단의 출력 좌표
 uniform int u_tileHeight;
 out vec4 outColor;
 
 void main() {
-  // 프레임버퍼는 아래쪽이 0행이므로 위아래를 뒤집어 이미지 좌표를 구한다
+  // 프레임버퍼는 아래쪽이 0행이므로 위아래를 뒤집어 출력 좌표를 구한다
   ivec2 local = ivec2(gl_FragCoord.xy);
   ivec2 px = ivec2(u_tileOrigin.x + local.x, u_tileOrigin.y + (u_tileHeight - 1 - local.y));
-  vec3 lin = srgbToLinear(texelFetch(u_image, px, 0).rgb);
-  vec2 uv = (vec2(px) + 0.5) / vec2(textureSize(u_image, 0));
-  outColor = vec4(encodeOutput(gradeLinear(lin, uv), vec2(px)), 1.0);
+  vec3 lin = u_developed ? texelFetch(u_dev, px - u_devOrigin, 0).rgb : srgbToLinear(texelFetch(u_image, px, 0).rgb);
+  vec2 uv = (vec2(px) + 0.5) / vec2(u_outSize);
+  outColor = vec4(encodeOutput(gradeLinear(lin, uv), vec2(px), uv, true), 1.0);
 }
 `;

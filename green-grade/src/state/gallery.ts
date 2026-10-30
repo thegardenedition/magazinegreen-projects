@@ -2,7 +2,8 @@
 // 원본은 File로만 들고 있고, 지금 여는 사진 한 장만 디코딩해 둔다 (메모리 절약).
 
 import { create } from 'zustand';
-import { ACCEPTED_TYPES, exportFileName, exportJpeg, loadImage } from '../engine/image';
+import { defaultDevelop, type Detail, type Develop, type PixelSource } from '../engine/develop';
+import { ACCEPTED_TYPES, developInput, exportFileName, exportJpeg, loadImage, makeBaseSource } from '../engine/image';
 import type { PresetNode } from '../engine/presets';
 import { getActiveRenderer } from '../engine/renderer';
 import { buildZip, uniqueNames, type ZipEntry } from '../engine/zip';
@@ -28,6 +29,12 @@ export interface GalleryItem {
   thumbUrl: string | null;
   /** 이 사진의 그레이드. 아직 안 연 사진은 null(기본 노드 하나) */
   nodes: GradeNode[] | null;
+  /** 이 사진의 형태·디테일. 아직 안 연 사진은 null(기본값) */
+  develop: Develop | null;
+  /** 원본 해상도 (연 적이 있으면 정확한 값, 아니면 썸네일 비율로 어림) */
+  fullSize: [number, number];
+  /** 썸네일 픽셀 (선명도·디헤이즈 기준용) */
+  thumbSource: PixelSource;
 }
 
 interface GalleryState {
@@ -35,7 +42,8 @@ interface GalleryState {
   currentId: string | null;
   /** 일괄 작업 대상 */
   selected: string[];
-  clipboard: { nodes: PresetNode[]; from: string } | null;
+  /** 복사한 그레이드: 노드와 디테일 (형태·크롭은 사진마다 달라 복사하지 않는다) */
+  clipboard: { nodes: PresetNode[]; detail: Detail; from: string } | null;
   busy: string | null;
   error: string | null;
 }
@@ -58,15 +66,22 @@ function patchItem(id: string, patch: Partial<GalleryItem>) {
 
 const nodesOf = (it: GalleryItem) =>
   it.id === useGallery.getState().currentId ? useGrade.getState().nodes : (it.nodes ?? freshNodes());
+const developOf = (it: GalleryItem) =>
+  it.id === useGallery.getState().currentId ? useGrade.getState().develop : (it.develop ?? defaultDevelop());
+
+/** 열어 보지 않은 사진은 원본 크기를 모르므로 긴 변 4000px로 어림한다 (썸네일의 샤프닝 반경 계산용) */
+const GUESS_LONG = 4000;
 
 /** 그레이드를 반영한 썸네일을 다시 만든다 */
 export async function refreshThumb(id: string) {
   const it = useGallery.getState().items.find((x) => x.id === id);
   const r = getActiveRenderer();
   if (!it || !r) return;
-  const px = r.renderFull(it.thumb, currentUniforms({ nodes: nodesOf(it) }), { dither: true });
-  const c = new OffscreenCanvas(it.thumb.width, it.thumb.height);
-  c.getContext('2d')!.putImageData(new ImageData(px, it.thumb.width, it.thumb.height), 0, 0);
+  const [fw, fh] = it.fullSize;
+  const develop = developInput(developOf(it), it.thumbSource, fw, fh, it.thumb.width);
+  const px = r.renderFull(it.thumb, currentUniforms({ nodes: nodesOf(it) }), { dither: true, develop });
+  const c = new OffscreenCanvas(px.width, px.height);
+  c.getContext('2d')!.putImageData(new ImageData(px.pixels, px.width, px.height), 0, 0);
   const url = URL.createObjectURL(await c.convertToBlob({ type: 'image/jpeg', quality: 0.85 }));
   const cur = useGallery.getState().items.find((x) => x.id === id);
   if (cur?.thumbUrl) URL.revokeObjectURL(cur.thumbUrl);
@@ -88,7 +103,18 @@ export async function addFiles(files: File[]) {
         resizeWidth: THUMB_WIDTH,
         resizeQuality: 'medium',
       });
-      added.push({ id: `img${Date.now().toString(36)}${seq++}`, file, name: file.name, thumb, thumbUrl: null, nodes: null });
+      const k = GUESS_LONG / Math.max(thumb.width, thumb.height);
+      added.push({
+        id: `img${Date.now().toString(36)}${seq++}`,
+        file,
+        name: file.name,
+        thumb,
+        thumbUrl: null,
+        nodes: null,
+        develop: null,
+        fullSize: [Math.round(thumb.width * k), Math.round(thumb.height * k)],
+        thumbSource: await makeBaseSource(thumb),
+      });
     } catch {
       useGallery.setState({ error: `${file.name}을(를) 읽지 못했습니다.` });
     }
@@ -110,16 +136,17 @@ export async function openItem(id: string) {
   try {
     const img = await loadImage(it.file);
     const prevId = useGallery.getState().currentId;
-    if (prevId) patchItem(prevId, { nodes: useGrade.getState().nodes });
+    if (prevId) patchItem(prevId, { nodes: useGrade.getState().nodes, develop: useGrade.getState().develop });
     const prev = useGrade.getState().image;
     if (!prevId && !it.nodes) {
       // 첫 사진: 열기 전(또는 여는 동안) 만든 그레이드와 되돌리기 기록을 그대로 이어받는다
       useGrade.setState({ image: img });
     } else {
       const nodes = it.nodes ?? freshNodes();
-      useGrade.setState({ image: img, nodes, selectedId: nodes[0].id });
+      useGrade.setState({ image: img, nodes, selectedId: nodes[0].id, develop: it.develop ?? defaultDevelop() });
       resetHistory();
     }
+    patchItem(id, { fullSize: [img.width, img.height] });
     useGallery.setState({ currentId: id });
     if (prev) {
       prev.full.close();
@@ -170,7 +197,9 @@ export function selectAll(on: boolean) {
 export function copyGrade() {
   const g = useGallery.getState();
   const name = g.items.find((x) => x.id === g.currentId)?.name ?? '현재 사진';
-  useGallery.setState({ clipboard: { nodes: currentPreset('clipboard').nodes, from: name } });
+  useGallery.setState({
+    clipboard: { nodes: currentPreset('clipboard').nodes, detail: { ...useGrade.getState().develop.detail }, from: name },
+  });
 }
 
 /**
@@ -182,8 +211,14 @@ export function pasteGrade(ids = useGallery.getState().selected): number {
   if (!clipboard || !ids.length) return 0;
   for (const id of ids) {
     const nodes = presetToNodes({ name: '', nodes: clipboard.nodes });
-    if (id === currentId) useGrade.getState().setNodes(nodes);
-    else patchItem(id, { nodes });
+    if (id === currentId) {
+      useGrade.getState().setNodes(nodes);
+      useGrade.setState((s) => ({ develop: { ...s.develop, detail: { ...clipboard.detail } } }));
+    } else {
+      const it = useGallery.getState().items.find((x) => x.id === id);
+      const develop = it?.develop ?? defaultDevelop();
+      patchItem(id, { nodes, develop: { ...develop, detail: { ...clipboard.detail } } });
+    }
     refreshThumb(id);
   }
   return ids.length;
@@ -191,8 +226,12 @@ export function pasteGrade(ids = useGallery.getState().selected): number {
 
 // ── 일괄 내보내기 ──
 
-/** 고른 사진들을 각자의 그레이드로 원본 해상도 JPG로 렌더해 ZIP 하나로 묶는다 */
-export async function exportBatch(ids: string[], quality: number, onProgress: (done: number, total: number, name: string) => void) {
+/** 고른 사진들을 각자의 그레이드·형태·디테일로 JPG 렌더해 ZIP 하나로 묶는다 */
+export async function exportBatch(
+  ids: string[],
+  opts: { quality: number; longEdge: number | null },
+  onProgress: (done: number, total: number, name: string) => void,
+) {
   const r = getActiveRenderer();
   if (!r) throw new Error('렌더러가 준비되지 않았습니다.');
   const items = useGallery.getState().items.filter((x) => ids.includes(x.id));
@@ -208,12 +247,12 @@ export async function exportBatch(ids: string[], quality: number, onProgress: (d
       colorSpaceConversion: 'default',
     });
     try {
-      const blob = await exportJpeg(
-        r,
-        { full, width: full.width, height: full.height },
-        currentUniforms({ nodes: nodesOf(it) }),
-        quality,
-      );
+      const baseSource = await makeBaseSource(full);
+      const blob = await exportJpeg(r, { full, width: full.width, height: full.height, baseSource }, currentUniforms({ nodes: nodesOf(it) }), {
+        quality: opts.quality,
+        longEdge: opts.longEdge,
+        develop: developOf(it),
+      });
       entries.push({ name: names[i], data: new Uint8Array(await blob.arrayBuffer()) });
     } finally {
       full.close();
@@ -235,7 +274,7 @@ export function gradeSummary() {
 // 지금 사진의 그레이드가 바뀌면 잠시 뒤 썸네일을 다시 만든다
 let thumbTimer: ReturnType<typeof setTimeout> | undefined;
 useGrade.subscribe((s, p) => {
-  if (s.nodes === p.nodes) return;
+  if (s.nodes === p.nodes && s.develop === p.develop) return;
   clearTimeout(thumbTimer);
   thumbTimer = setTimeout(() => {
     const id = useGallery.getState().currentId;

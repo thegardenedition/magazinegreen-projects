@@ -5,23 +5,29 @@
 // Histogram과 클리핑 비율은 분석 픽셀을 읽어 정확한 개수로 센다.
 
 import type { GradeUniforms } from './color';
-import { GLBase, link } from './renderer';
+import { Developer } from './developGL';
+import { GLBase, link, type DevelopInput } from './renderer';
 import { GRADE_CHUNK } from './shaders';
 
 export type ScopeMode = 'waveform' | 'parade' | 'vectorscope' | 'histogram';
 
 export const ANALYSIS_WIDTH = 512;
 const HIST_UNIT = 12;
+const DEV_UNIT = 11;
 
 const ANALYSIS_FRAGMENT = /* glsl */ `#version 300 es
 ${GRADE_CHUNK}
 uniform sampler2D u_image;
+uniform bool u_developed;   // 형태·디테일을 거친 결과(분석 해상도, 0행 = 맨 위)
+uniform sampler2D u_dev;
 uniform vec2 u_size;
 out vec4 outColor;
 void main() {
   // 0행이 이미지 맨 위가 되도록 (Waveform 가로축은 이미지 가로와 같아야 함)
   vec2 uv = vec2(gl_FragCoord.x / u_size.x, 1.0 - gl_FragCoord.y / u_size.y);
-  vec3 lin = srgbToLinear(texture(u_image, uv).rgb);
+  vec3 lin = u_developed
+    ? texelFetch(u_dev, ivec2(int(gl_FragCoord.x), int(u_size.y) - 1 - int(gl_FragCoord.y)), 0).rgb
+    : srgbToLinear(texture(u_image, uv).rgb);
   outColor = vec4(linearToSrgb(clamp(gradeLinear(lin, uv), 0.0, 1.0)), 1.0);
 }
 `;
@@ -124,6 +130,8 @@ export class ScopeRenderer extends GLBase {
   private histTex: WebGLTexture;
   private aspect = 1;
   private readonly floatAcc: boolean;
+  private devTex: WebGLTexture | null = null;
+  private developer: Developer | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -145,10 +153,39 @@ export class ScopeRenderer extends GLBase {
     const gl = this.gl;
     if (this.proxyTex) gl.deleteTexture(this.proxyTex);
     this.proxyTex = proxy ? this.createTexture(proxy, true) : null;
+    this.clearDevelop();
     if (!proxy) return;
-    this.aspect = proxy.width / proxy.height;
     const w = Math.min(ANALYSIS_WIDTH, proxy.width);
     const h = Math.max(1, Math.min(ANALYSIS_WIDTH, Math.round((w * proxy.height) / proxy.width)));
+    this.setAnalysisSize(w, h);
+  }
+
+  private clearDevelop() {
+    if (this.devTex) this.gl.deleteTexture(this.devTex);
+    this.devTex = null;
+  }
+
+  /**
+   * 형태·디테일을 거친 결과로 분석한다. plan은 분석 해상도로 만든 계획이어야 한다 (긴 변 ≤ ANALYSIS_WIDTH).
+   * null이거나 identity면 축소본을 그대로 분석한다.
+   */
+  setDevelop(input: DevelopInput | null, proxy: ImageBitmap) {
+    this.clearDevelop();
+    if (!this.proxyTex) return;
+    if (!input || input.plan.identity) {
+      const w = Math.min(ANALYSIS_WIDTH, proxy.width);
+      this.setAnalysisSize(w, Math.max(1, Math.min(ANALYSIS_WIDTH, Math.round((w * proxy.height) / proxy.width))));
+      return;
+    }
+    if (!this.developer) this.developer = new Developer(this.gl, this.vao);
+    this.devTex = this.developer.developPreview(this.proxyTex, input.plan, input.base);
+    this.developer.releasePool();
+    this.setAnalysisSize(input.plan.outW, input.plan.outH);
+  }
+
+  private setAnalysisSize(w: number, h: number) {
+    const gl = this.gl;
+    this.aspect = w / h;
     if (w === this.analysisSize.w && h === this.analysisSize.h) return;
     if (this.analysisTex) gl.deleteTexture(this.analysisTex);
     if (this.analysisFbo) gl.deleteFramebuffer(this.analysisFbo);
@@ -201,6 +238,11 @@ export class ScopeRenderer extends GLBase {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.proxyTex);
     gl.uniform1i(gl.getUniformLocation(this.analysisProg, 'u_image'), 0);
+    gl.activeTexture(gl.TEXTURE0 + DEV_UNIT);
+    gl.bindTexture(gl.TEXTURE_2D, this.devTex);
+    gl.uniform1i(gl.getUniformLocation(this.analysisProg, 'u_dev'), DEV_UNIT);
+    gl.uniform1i(gl.getUniformLocation(this.analysisProg, 'u_developed'), this.devTex ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE0);
     gl.uniform2f(gl.getUniformLocation(this.analysisProg, 'u_size'), aw, ah);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.analysisFbo);
     gl.viewport(0, 0, aw, ah);
