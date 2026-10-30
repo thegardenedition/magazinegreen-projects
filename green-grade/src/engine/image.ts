@@ -48,7 +48,7 @@ export function exportFileName(original: string, ext: string) {
 export async function exportJpeg(
   renderer: Renderer,
   image: LoadedImage,
-  uniforms: GradeUniforms,
+  uniforms: GradeUniforms[],
   quality: number,
   onProgress?: (p: number) => void,
 ): Promise<Blob> {

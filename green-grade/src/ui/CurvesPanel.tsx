@@ -11,7 +11,7 @@ import {
   type CustomCurveName,
   type HueCurveName,
 } from '../engine/curves';
-import { useGrade, type CurveName } from '../state/store';
+import { selectedNode, useGrade, type CurveName } from '../state/store';
 
 const CHANNEL_COLOR: Record<CustomCurveName, string> = {
   y: '#d6d6d6',
@@ -60,8 +60,8 @@ function placePoint(pts: CurvePoint[], index: number, x: number, y: number, lock
 }
 
 function CurveEditor({ name, width, height, color, ghosts = [], background, testId }: EditorProps) {
-  const pts = useGrade((s) => s.curves[name]);
-  const all = useGrade((s) => s.curves);
+  const pts = useGrade((s) => selectedNode(s).curves[name]);
+  const all = useGrade((s) => selectedNode(s).curves);
   const setCurve = useGrade((s) => s.setCurve);
   const svgRef = useRef<SVGSVGElement>(null);
   const periodic = isPeriodic(name);
@@ -209,7 +209,7 @@ export function CurvesPanel() {
   const setCurve = useGrade((s) => s.setCurve);
 
   const addSix = () => {
-    const pts = useGrade.getState().curves[hueCurve];
+    const pts = selectedNode(useGrade.getState()).curves[hueCurve];
     const f = evaluatorFor(hueCurve, pts);
     const extra = SIX_VECTORS.map(([, x]) => ({ x, y: f(x) })).filter((p) =>
       pts.every((q) => Math.abs(q.x - p.x) > MIN_GAP),

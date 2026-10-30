@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toUniforms, type PrimaryParams } from '../engine/color';
 import { bakeCurves, type CurvesParams } from '../engine/curves';
+import { parseCube } from '../engine/lut';
 import { Renderer, setActiveRenderer, type ViewState } from '../engine/renderer';
 import { currentUniforms, useGrade } from '../state/store';
 
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 16;
+
+export interface TestNode {
+  primary: PrimaryParams;
+  curves?: CurvesParams;
+  enabled?: boolean;
+  cube?: string;
+  lutIntensity?: number;
+}
 
 declare global {
   interface Window {
@@ -19,6 +28,8 @@ declare global {
         dither: boolean,
         curves?: CurvesParams,
       ): number[];
+      /** 노드 체인 처리. LUT는 .cube 텍스트로 넘긴다. */
+      gradeNodes(data: number[], width: number, height: number, nodes: TestNode[], dither: boolean): number[];
     };
   }
 }
@@ -96,7 +107,19 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       window.__GG__ = {
         gradePixels(data, width, height, primary, dither, curves) {
           const u = toUniforms(primary, { curves: curves ? bakeCurves(curves) : undefined });
-          const out = r.renderFull({ data: new Uint8Array(data), width, height }, u, { dither });
+          const out = r.renderFull({ data: new Uint8Array(data), width, height }, [u], { dither });
+          draw();
+          return Array.from(out);
+        },
+        gradeNodes(data, width, height, nodes, dither) {
+          const chain = nodes.map((n) =>
+            toUniforms(n.primary, {
+              enabled: n.enabled ?? true,
+              curves: n.curves ? bakeCurves(n.curves) : undefined,
+              lut: n.cube ? { lut: parseCube(n.cube), intensity: n.lutIntensity ?? 1 } : null,
+            }),
+          );
+          const out = r.renderFull({ data: new Uint8Array(data), width, height }, chain, { dither });
           draw();
           return Array.from(out);
         },

@@ -7,7 +7,7 @@ import {
   type Vec3,
   type WheelName,
 } from '../engine/color';
-import { useGrade } from '../state/store';
+import { selectedNode, useGrade } from '../state/store';
 import { NumberField } from './NumberField';
 
 const SIZE = 132;
@@ -72,7 +72,7 @@ function drag(
 
 export function ColorWheel({ name }: { name: WheelName }) {
   const spec = WHEEL_SPECS[name];
-  const value = useGrade((s) => s.primary[name]);
+  const value = useGrade((s) => selectedNode(s).primary[name]);
   const setWheel = useGrade((s) => s.setWheel);
   const resetWheel = useGrade((s) => s.resetWheel);
   const discRef = useRef<HTMLDivElement>(null);
@@ -87,7 +87,7 @@ export function ColorWheel({ name }: { name: WheelName }) {
   const onDiscDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     drag(e, (dx, dy, fine) => {
-      const cur = useGrade.getState().primary[name];
+      const cur = selectedNode(useGrade.getState()).primary[name];
       const k = (fine ? 0.25 : 1) / RADIUS;
       let x = cur.x + dx * k;
       let y = cur.y - dy * k;
@@ -103,7 +103,7 @@ export function ColorWheel({ name }: { name: WheelName }) {
   const onJogDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     drag(e, (dx, _dy, fine) => {
-      const cur = useGrade.getState().primary[name].master;
+      const cur = selectedNode(useGrade.getState()).primary[name].master;
       const k = ((spec.masterMax - spec.masterMin) / 600) * (fine ? 0.25 : 1);
       setWheel(name, { master: Math.min(spec.masterMax, Math.max(spec.masterMin, cur + dx * k)) });
     });

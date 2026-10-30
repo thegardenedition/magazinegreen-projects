@@ -190,7 +190,7 @@ export function ScopePanel() {
   useEffect(
     () =>
       useGrade.subscribe((s, p) => {
-        if (s.primary !== p.primary || s.curves !== p.curves || s.nodeEnabled !== p.nodeEnabled) draw();
+        if (s.nodes !== p.nodes) draw();
       }),
     [draw],
   );

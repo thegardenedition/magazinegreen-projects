@@ -1,5 +1,5 @@
 import { SCALAR_SPECS, type ScalarName, type WheelName } from '../engine/color';
-import { useGrade } from '../state/store';
+import { selectedNode, useGrade } from '../state/store';
 import { ColorWheel, jogFill } from './ColorWheel';
 import { NumberField } from './NumberField';
 
@@ -8,7 +8,7 @@ const SCALARS: ScalarName[] = ['temperature', 'tint', 'contrast', 'pivot', 'satu
 
 function ScalarControl({ name }: { name: ScalarName }) {
   const spec = SCALAR_SPECS[name];
-  const value = useGrade((s) => s.primary[name]);
+  const value = useGrade((s) => selectedNode(s).primary[name]);
   const setScalar = useGrade((s) => s.setScalar);
   const resetScalar = useGrade((s) => s.resetScalar);
   const digits = spec.step >= 1 ? 0 : spec.step >= 0.01 ? 2 : 3;

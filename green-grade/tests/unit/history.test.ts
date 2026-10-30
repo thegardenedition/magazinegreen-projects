@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { commitHistory, HISTORY_IDLE_MS, useGrade } from '../../src/state/store';
+import { commitHistory, HISTORY_IDLE_MS, selectedNode, useGrade } from '../../src/state/store';
 
-const gain = () => useGrade.getState().primary.gain.master;
+const gain = () => selectedNode(useGrade.getState()).primary.gain.master;
 const setGain = (v: number) => useGrade.getState().setWheel('gain', { master: v });
 
 describe('되돌리기 / 다시 실행', () => {
@@ -56,14 +56,14 @@ describe('되돌리기 / 다시 실행', () => {
   });
 
   it('커브와 노드 on/off도 기록된다', () => {
-    const before = useGrade.getState().curves;
+    const before = selectedNode(useGrade.getState()).curves;
     useGrade.getState().setCurve('y', [{ x: 0, y: 0 }, { x: 0.5, y: 0.3 }, { x: 1, y: 1 }]);
     vi.advanceTimersByTime(HISTORY_IDLE_MS + 10);
     useGrade.getState().toggleNode();
     vi.advanceTimersByTime(HISTORY_IDLE_MS + 10);
     useGrade.getState().undo();
-    expect(useGrade.getState().nodeEnabled).toBe(true);
+    expect(selectedNode(useGrade.getState()).enabled).toBe(true);
     useGrade.getState().undo();
-    expect(useGrade.getState().curves).toBe(before);
+    expect(selectedNode(useGrade.getState()).curves).toBe(before);
   });
 });

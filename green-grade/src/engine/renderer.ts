@@ -1,4 +1,5 @@
 import type { GradeUniforms } from './color';
+import { MAX_NODES } from './constants';
 import { LUT_ROWS, LUT_SIZE } from './curves';
 import { EXPORT_FRAGMENT, VERTEX_SHADER, VIEWER_FRAGMENT } from './shaders';
 
@@ -20,6 +21,8 @@ export interface ViewerDraw {
 }
 
 const TILE = 2048;
+/** 텍스처 유닛: 0 이미지, 1 커브 표, 2–9 노드별 LUT, 10 이후 스코프 */
+export const LUT_UNIT0 = 2;
 const BACKGROUND: [number, number, number] = [0.086, 0.086, 0.086];
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string) {
@@ -50,7 +53,10 @@ export class GLBase {
   readonly maxTextureSize: number;
   protected vao: WebGLVertexArrayObject;
   private curvesTex: WebGLTexture;
-  private curvesData: Float32Array | null = null;
+  /** 노드 칸마다 마지막으로 올린 커브 표 / LUT (같으면 다시 올리지 않는다) */
+  private curvesData: Array<Float32Array | null> = new Array(MAX_NODES).fill(null);
+  private lutTex: WebGLTexture[] = [];
+  private lutData: Array<Float32Array | null> = new Array(MAX_NODES).fill(null);
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const gl = canvas.getContext('webgl2', {
@@ -73,9 +79,19 @@ export class GLBase {
     // 커브 표: RGBA32F, texelFetch로만 읽으므로 필터링 확장이 필요 없다
     this.curvesTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.curvesTex);
-    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, LUT_SIZE, LUT_ROWS);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, LUT_SIZE, LUT_ROWS * MAX_NODES);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    // 3D LUT 칸: 처음엔 1×1×1 빈 텍스처 (샘플러마다 유효한 3D 텍스처가 묶여 있어야 한다)
+    for (let i = 0; i < MAX_NODES; i++) {
+      const t = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_3D, t);
+      gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA32F, 1, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(4));
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      this.lutTex.push(t);
+    }
   }
 
   createTexture(src: TexSource, mipmap: boolean): WebGLTexture {
@@ -103,29 +119,53 @@ export class GLBase {
     return tex;
   }
 
-  protected setGradeUniforms(prog: WebGLProgram, u: GradeUniforms, dither: boolean) {
+  /** 켜진 노드만 앞에서부터 셰이더 배열에 채운다 */
+  protected setGradeUniforms(prog: WebGLProgram, chain: GradeUniforms[], dither: boolean) {
     const gl = this.gl;
     const loc = (n: string) => gl.getUniformLocation(prog, n);
-    gl.uniform1i(loc('u_enabled'), u.enabled ? 1 : 0);
-    gl.uniform3fv(loc('u_wb'), u.wb);
-    gl.uniform3fv(loc('u_offsetMul'), u.offsetMul);
-    gl.uniform3fv(loc('u_gainMul'), u.gainMul);
-    gl.uniform3fv(loc('u_lift'), u.lift);
-    gl.uniform3fv(loc('u_gammaExp'), u.gammaExp);
-    gl.uniform1f(loc('u_contrast'), u.contrast);
-    gl.uniform1f(loc('u_pivot'), u.pivot);
-    gl.uniform1f(loc('u_saturation'), u.saturation);
-    gl.uniformMatrix3fv(loc('u_hueMatrix'), false, u.hueMatrix);
+    const nodes = chain.filter((u) => u.enabled).slice(0, MAX_NODES);
+    const pad = <T,>(f: (u: GradeUniforms) => T, empty: T): T[] =>
+      Array.from({ length: MAX_NODES }, (_, i) => (nodes[i] ? f(nodes[i]) : empty));
+    const zero3 = [0, 0, 0];
+    gl.uniform1i(loc('u_nodeCount'), nodes.length);
+    gl.uniform3fv(loc('u_wb'), pad((u) => u.wb, zero3).flat());
+    gl.uniform3fv(loc('u_offsetMul'), pad((u) => u.offsetMul, zero3).flat());
+    gl.uniform3fv(loc('u_gainMul'), pad((u) => u.gainMul, zero3).flat());
+    gl.uniform3fv(loc('u_lift'), pad((u) => u.lift, zero3).flat());
+    gl.uniform3fv(loc('u_gammaExp'), pad((u) => u.gammaExp, zero3).flat());
+    gl.uniform1fv(loc('u_contrast'), pad((u) => u.contrast, 0));
+    gl.uniform1fv(loc('u_pivot'), pad((u) => u.pivot, 0));
+    gl.uniform1fv(loc('u_saturation'), pad((u) => u.saturation, 0));
+    gl.uniformMatrix3fv(loc('u_hueMatrix'), false, pad((u) => u.hueMatrix, new Array(9).fill(0)).flat());
+    gl.uniform1iv(loc('u_hueActive'), pad((u) => (u.curves.hueActive ? 1 : 0), 0));
+    const hasLut = (u: GradeUniforms) => !!u.lut && u.lut.intensity > 0;
+    gl.uniform1iv(loc('u_hasLut'), pad((u) => (hasLut(u) ? 1 : 0), 0));
+    gl.uniform1fv(loc('u_lutIntensity'), pad((u) => u.lut?.intensity ?? 0, 0));
+    gl.uniform1iv(loc('u_lutSize'), pad((u) => u.lut?.lut.size ?? 2, 2));
+    gl.uniform3fv(loc('u_lutMin'), pad((u) => u.lut?.lut.domainMin ?? zero3, zero3).flat());
+    gl.uniform3fv(loc('u_lutMax'), pad((u) => u.lut?.lut.domainMax ?? [1, 1, 1], [1, 1, 1]).flat());
     gl.uniform1i(loc('u_dither'), dither ? 1 : 0);
-    gl.uniform1i(loc('u_hueActive'), u.curves.hueActive ? 1 : 0);
+
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.curvesTex);
-    if (this.curvesData !== u.curves.data) {
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, LUT_SIZE, LUT_ROWS, gl.RGBA, gl.FLOAT, u.curves.data);
-      this.curvesData = u.curves.data;
-    }
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    nodes.forEach((u, i) => {
+      if (this.curvesData[i] === u.curves.data) return;
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, i * LUT_ROWS, LUT_SIZE, LUT_ROWS, gl.RGBA, gl.FLOAT, u.curves.data);
+      this.curvesData[i] = u.curves.data;
+    });
     gl.uniform1i(loc('u_curves'), 1);
+
+    for (let i = 0; i < MAX_NODES; i++) {
+      gl.activeTexture(gl.TEXTURE0 + LUT_UNIT0 + i);
+      gl.bindTexture(gl.TEXTURE_3D, this.lutTex[i]);
+      const l = nodes[i] && hasLut(nodes[i]) ? nodes[i].lut!.lut : null;
+      if (l && this.lutData[i] !== l.data) {
+        gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA32F, l.size, l.size, l.size, 0, gl.RGBA, gl.FLOAT, l.data);
+        this.lutData[i] = l.data;
+      }
+      gl.uniform1i(loc(`u_lut${i}`), LUT_UNIT0 + i);
+    }
     gl.activeTexture(gl.TEXTURE0);
   }
 }
@@ -147,7 +187,7 @@ export class Renderer extends GLBase {
   }
 
 
-  drawViewer(u: GradeUniforms, d: ViewerDraw) {
+  drawViewer(u: GradeUniforms[], d: ViewerDraw) {
     const gl = this.gl;
     const { width, height } = this.canvas;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -181,7 +221,7 @@ export class Renderer extends GLBase {
    */
   renderFull(
     src: TexSource,
-    u: GradeUniforms,
+    u: GradeUniforms[],
     opts: { dither: boolean; onProgress?: (done: number) => void },
   ): Uint8ClampedArray<ArrayBuffer> {
     const gl = this.gl;

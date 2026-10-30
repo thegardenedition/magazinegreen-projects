@@ -170,5 +170,5 @@ test('단축키: B 원본 보기, Ctrl+D 노드 끄기', async ({ page }) => {
   await page.keyboard.press('b');
   await expect(page.locator('.viewer-badge')).toHaveCount(0);
   await page.keyboard.press('Control+d');
-  await expect(page.getByTestId('node-01')).toHaveClass(/node-off/);
+  await expect(page.getByTestId('node').first()).toHaveClass(/node-off/);
 });

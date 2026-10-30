@@ -11,6 +11,7 @@ import { GRADE_CHUNK } from './shaders';
 export type ScopeMode = 'waveform' | 'parade' | 'vectorscope' | 'histogram';
 
 export const ANALYSIS_WIDTH = 512;
+const HIST_UNIT = 12;
 
 const ANALYSIS_FRAGMENT = /* glsl */ `#version 300 es
 ${GRADE_CHUNK}
@@ -183,7 +184,7 @@ export class ScopeRenderer extends GLBase {
   }
 
   /** 스코프를 그리고 클리핑 통계를 돌려준다. 이미지가 없으면 null. */
-  draw(u: GradeUniforms, mode: ScopeMode, rect: { x: number; y: number; w: number; h: number }): ScopeStats | null {
+  draw(u: GradeUniforms[], mode: ScopeMode, rect: { x: number; y: number; w: number; h: number }): ScopeStats | null {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
@@ -250,9 +251,9 @@ export class ScopeRenderer extends GLBase {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, mode === 'histogram' ? null : this.accumulator(target.w || 1, target.h || 1).tex);
     gl.uniform1i(gl.getUniformLocation(d, 'u_acc'), 0);
-    gl.activeTexture(gl.TEXTURE2);
+    gl.activeTexture(gl.TEXTURE0 + HIST_UNIT);
     gl.bindTexture(gl.TEXTURE_2D, this.histTex);
-    gl.uniform1i(gl.getUniformLocation(d, 'u_hist'), 2);
+    gl.uniform1i(gl.getUniformLocation(d, 'u_hist'), HIST_UNIT);
     gl.activeTexture(gl.TEXTURE0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     return stats;

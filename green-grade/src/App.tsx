@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ACCEPTED_TYPES, loadImage } from './engine/image';
 import { useGrade } from './state/store';
 import { ExportDialog } from './ui/ExportDialog';
-import { CorrectionPanel, NodePanel, PresetPanel } from './ui/Panels';
+import { NodePanel } from './ui/NodePanel';
+import { CorrectionPanel } from './ui/Panels';
+import { PresetPanel } from './ui/PresetPanel';
 import { ScopePanel } from './ui/ScopePanel';
 import { Viewer } from './ui/Viewer';
 
@@ -55,6 +57,9 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         s.toggleNode();
+      } else if (e.altKey && !mod && e.code === 'KeyS') {
+        e.preventDefault();
+        s.addNode();
       } else if (!mod && !e.altKey && e.key.toLowerCase() === 'b') {
         s.toggleBypass();
       } else if (!mod && !e.altKey && e.key.toLowerCase() === 's') {
