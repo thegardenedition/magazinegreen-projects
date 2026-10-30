@@ -22,7 +22,7 @@ void main() {
   // 0행이 이미지 맨 위가 되도록 (Waveform 가로축은 이미지 가로와 같아야 함)
   vec2 uv = vec2(gl_FragCoord.x / u_size.x, 1.0 - gl_FragCoord.y / u_size.y);
   vec3 lin = srgbToLinear(texture(u_image, uv).rgb);
-  outColor = vec4(linearToSrgb(clamp(gradeLinear(lin), 0.0, 1.0)), 1.0);
+  outColor = vec4(linearToSrgb(clamp(gradeLinear(lin, uv), 0.0, 1.0)), 1.0);
 }
 `;
 
@@ -122,6 +122,7 @@ export class ScopeRenderer extends GLBase {
   private analysisPixels = new Uint8Array(0);
   private accTex = new Map<string, { tex: WebGLTexture; fbo: WebGLFramebuffer }>();
   private histTex: WebGLTexture;
+  private aspect = 1;
   private readonly floatAcc: boolean;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -145,6 +146,7 @@ export class ScopeRenderer extends GLBase {
     if (this.proxyTex) gl.deleteTexture(this.proxyTex);
     this.proxyTex = proxy ? this.createTexture(proxy, true) : null;
     if (!proxy) return;
+    this.aspect = proxy.width / proxy.height;
     const w = Math.min(ANALYSIS_WIDTH, proxy.width);
     const h = Math.max(1, Math.min(ANALYSIS_WIDTH, Math.round((w * proxy.height) / proxy.width)));
     if (w === this.analysisSize.w && h === this.analysisSize.h) return;
@@ -195,7 +197,7 @@ export class ScopeRenderer extends GLBase {
     // 1) 분석 렌더
     const { w: aw, h: ah } = this.analysisSize;
     gl.useProgram(this.analysisProg);
-    this.setGradeUniforms(this.analysisProg, u, false);
+    this.setGradeUniforms(this.analysisProg, u, { dither: false, aspect: this.aspect });
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.proxyTex);
     gl.uniform1i(gl.getUniformLocation(this.analysisProg, 'u_image'), 0);

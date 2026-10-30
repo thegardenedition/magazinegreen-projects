@@ -4,6 +4,15 @@ import { defaultPrimary, defaultWheel, LUMA, type PrimaryParams, type Vec3, type
 import { MAX_NODES } from './constants';
 import { CUSTOM_CURVES, defaultCurves, HUE_CURVES, SIX_VECTORS, type CurvePoint, type CurvesParams } from './curves';
 import { LUT_MAX_SIZE, type CubeLut } from './lut';
+import {
+  defaultQualifier,
+  defaultShape,
+  defaultWindow,
+  MAX_POLY_POINTS,
+  type Qualifier,
+  type WindowParams,
+  type WindowShape,
+} from './mask';
 
 export const PRESET_FORMAT = 'green-grade-preset';
 export const PRESET_VERSION = 1;
@@ -16,6 +25,8 @@ export interface PresetNode {
   curves: CurvesParams;
   lut: CubeLut | null;
   lutIntensity: number;
+  qualifier: Qualifier;
+  window: WindowParams;
 }
 
 export interface Preset {
@@ -130,6 +141,65 @@ function readLut(v: unknown): CubeLut | null {
   };
 }
 
+const bool = (v: unknown, def: boolean) => (typeof v === 'boolean' ? v : def);
+
+function readQualifier(v: unknown): Qualifier {
+  const d = defaultQualifier();
+  const o = (v ?? {}) as Record<string, Record<string, unknown> | unknown>;
+  const h = (o.hue ?? {}) as Record<string, unknown>;
+  const range = (r: unknown, def: Qualifier['sat']) => {
+    const x = (r ?? {}) as Record<string, unknown>;
+    return {
+      on: bool(x.on, def.on),
+      low: num(x.low, def.low, 0, 1),
+      high: num(x.high, def.high, 0, 1),
+      soft: num(x.soft, def.soft, 0, 1),
+    };
+  };
+  return {
+    enabled: bool(o.enabled, d.enabled),
+    invert: bool(o.invert, d.invert),
+    hue: {
+      on: bool(h.on, d.hue.on),
+      center: num(h.center, d.hue.center, 0, 1),
+      width: num(h.width, d.hue.width, 0, 0.5),
+      soft: num(h.soft, d.hue.soft, 0, 0.5),
+    },
+    sat: range(o.sat, d.sat),
+    lum: range(o.lum, d.lum),
+  };
+}
+
+function readShape(v: unknown): WindowShape {
+  const o = (v ?? {}) as Record<string, unknown>;
+  const type = (['circle', 'rect', 'gradient', 'polygon'] as const).find((t) => t === o.type) ?? 'circle';
+  const d = defaultShape(type) as Record<string, unknown>;
+  if (type === 'polygon') {
+    const pts = Array.isArray(o.points) ? o.points : [];
+    return {
+      type,
+      points: pts
+        .slice(0, MAX_POLY_POINTS)
+        .map((p: { x?: unknown; y?: unknown }) => ({ x: num(p?.x, 0.5, -1, 2), y: num(p?.y, 0.5, -1, 2) })),
+      smooth: bool(o.smooth, false),
+    };
+  }
+  const out: Record<string, unknown> = { type };
+  for (const k of Object.keys(d)) if (k !== 'type') out[k] = num(o[k], d[k] as number, -10, 10);
+  return out as WindowShape;
+}
+
+function readWindow(v: unknown): WindowParams {
+  const d = defaultWindow();
+  const o = (v ?? {}) as Record<string, unknown>;
+  return {
+    enabled: bool(o.enabled, d.enabled),
+    invert: bool(o.invert, d.invert),
+    feather: num(o.feather, d.feather, 0, 2),
+    shape: o.shape ? readShape(o.shape) : d.shape,
+  };
+}
+
 /** JSON 텍스트 → 프리셋. 빠진 값은 기본값으로 채우고 범위를 벗어난 값은 잘라낸다. */
 export function parsePreset(text: string): Preset {
   let raw: unknown;
@@ -154,6 +224,8 @@ export function parsePreset(text: string): Preset {
       curves: readCurves(n?.curves),
       lut: readLut(n?.lut),
       lutIntensity: num(n?.lutIntensity, 1, 0, 1),
+      qualifier: readQualifier(n?.qualifier),
+      window: readWindow(n?.window),
     })),
   };
 }
@@ -191,14 +263,22 @@ const bump = (...pts: Array<[number, number]>): CurvePoint[] => {
   return out.sort((a, b) => a.x - b.x);
 };
 
-function node(name: string, p: Partial<PrimaryParams>, c: Partial<CurvesParams> = {}): PresetNode {
+function node(
+  name: string,
+  p: Partial<PrimaryParams>,
+  c: Partial<CurvesParams> = {},
+  extra: Partial<PresetNode> = {},
+): PresetNode {
   return {
+    qualifier: defaultQualifier(),
+    window: defaultWindow(),
     name,
     enabled: true,
     primary: { ...defaultPrimary(), ...p },
     curves: { ...defaultCurves(), ...c },
     lut: null,
     lutIntensity: 1,
+    ...extra,
   };
 }
 
@@ -241,7 +321,7 @@ export const BUILTIN_PRESETS: Preset[] = [
   },
   {
     name: '흐린 날 구제',
-    description: '미드톤 대비를 세우고 하늘의 푸른 기를 조금 짙게',
+    description: '미드톤 대비를 세우고, 위쪽 그라디언트 창으로 하늘만 짙게',
     nodes: [
       node('대비', {
         contrast: 1.14,
@@ -250,9 +330,16 @@ export const BUILTIN_PRESETS: Preset[] = [
       }, {
         y: [{ x: 0, y: 0 }, { x: 0.25, y: 0.21 }, { x: 0.75, y: 0.8 }, { x: 1, y: 1 }],
       }),
-      node('하늘', {}, {
+      // 위쪽 그라디언트 창 안에서만: 하늘을 조금 눌러 구름 결을 살리고 푸른 기를 더한다
+      node('하늘', {
+        gamma: { x: 0, y: 0, master: -0.08 },
+        temperature: -6,
+        saturation: 1.1,
+      }, {
         hueLum: bump([HUE_B, 0.38]),
         hueSat: bump([HUE_C, 0.56], [HUE_B, 0.6]),
+      }, {
+        window: { enabled: true, invert: false, feather: 0.05, shape: { type: 'gradient', x0: 0.5, y0: 0.05, x1: 0.5, y1: 0.55 } },
       }),
     ],
   },

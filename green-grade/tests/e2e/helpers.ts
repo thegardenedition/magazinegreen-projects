@@ -70,3 +70,35 @@ export function writeFixtures() {
 }
 
 export const lum = (m: number[]) => 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+
+/** 이미지의 일부 영역(0–1 비율 좌표) 평균 RGB */
+export async function regionMean(
+  page: Page,
+  bytes: Buffer,
+  type: string,
+  r: { x: number; y: number; w: number; h: number },
+) {
+  return page.evaluate(
+    async ({ b64, type, r }) => {
+      const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const bmp = await createImageBitmap(new Blob([bin], { type }));
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0);
+      const x = Math.round(r.x * bmp.width);
+      const y = Math.round(r.y * bmp.height);
+      const d = ctx.getImageData(x, y, Math.round(r.w * bmp.width), Math.round(r.h * bmp.height)).data;
+      const sum = [0, 0, 0];
+      for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += d[i + k];
+      return sum.map((s) => s / (d.length / 4));
+    },
+    { b64: bytes.toString('base64'), type, r },
+  );
+}
+
+export async function exportJpg(page: Page) {
+  await page.getByTestId('export-open').click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-confirm').click()]);
+  const { readFileSync } = await import('node:fs');
+  return readFileSync((await download.path())!);
+}

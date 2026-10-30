@@ -60,12 +60,15 @@ export function App() {
       } else if (e.altKey && !mod && e.code === 'KeyS') {
         e.preventDefault();
         s.addNode();
+      } else if (e.shiftKey && !mod && !e.altKey && e.key.toLowerCase() === 'h') {
+        s.setMaskView(s.maskView === 'off' ? 'highlight' : 'off');
       } else if (!mod && !e.altKey && e.key.toLowerCase() === 'b') {
         s.toggleBypass();
       } else if (!mod && !e.altKey && e.key.toLowerCase() === 's') {
         s.toggleSplit();
       } else if (e.key === 'Escape') {
         s.setExportOpen(false);
+        s.setViewerTool('none');
       }
     };
     window.addEventListener('keydown', onKey);

@@ -24,6 +24,13 @@ import {
 import type { LoadedImage } from '../engine/image';
 import type { CubeLut } from '../engine/lut';
 import type { Preset } from '../engine/presets';
+import {
+  defaultQualifier,
+  defaultWindow,
+  maskUniform,
+  type Qualifier,
+  type WindowParams,
+} from '../engine/mask';
 
 export type CurveName = CustomCurveName | HueCurveName;
 
@@ -35,7 +42,14 @@ export interface GradeNode {
   curves: CurvesParams;
   lut: CubeLut | null;
   lutIntensity: number;
+  qualifier: Qualifier;
+  window: WindowParams;
 }
+
+export type CorrectionTab = 'primary' | 'curves' | 'qualifier' | 'window';
+export type MaskView = 'off' | 'highlight' | 'bw';
+/** 뷰어 클릭 동작: 스포이드(새로/더하기) 또는 펜(폴리곤 점 추가) */
+export type ViewerTool = 'none' | 'pick' | 'pick-add' | 'pen';
 
 /** 되돌리기 대상이 되는 보정 상태 */
 interface Grade {
@@ -49,6 +63,9 @@ interface GradeState extends Grade {
   split: boolean;
   splitPos: number;
   exportOpen: boolean;
+  correctionTab: CorrectionTab;
+  maskView: MaskView;
+  viewerTool: ViewerTool;
   past: Grade[];
   future: Grade[];
 
@@ -64,6 +81,11 @@ interface GradeState extends Grade {
   resetCurves(): void;
   setLut(lut: CubeLut | null): void;
   setLutIntensity(v: number): void;
+  setQualifier(fn: (q: Qualifier) => Qualifier): void;
+  setWindow(fn: (w: WindowParams) => WindowParams): void;
+  setCorrectionTab(t: CorrectionTab): void;
+  setMaskView(v: MaskView): void;
+  setViewerTool(t: ViewerTool): void;
   // 노드
   selectNode(id: string): void;
   addNode(): void;
@@ -95,6 +117,8 @@ export function createNode(name: string, patch: Partial<Omit<GradeNode, 'id'>> =
     curves: defaultCurves(),
     lut: null,
     lutIntensity: 1,
+    qualifier: defaultQualifier(),
+    window: defaultWindow(),
     ...patch,
   };
 }
@@ -134,6 +158,9 @@ export const useGrade = create<GradeState>((set, get) => {
     split: false,
     splitPos: 0.5,
     exportOpen: false,
+    correctionTab: 'primary',
+    maskView: 'off',
+    viewerTool: 'none',
     past: [],
     future: [],
 
@@ -157,6 +184,19 @@ export const useGrade = create<GradeState>((set, get) => {
     resetCurves: () => updateSel(() => ({ curves: defaultCurves() })),
     setLut: (lut) => updateSel(() => ({ lut, lutIntensity: 1 })),
     setLutIntensity: (v) => updateSel(() => ({ lutIntensity: Math.min(1, Math.max(0, v)) })),
+    setQualifier: (fn) => updateSel((n) => ({ qualifier: fn(n.qualifier) })),
+    setWindow: (fn) => updateSel((n) => ({ window: fn(n.window) })),
+    setCorrectionTab: (correctionTab) =>
+      set((s) => ({
+        correctionTab,
+        // 탭을 떠나면 그 탭의 뷰어 도구는 끈다
+        viewerTool:
+          (correctionTab !== 'qualifier' && s.viewerTool.startsWith('pick')) || (correctionTab !== 'window' && s.viewerTool === 'pen')
+            ? 'none'
+            : s.viewerTool,
+      })),
+    setMaskView: (maskView) => set({ maskView }),
+    setViewerTool: (viewerTool) => set({ viewerTool }),
 
     selectNode: (selectedId) => set({ selectedId }),
     addNode: () => {
@@ -275,6 +315,7 @@ export function nodeUniforms(n: GradeNode): GradeUniforms {
     enabled: n.enabled,
     curves: bakedFor(n.curves),
     lut: n.lut ? { lut: n.lut, intensity: n.lutIntensity } : null,
+    mask: maskUniform(n.qualifier, n.window),
   });
 }
 

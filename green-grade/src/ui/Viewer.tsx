@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toUniforms, type PrimaryParams } from '../engine/color';
 import { bakeCurves, type CurvesParams } from '../engine/curves';
 import { parseCube } from '../engine/lut';
+import { maskUniform, type Point, type Qualifier, type WindowParams } from '../engine/mask';
 import { Renderer, setActiveRenderer, type ViewState } from '../engine/renderer';
-import { currentUniforms, useGrade } from '../state/store';
+import { currentUniforms, selectedNode, useGrade } from '../state/store';
+import { pickQualifier } from './picker';
+import { WindowOverlay } from './WindowOverlay';
 
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 16;
@@ -14,7 +17,11 @@ export interface TestNode {
   enabled?: boolean;
   cube?: string;
   lutIntensity?: number;
+  qualifier?: Qualifier;
+  window?: WindowParams;
 }
+
+const MASK_VIEW = { off: 0, highlight: 1, bw: 2 } as const;
 
 declare global {
   interface Window {
@@ -40,13 +47,16 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const rendererRef = useRef<Renderer | null>(null);
   const viewRef = useRef<ViewState>({ scale: 1, offsetX: 0, offsetY: 0 });
   const frameRef = useRef(0);
-  const [zoom, setZoom] = useState(1);
+  const [view, setViewState] = useState<ViewState>(viewRef.current);
   const [error, setError] = useState<string | null>(null);
 
   const image = useGrade((s) => s.image);
   const split = useGrade((s) => s.split);
   const splitPos = useGrade((s) => s.splitPos);
   const bypass = useGrade((s) => s.bypass);
+  const tool = useGrade((s) => s.viewerTool);
+  const showWindow = useGrade((s) => s.correctionTab === 'window');
+  const maskView = useGrade((s) => s.maskView);
 
   const draw = useCallback(() => {
     cancelAnimationFrame(frameRef.current);
@@ -61,6 +71,8 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
         split: s.split ? s.splitPos * r.canvas.width : -1,
         bypass: s.bypass,
         dither: true,
+        maskView: MASK_VIEW[s.maskView],
+        maskNode: s.nodes.indexOf(selectedNode(s)),
       });
     });
   }, []);
@@ -68,7 +80,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const setView = useCallback(
     (v: ViewState) => {
       viewRef.current = v;
-      setZoom(v.scale);
+      setViewState(v);
       draw();
     },
     [draw],
@@ -117,6 +129,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
               enabled: n.enabled ?? true,
               curves: n.curves ? bakeCurves(n.curves) : undefined,
               lut: n.cube ? { lut: parseCube(n.cube), intensity: n.lutIntensity ?? 1 } : null,
+              mask: n.qualifier && n.window ? maskUniform(n.qualifier, n.window) : null,
             }),
           );
           const out = r.renderFull({ data: new Uint8Array(data), width, height }, chain, { dither });
@@ -150,6 +163,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       canvas.width = w;
       canvas.height = h;
       viewRef.current = { ...v, offsetX: v.offsetX + dx, offsetY: v.offsetY + dy };
+      setViewState(viewRef.current);
       draw();
     });
     ro.observe(wrap);
@@ -186,6 +200,15 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     return [(e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr] as const;
   };
 
+  /** 화면 좌표 → 이미지 좌표(0–1) */
+  const toImage = useCallback((clientX: number, clientY: number): Point => {
+    const [x, y] = toCanvas({ clientX, clientY });
+    const v = viewRef.current;
+    const img = useGrade.getState().image;
+    if (!img) return { x: 0, y: 0 };
+    return { x: (x - v.offsetX) / v.scale / img.width, y: (y - v.offsetY) / v.scale / img.height };
+  }, []);
+
   const onWheel = (e: React.WheelEvent) => {
     if (!image) return;
     const [x, y] = toCanvas(e);
@@ -194,6 +217,19 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!image || e.button !== 0) return;
+    const s = useGrade.getState();
+    if (s.viewerTool !== 'none') {
+      const p = toImage(e.clientX, e.clientY);
+      if (p.x < 0 || p.y < 0 || p.x > 1 || p.y > 1) return;
+      if (s.viewerTool === 'pen') {
+        s.setWindow((w) =>
+          w.shape.type === 'polygon' ? { ...w, enabled: true, shape: { ...w.shape, points: [...w.shape.points, p] } } : w,
+        );
+      } else {
+        pickQualifier(p.x, p.y, s.viewerTool === 'pick-add');
+      }
+      return;
+    }
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
     const start = toCanvas(e);
@@ -225,15 +261,23 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div className="viewer" ref={wrapRef}>
+    <div className={`viewer ${tool !== 'none' ? 'viewer-tool' : ''}`} ref={wrapRef} onWheel={onWheel}>
       <canvas
         ref={canvasRef}
         className="viewer-canvas"
         data-testid="viewer-canvas"
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
-        onDoubleClick={fit}
+        onDoubleClick={() => tool === 'none' && fit()}
       />
+      {image && showWindow && (
+        <WindowOverlay
+          view={view}
+          dpr={window.devicePixelRatio || 1}
+          imageWidth={image.width}
+          imageHeight={image.height}
+          toImage={toImage}
+        />
+      )}
       {error && <div className="viewer-empty">{error}</div>}
       {!image && !error && (
         <div className="viewer-empty">
@@ -251,6 +295,19 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
         </div>
       )}
       {image && bypass && <div className="viewer-badge">원본 보기 (B)</div>}
+      {image && !bypass && maskView !== 'off' && (
+        <div className="viewer-badge" data-testid="mask-badge">
+          마스크 보기 · {maskView === 'bw' ? '흑백' : '하이라이트'} (Shift+H)
+        </div>
+      )}
+      {image && tool !== 'none' && (
+        <div className="viewer-tool-hint" data-testid="tool-hint">
+          {tool === 'pen' ? '클릭해 점 추가 · 점 더블클릭으로 삭제' : tool === 'pick' ? '고를 색을 클릭' : '더할 색을 클릭'}
+          <button className="btn btn-ghost" onClick={() => useGrade.getState().setViewerTool('none')}>
+            끝내기 (Esc)
+          </button>
+        </div>
+      )}
       {image && (
         <div className="viewer-hud">
           <button className="btn btn-ghost" onClick={fit} title="화면 맞춤 (F)">
@@ -266,7 +323,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
           >
             100%
           </button>
-          <span className="mono">{Math.round(zoom * 100)}%</span>
+          <span className="mono">{Math.round(view.scale * 100)}%</span>
         </div>
       )}
     </div>

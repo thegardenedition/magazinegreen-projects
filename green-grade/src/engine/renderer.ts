@@ -1,6 +1,7 @@
 import type { GradeUniforms } from './color';
 import { MAX_NODES } from './constants';
 import { LUT_ROWS, LUT_SIZE } from './curves';
+import { MAX_POLY_POINTS, maskBits } from './mask';
 import { EXPORT_FRAGMENT, VERTEX_SHADER, VIEWER_FRAGMENT } from './shaders';
 
 export type TexSource = ImageBitmap | { data: Uint8Array; width: number; height: number };
@@ -18,11 +19,23 @@ export interface ViewerDraw {
   split: number;
   bypass: boolean;
   dither: boolean;
+  /** 마스크 보기: 0 끔, 1 하이라이트, 2 흑백 */
+  maskView: 0 | 1 | 2;
+  maskNode: number;
 }
 
 const TILE = 2048;
-/** 텍스처 유닛: 0 이미지, 1 커브 표, 2–9 노드별 LUT, 10 이후 스코프 */
+/** 텍스처 유닛: 0 이미지, 1 커브 표, 2–9 노드별 LUT, 10 폴리곤, 12 스코프 */
 export const LUT_UNIT0 = 2;
+const POLY_UNIT = 10;
+
+export interface GradeOptions {
+  dither: boolean;
+  /** 이미지 가로/세로 (창 모양 계산용) */
+  aspect?: number;
+  /** 마스크를 보여 줄 노드의 순번 (꺼진 노드 포함한 원래 순번) */
+  maskNode?: number;
+}
 const BACKGROUND: [number, number, number] = [0.086, 0.086, 0.086];
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string) {
@@ -57,6 +70,8 @@ export class GLBase {
   private curvesData: Array<Float32Array | null> = new Array(MAX_NODES).fill(null);
   private lutTex: WebGLTexture[] = [];
   private lutData: Array<Float32Array | null> = new Array(MAX_NODES).fill(null);
+  private polyTex: WebGLTexture;
+  private polyData = new Float32Array(MAX_POLY_POINTS * MAX_NODES * 4);
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const gl = canvas.getContext('webgl2', {
@@ -80,6 +95,12 @@ export class GLBase {
     this.curvesTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.curvesTex);
     gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, LUT_SIZE, LUT_ROWS * MAX_NODES);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    this.polyTex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, this.polyTex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, MAX_POLY_POINTS, MAX_NODES);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
@@ -120,7 +141,8 @@ export class GLBase {
   }
 
   /** 켜진 노드만 앞에서부터 셰이더 배열에 채운다 */
-  protected setGradeUniforms(prog: WebGLProgram, chain: GradeUniforms[], dither: boolean) {
+  protected setGradeUniforms(prog: WebGLProgram, chain: GradeUniforms[], opts: GradeOptions) {
+    const { dither, aspect = 1, maskNode = -1 } = opts;
     const gl = this.gl;
     const loc = (n: string) => gl.getUniformLocation(prog, n);
     const nodes = chain.filter((u) => u.enabled).slice(0, MAX_NODES);
@@ -133,15 +155,32 @@ export class GLBase {
     gl.uniform3fv(loc('u_gainMul'), pad((u) => u.gainMul, zero3).flat());
     gl.uniform3fv(loc('u_lift'), pad((u) => u.lift, zero3).flat());
     gl.uniform3fv(loc('u_gammaExp'), pad((u) => u.gammaExp, zero3).flat());
-    gl.uniform1fv(loc('u_contrast'), pad((u) => u.contrast, 0));
-    gl.uniform1fv(loc('u_pivot'), pad((u) => u.pivot, 0));
-    gl.uniform1fv(loc('u_saturation'), pad((u) => u.saturation, 0));
-    gl.uniformMatrix3fv(loc('u_hueMatrix'), false, pad((u) => u.hueMatrix, new Array(9).fill(0)).flat());
-    gl.uniform1iv(loc('u_hueActive'), pad((u) => (u.curves.hueActive ? 1 : 0), 0));
     const hasLut = (u: GradeUniforms) => !!u.lut && u.lut.intensity > 0;
-    gl.uniform1iv(loc('u_hasLut'), pad((u) => (hasLut(u) ? 1 : 0), 0));
-    gl.uniform1fv(loc('u_lutIntensity'), pad((u) => u.lut?.intensity ?? 0, 0));
-    gl.uniform1iv(loc('u_lutSize'), pad((u) => u.lut?.lut.size ?? 2, 2));
+    gl.uniform4fv(
+      loc('u_tone'),
+      pad((u) => [u.contrast, u.pivot, u.saturation, u.lut?.intensity ?? 0], [0, 0, 0, 0]).flat(),
+    );
+    gl.uniform4iv(
+      loc('u_flags'),
+      pad(
+        (u) => [u.curves.hueActive ? 1 : 0, hasLut(u) ? 1 : 0, u.lut?.lut.size ?? 2, maskBits(u.mask)],
+        [0, 0, 2, 0],
+      ).flat(),
+    );
+    const q = (u: GradeUniforms) => u.mask?.qualifier;
+    gl.uniform4fv(loc('u_hueQ'), pad((u) => { const h = q(u)?.hue; return h ? [h.center, h.width, h.soft, 0] : [0, 0, 0, 0]; }, [0, 0, 0, 0]).flat());
+    gl.uniform4fv(loc('u_satQ'), pad((u) => { const r = q(u)?.sat; return r ? [r.low, r.high, r.soft, 0] : [0, 1, 0, 0]; }, [0, 1, 0, 0]).flat());
+    gl.uniform4fv(loc('u_lumQ'), pad((u) => { const r = q(u)?.lum; return r ? [r.low, r.high, r.soft, 0] : [0, 1, 0, 0]; }, [0, 1, 0, 0]).flat());
+    gl.uniform4fv(loc('u_winA'), pad((u) => u.mask?.window?.w.a ?? [0, 0, 0, 0], [0, 0, 0, 0]).flat());
+    gl.uniform4fv(
+      loc('u_winB'),
+      pad((u) => { const w = u.mask?.window?.w; return w ? [w.angle, w.feather, 0, 0] : [0, 0, 0, 0]; }, [0, 0, 0, 0]).flat(),
+    );
+    gl.uniform1f(loc('u_aspect'), aspect);
+    // 꺼진 노드는 빠지므로, 원래 순번을 켜진 노드 안의 순번으로 바꾼다
+    const shown = maskNode >= 0 && chain[maskNode]?.enabled ? chain.slice(0, maskNode).filter((u) => u.enabled).length : -1;
+    gl.uniform1i(loc('u_maskNode'), shown);
+    gl.uniformMatrix3fv(loc('u_hueMatrix'), false, pad((u) => u.hueMatrix, new Array(9).fill(0)).flat());
     gl.uniform3fv(loc('u_lutMin'), pad((u) => u.lut?.lut.domainMin ?? zero3, zero3).flat());
     gl.uniform3fv(loc('u_lutMax'), pad((u) => u.lut?.lut.domainMax ?? [1, 1, 1], [1, 1, 1]).flat());
     gl.uniform1i(loc('u_dither'), dither ? 1 : 0);
@@ -155,6 +194,19 @@ export class GLBase {
       this.curvesData[i] = u.curves.data;
     });
     gl.uniform1i(loc('u_curves'), 1);
+
+    // 폴리곤 꼭짓점 표
+    gl.activeTexture(gl.TEXTURE0 + POLY_UNIT);
+    gl.bindTexture(gl.TEXTURE_2D, this.polyTex);
+    this.polyData.fill(0);
+    nodes.forEach((u, i) => {
+      u.mask?.window?.w.poly.slice(0, MAX_POLY_POINTS).forEach((p, k) => {
+        this.polyData[(i * MAX_POLY_POINTS + k) * 4] = p.x;
+        this.polyData[(i * MAX_POLY_POINTS + k) * 4 + 1] = p.y;
+      });
+    });
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_POLY_POINTS, MAX_NODES, gl.RGBA, gl.FLOAT, this.polyData);
+    gl.uniform1i(loc('u_polys'), POLY_UNIT);
 
     for (let i = 0; i < MAX_NODES; i++) {
       gl.activeTexture(gl.TEXTURE0 + LUT_UNIT0 + i);
@@ -200,7 +252,12 @@ export class Renderer extends GLBase {
     const prog = this.viewerProg;
     gl.useProgram(prog);
     const loc = (n: string) => gl.getUniformLocation(prog, n);
-    this.setGradeUniforms(prog, u, d.dither);
+    this.setGradeUniforms(prog, u, {
+      dither: d.dither,
+      aspect: d.imageWidth / d.imageHeight,
+      maskNode: d.maskNode,
+    });
+    gl.uniform1i(loc('u_maskView'), d.maskView);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.previewTex);
     gl.uniform1i(loc('u_image'), 0);
@@ -241,7 +298,7 @@ export class Renderer extends GLBase {
 
     const prog = this.exportProg;
     gl.useProgram(prog);
-    this.setGradeUniforms(prog, u, opts.dither);
+    this.setGradeUniforms(prog, u, { dither: opts.dither, aspect: width / height });
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1i(gl.getUniformLocation(prog, 'u_image'), 0);

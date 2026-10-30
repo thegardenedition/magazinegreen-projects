@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { selectedNode, useGrade } from '../state/store';
+import { selectedNode, useGrade, type CorrectionTab } from '../state/store';
 import { CurvesPanel } from './CurvesPanel';
+import { QualifierPanel, WindowPanel } from './MaskPanels';
 import { PrimaryPanel } from './PrimaryPanel';
 
-const CORRECTION_TABS = [
+const CORRECTION_TABS: Array<{ id: CorrectionTab; label: string; phase: number }> = [
   { id: 'primary', label: 'Primary', phase: 1 },
   { id: 'curves', label: 'Curves', phase: 2 },
   { id: 'qualifier', label: 'HSL Qualifier', phase: 4 },
@@ -11,10 +11,11 @@ const CORRECTION_TABS = [
 ];
 
 /** 지금 단계까지 구현된 탭 */
-const AVAILABLE_PHASE = 3;
+const AVAILABLE_PHASE = 4;
 
 export function CorrectionPanel() {
-  const [tab, setTab] = useState('primary');
+  const tab = useGrade((s) => s.correctionTab);
+  const setTab = useGrade((s) => s.setCorrectionTab);
   const resetPrimary = useGrade((s) => s.resetPrimary);
   const nodeName = useGrade((s) => selectedNode(s).name);
   const resetCurves = useGrade((s) => s.resetCurves);
@@ -37,17 +38,21 @@ export function CorrectionPanel() {
         <span className="muted small node-badge" data-testid="editing-node">
           {nodeName}
         </span>
-        {tab === 'primary' ? (
+        {tab === 'primary' && (
           <button className="btn btn-ghost" onClick={resetPrimary} data-testid="reset-primary">
             Primary 리셋
           </button>
-        ) : (
+        )}
+        {tab === 'curves' && (
           <button className="btn btn-ghost" onClick={resetCurves} data-testid="reset-curves">
             커브 전체 리셋
           </button>
         )}
       </header>
-      {tab === 'primary' ? <PrimaryPanel /> : <CurvesPanel />}
+      {tab === 'primary' && <PrimaryPanel />}
+      {tab === 'curves' && <CurvesPanel />}
+      {tab === 'qualifier' && <QualifierPanel />}
+      {tab === 'window' && <WindowPanel />}
     </section>
   );
 }

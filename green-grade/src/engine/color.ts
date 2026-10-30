@@ -4,6 +4,7 @@
 
 import { GRADING_GAMMA, LUMA, type Vec3 } from './constants';
 import { sampleLut, type LutUniform } from './lut';
+import { maskWeight, type MaskUniform } from './mask';
 import { bakeCurves, defaultCurves, lookupCustom, lookupHue, lookupLumSat, RED_ANGLE, HUE_SHIFT_MAX_DEG, type CurveLuts } from './curves';
 
 export { GRADING_GAMMA, LUMA, type Vec3 };
@@ -143,7 +144,18 @@ export interface GradeUniforms {
   curves: CurveLuts;
   /** 노드 끝에 적용하는 3D LUT */
   lut: LutUniform | null;
+  /** Qualifier·Window. null이면 화면 전체에 적용 */
+  mask: MaskUniform | null;
 }
+
+/** 픽셀 위치 (마스크 계산용). u, v는 이미지 0–1, aspect = 가로/세로 */
+export interface PixelPos {
+  u: number;
+  v: number;
+  aspect: number;
+}
+
+const CENTER: PixelPos = { u: 0.5, v: 0.5, aspect: 1 };
 
 let identityLuts: CurveLuts | null = null;
 /** 모든 커브가 기본값인 표 (한 번만 굽는다) */
@@ -178,7 +190,7 @@ export function hueRotationMatrix(degrees: number): number[] {
 
 export function toUniforms(
   p: PrimaryParams,
-  opts: { enabled?: boolean; curves?: CurveLuts; lut?: LutUniform | null } = {},
+  opts: { enabled?: boolean; curves?: CurveLuts; lut?: LutUniform | null; mask?: MaskUniform | null } = {},
 ): GradeUniforms {
   const enabled = opts.enabled ?? true;
   const off = wheelChannels('offset', p.offset);
@@ -198,6 +210,7 @@ export function toUniforms(
     hueMatrix: hueRotationMatrix(p.hue),
     curves: opts.curves ?? identityCurveLuts(),
     lut: opts.lut ?? null,
+    mask: opts.mask ?? null,
   };
 }
 
@@ -228,8 +241,17 @@ function spow(x: number, e: number): number {
  * 11) Hue              — 회색 축 회전
  * 12) Hue/Lum 커브      — 그레이딩 인코딩의 Y'CbCr에서 색상각·채도·휘도 조정
  * 13) LUT              — sRGB 코드값으로 바꿔 3D LUT, 선형으로 돌아와 강도만큼 섞음
+ * 14) 마스크            — 노드 입력 색·위치로 구한 마스크만큼 입력과 결과를 섞음
  */
-export function gradeLinear(rgb: Vec3, u: GradeUniforms): Vec3 {
+export function gradeLinear(rgb: Vec3, u: GradeUniforms, pos: PixelPos = CENTER): Vec3 {
+  if (!u.enabled) return [...rgb] as Vec3;
+  const graded = gradeUnmasked(rgb, u);
+  if (!u.mask) return graded;
+  const m = maskWeight(u.mask, rgb, pos.u, pos.v, pos.aspect);
+  return graded.map((g, i) => rgb[i] + (g - rgb[i]) * m) as Vec3;
+}
+
+function gradeUnmasked(rgb: Vec3, u: GradeUniforms): Vec3 {
   if (!u.enabled) return [...rgb] as Vec3;
   let c = rgb.map((v, i) => v * u.wb[i] * u.offsetMul[i] * u.gainMul[i]);
   c = c.map((v, i) => {
@@ -264,8 +286,8 @@ export function applyLut(lin: Vec3, l: LutUniform): Vec3 {
 }
 
 /** 노드를 순서대로 통과시킨다 (Serial). 꺼진 노드는 건너뛴다. */
-export function gradeChain(rgb: Vec3, chain: GradeUniforms[]): Vec3 {
-  return chain.reduce((c, u) => gradeLinear(c, u), rgb);
+export function gradeChain(rgb: Vec3, chain: GradeUniforms[], pos: PixelPos = CENTER): Vec3 {
+  return chain.reduce((c, u) => gradeLinear(c, u, pos), rgb);
 }
 
 const smoothstep = (a: number, b: number, x: number) => {
@@ -300,8 +322,8 @@ export function applyHueCurves(lin: Vec3, l: CurveLuts): Vec3 {
 }
 
 /** 8bit sRGB 픽셀 하나를 처리 (디더링 없음). E2E에서 GPU 결과와 비교하는 기준값. */
-export function gradePixel8(rgb8: Vec3, u: GradeUniforms | GradeUniforms[]): Vec3 {
+export function gradePixel8(rgb8: Vec3, u: GradeUniforms | GradeUniforms[], pos: PixelPos = CENTER): Vec3 {
   const lin = rgb8.map((v) => srgbToLinear(v / 255)) as Vec3;
-  const out = gradeChain(lin, Array.isArray(u) ? u : [u]);
+  const out = gradeChain(lin, Array.isArray(u) ? u : [u], pos);
   return out.map((v) => Math.round(Math.min(1, Math.max(0, linearToSrgb(Math.min(1, Math.max(0, v))))) * 255)) as Vec3;
 }
