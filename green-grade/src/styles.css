@@ -257,3 +257,23 @@ button, input { font: inherit; color: inherit; }
   .wheels { flex-wrap: wrap; }
   .scalars { grid-template-columns: 1fr; }
 }
+
+/* 형태·디테일 */
+.develop-panel { gap: 8px; }
+.develop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+.develop-row .spacer { flex: 1; }
+.develop-row .library-chips { margin: 0; }
+.detail-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
+.detail-group { display: flex; flex-direction: column; gap: 6px; }
+.detail-group h3 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--text-dim); }
+.crop-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.crop-shade { fill: rgba(0,0,0,.55); }
+.crop-grid line { stroke: rgba(255,255,255,.35); stroke-width: 1; }
+.crop-rect { fill: transparent; stroke: #fff; stroke-width: 1.5; pointer-events: all; cursor: move; }
+.crop-handle { fill: #fff; stroke: rgba(0,0,0,.6); pointer-events: all; }
+.crop-nw, .crop-se { cursor: nwse-resize; }
+.crop-ne, .crop-sw { cursor: nesw-resize; }
+.crop-n, .crop-s { cursor: ns-resize; }
+.crop-e, .crop-w { cursor: ew-resize; }
+.level-catcher { fill: transparent; pointer-events: all; cursor: crosshair; }
+.level-line { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }

@@ -2,7 +2,10 @@ import type { GradeUniforms } from './color';
 import { MAX_NODES } from './constants';
 import { LUT_ROWS, LUT_SIZE } from './curves';
 import { MAX_POLY_POINTS, maskBits } from './mask';
-import { EXPORT_FRAGMENT, VERTEX_SHADER, VIEWER_FRAGMENT } from './shaders';
+import { type DevelopBase, type DevelopPlan, type GrainUniforms, type Mat3 } from './develop';
+import { DEV_TILE, Developer } from './developGL';
+import { link } from './glsl';
+import { EXPORT_FRAGMENT, VIEWER_FRAGMENT } from './shaders';
 
 export type TexSource = ImageBitmap | { data: Uint8Array; width: number; height: number };
 
@@ -22,12 +25,32 @@ export interface ViewerDraw {
   /** 마스크 보기: 0 끔, 1 하이라이트, 2 흑백 */
   maskView: 0 | 1 | 2;
   maskNode: number;
+  /** 보이는 영역 0–1 → 원본 0–1 (원본 보기·분할의 왼쪽에 쓴다) */
+  matrix: Mat3;
+  grain: GrainUniforms;
 }
 
+/** 형태·디테일을 거쳐 렌더할 때의 계획과 선명도·디헤이즈 기준 */
+export interface DevelopInput {
+  plan: DevelopPlan;
+  base: DevelopBase | null;
+}
+
+export interface RenderResult {
+  pixels: Uint8ClampedArray<ArrayBuffer>;
+  width: number;
+  height: number;
+}
+
+export const IDENTITY_MATRIX: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+const colMajor = (m: Mat3) => [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]];
+
 const TILE = 2048;
-/** 텍스처 유닛: 0 이미지, 1 커브 표, 2–9 노드별 LUT, 10 폴리곤, 12 스코프 */
+/** 텍스처 유닛: 0 이미지, 1 커브 표, 2–9 노드별 LUT, 10 폴리곤, 11 현상 결과, 12 스코프 */
 export const LUT_UNIT0 = 2;
 const POLY_UNIT = 10;
+/** 현상 결과 텍스처 */
+const DEV_UNIT = 11;
 
 export interface GradeOptions {
   dither: boolean;
@@ -38,27 +61,7 @@ export interface GradeOptions {
 }
 const BACKGROUND: [number, number, number] = [0.086, 0.086, 0.086];
 
-function compile(gl: WebGL2RenderingContext, type: number, src: string) {
-  const sh = gl.createShader(type)!;
-  gl.shaderSource(sh, src);
-  gl.compileShader(sh);
-  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-    throw new Error('셰이더 컴파일 실패: ' + gl.getShaderInfoLog(sh));
-  }
-  return sh;
-}
-
-export function link(gl: WebGL2RenderingContext, fs: string, vs = VERTEX_SHADER) {
-  const prog = gl.createProgram()!;
-  gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, vs));
-  gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, fs));
-  gl.bindAttribLocation(prog, 0, 'a_pos');
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    throw new Error('셰이더 링크 실패: ' + gl.getProgramInfoLog(prog));
-  }
-  return prog;
-}
+export { link };
 
 /** WebGL2 컨텍스트 하나와 보정 셰이더 공통 자원(전체 화면 삼각형, 커브 표 텍스처) */
 export class GLBase {
@@ -226,6 +229,8 @@ export class Renderer extends GLBase {
   private viewerProg: WebGLProgram;
   private exportProg: WebGLProgram;
   private previewTex: WebGLTexture | null = null;
+  private devTex: WebGLTexture | null = null;
+  private developer: Developer | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -233,11 +238,31 @@ export class Renderer extends GLBase {
     this.exportProg = link(this.gl, EXPORT_FRAGMENT);
   }
 
+  /** 현상 단계는 처음 쓸 때 만든다 (실수 렌더 타깃 확장이 없으면 여기서 오류) */
+  private dev(): Developer {
+    if (!this.developer) this.developer = new Developer(this.gl, this.vao);
+    return this.developer;
+  }
+
   setPreview(proxy: ImageBitmap | null) {
     if (this.previewTex) this.gl.deleteTexture(this.previewTex);
     this.previewTex = proxy ? this.createTexture(proxy, true) : null;
+    this.setDevelopPreview(null);
   }
 
+  /** 미리보기 축소본을 형태·디테일 보정한 텍스처를 만든다. identity면 축소본을 그대로 쓴다. */
+  setDevelopPreview(input: DevelopInput | null) {
+    if (this.devTex) this.gl.deleteTexture(this.devTex);
+    this.devTex = null;
+    if (!input || input.plan.identity || !this.previewTex) return;
+    const d = this.dev();
+    this.devTex = d.developPreview(this.previewTex, input.plan, input.base);
+    d.releasePool();
+  }
+
+  private setGrain(prog: WebGLProgram, g: GrainUniforms | undefined) {
+    this.gl.uniform3f(this.gl.getUniformLocation(prog, 'u_grain'), g?.amount ?? 0, g?.scale[0] ?? 1, g?.scale[1] ?? 1);
+  }
 
   drawViewer(u: GradeUniforms[], d: ViewerDraw) {
     const gl = this.gl;
@@ -257,10 +282,17 @@ export class Renderer extends GLBase {
       aspect: d.imageWidth / d.imageHeight,
       maskNode: d.maskNode,
     });
+    this.setGrain(prog, d.grain);
     gl.uniform1i(loc('u_maskView'), d.maskView);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.previewTex);
     gl.uniform1i(loc('u_image'), 0);
+    gl.activeTexture(gl.TEXTURE0 + DEV_UNIT);
+    gl.bindTexture(gl.TEXTURE_2D, this.devTex);
+    gl.uniform1i(loc('u_dev'), DEV_UNIT);
+    gl.uniform1i(loc('u_developed'), this.devTex ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniformMatrix3fv(loc('u_matrix'), false, colMajor(d.matrix));
     gl.uniform2f(loc('u_canvasSize'), width, height);
     gl.uniform2f(loc('u_imageSize'), d.imageWidth, d.imageHeight);
     gl.uniform1f(loc('u_scale'), d.view.scale);
@@ -273,50 +305,64 @@ export class Renderer extends GLBase {
   }
 
   /**
-   * 원본 해상도로 보정 결과를 렌더해 위→아래 순서의 RGBA8 버퍼로 돌려준다.
-   * GPU 메모리를 아끼기 위해 2048px 타일 단위로 그리고 읽는다.
+   * 보정 결과를 렌더해 위→아래 순서의 RGBA8 버퍼로 돌려준다.
+   * develop이 있으면 형태·디테일을 거친 크기(plan.outW×outH)로, 없으면 src 크기 그대로 렌더한다.
+   * GPU 메모리를 아끼기 위해 타일 단위로 그리고 읽는다 (현상할 때는 더 작은 타일).
    */
   renderFull(
     src: TexSource,
     u: GradeUniforms[],
-    opts: { dither: boolean; onProgress?: (done: number) => void },
-  ): Uint8ClampedArray<ArrayBuffer> {
+    opts: { dither: boolean; onProgress?: (done: number) => void; develop?: DevelopInput | null },
+  ): RenderResult {
     const gl = this.gl;
-    const { width, height } = src;
-    if (width > this.maxTextureSize || height > this.maxTextureSize) {
+    if (src.width > this.maxTextureSize || src.height > this.maxTextureSize) {
       throw new Error(`이미지가 GPU 최대 텍스처 크기(${this.maxTextureSize}px)를 넘습니다.`);
     }
+    const develop = opts.develop && !opts.develop.plan.identity ? opts.develop : null;
+    const width = develop ? develop.plan.outW : src.width;
+    const height = develop ? develop.plan.outH : src.height;
+    const tileSize = develop ? DEV_TILE : TILE;
     const tex = this.createTexture(src, false);
     const out = new Uint8ClampedArray(width * height * 4);
 
     const tileTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, tileTex);
-    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, TILE, TILE);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, tileSize, tileSize);
     const fbo = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tileTex, 0);
 
     const prog = this.exportProg;
-    gl.useProgram(prog);
-    this.setGradeUniforms(prog, u, { dither: opts.dither, aspect: width / height });
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_image'), 0);
-    gl.bindVertexArray(this.vao);
-
-    const tilePixels = new Uint8Array(TILE * TILE * 4);
-    const tilesX = Math.ceil(width / TILE);
-    const tilesY = Math.ceil(height / TILE);
+    const tilePixels = new Uint8Array(tileSize * tileSize * 4);
+    const tilesX = Math.ceil(width / tileSize);
+    const tilesY = Math.ceil(height / tileSize);
     let done = 0;
     for (let ty = 0; ty < tilesY; ty++) {
       for (let tx = 0; tx < tilesX; tx++) {
-        const x0 = tx * TILE;
-        const y0 = ty * TILE;
-        const tw = Math.min(TILE, width - x0);
-        const th = Math.min(TILE, height - y0);
+        const x0 = tx * tileSize;
+        const y0 = ty * tileSize;
+        const tw = Math.min(tileSize, width - x0);
+        const th = Math.min(tileSize, height - y0);
+        const devTile = develop ? this.dev().run(tex, develop.plan, develop.base, x0, y0, tw, th) : null;
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tileTex, 0);
+        gl.useProgram(prog);
+        this.setGradeUniforms(prog, u, { dither: opts.dither, aspect: width / height });
+        this.setGrain(prog, develop?.plan.grain ?? opts.develop?.plan.grain);
+        const loc = (n: string) => gl.getUniformLocation(prog, n);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.uniform1i(loc('u_image'), 0);
+        gl.activeTexture(gl.TEXTURE0 + DEV_UNIT);
+        gl.bindTexture(gl.TEXTURE_2D, devTile?.tex ?? null);
+        gl.uniform1i(loc('u_dev'), DEV_UNIT);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform1i(loc('u_developed'), devTile ? 1 : 0);
+        gl.uniform2i(loc('u_devOrigin'), devTile?.originX ?? 0, devTile?.originY ?? 0);
+        gl.uniform2i(loc('u_outSize'), width, height);
+        gl.uniform2i(loc('u_tileOrigin'), x0, y0);
+        gl.uniform1i(loc('u_tileHeight'), th);
         gl.viewport(0, 0, tw, th);
-        gl.uniform2i(gl.getUniformLocation(prog, 'u_tileOrigin'), x0, y0);
-        gl.uniform1i(gl.getUniformLocation(prog, 'u_tileHeight'), th);
+        gl.bindVertexArray(this.vao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         gl.readPixels(0, 0, tw, th, gl.RGBA, gl.UNSIGNED_BYTE, tilePixels);
         // readPixels는 아래 행부터 채우므로 뒤집어 복사
@@ -333,7 +379,8 @@ export class Renderer extends GLBase {
     gl.deleteFramebuffer(fbo);
     gl.deleteTexture(tileTex);
     gl.deleteTexture(tex);
-    return out;
+    if (develop) this.dev().releasePool();
+    return { pixels: out, width, height };
   }
 }
 

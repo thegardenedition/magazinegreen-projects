@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toUniforms, type PrimaryParams } from '../engine/color';
 import { bakeCurves, type CurvesParams } from '../engine/curves';
+import { computeBase, planDevelop, type Develop } from '../engine/develop';
 import { parseCube } from '../engine/lut';
 import { maskUniform, type Point, type Qualifier, type WindowParams } from '../engine/mask';
-import { Renderer, setActiveRenderer, type ViewState } from '../engine/renderer';
+import { IDENTITY_MATRIX, Renderer, setActiveRenderer, type ViewState } from '../engine/renderer';
+import { displayInfo, previewInput } from '../state/display';
 import { currentUniforms, selectedNode, useGrade } from '../state/store';
+import { CropOverlay } from './CropOverlay';
 import { pickQualifier } from './picker';
 import { WindowOverlay } from './WindowOverlay';
 
@@ -23,6 +26,17 @@ export interface TestNode {
 
 const MASK_VIEW = { off: 0, highlight: 1, bw: 2 } as const;
 
+function testChain(nodes: TestNode[]) {
+  return nodes.map((n) =>
+    toUniforms(n.primary, {
+      enabled: n.enabled ?? true,
+      curves: n.curves ? bakeCurves(n.curves) : undefined,
+      lut: n.cube ? { lut: parseCube(n.cube), intensity: n.lutIntensity ?? 1 } : null,
+      mask: n.qualifier && n.window ? maskUniform(n.qualifier, n.window) : null,
+    }),
+  );
+}
+
 declare global {
   interface Window {
     /** 테스트용 훅: GPU 셰이더로 픽셀을 처리해 결과를 돌려준다 */
@@ -37,6 +51,15 @@ declare global {
       ): number[];
       /** 노드 체인 처리. LUT는 .cube 텍스트로 넘긴다. */
       gradeNodes(data: number[], width: number, height: number, nodes: TestNode[], dither: boolean): number[];
+      /** 형태·디테일 + 노드 체인. 입력을 원본(=선명도 기준 사본)으로 보고 원본 해상도로 렌더한다. */
+      developNodes(
+        data: number[],
+        width: number,
+        height: number,
+        develop: Develop,
+        nodes: TestNode[],
+        dither: boolean,
+      ): { pixels: number[]; width: number; height: number };
     };
   }
 }
@@ -57,6 +80,16 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const tool = useGrade((s) => s.viewerTool);
   const showWindow = useGrade((s) => s.correctionTab === 'window');
   const maskView = useGrade((s) => s.maskView);
+  const transformView = useGrade((s) => s.correctionTab === 'transform');
+  // 보이는 영역의 크기가 바뀌면(크롭·회전·형태 탭 전환) 화면에 다시 맞춘다
+  const dispKey = useGrade((s) => {
+    const d = displayInfo(s);
+    return d ? `${d.width.toFixed(2)}x${d.height.toFixed(2)}` : '';
+  });
+  const disp = displayInfo(useGrade.getState());
+
+  // 형태·디테일이 바뀌면 다음 프레임에 미리보기 현상을 다시 한다
+  const devDirty = useRef(true);
 
   const draw = useCallback(() => {
     cancelAnimationFrame(frameRef.current);
@@ -64,15 +97,28 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       const r = rendererRef.current;
       if (!r) return;
       const s = useGrade.getState();
+      if (devDirty.current) {
+        devDirty.current = false;
+        try {
+          r.setDevelopPreview(previewInput(s));
+          setError(null);
+        } catch (e) {
+          r.setDevelopPreview(null);
+          setError((e as Error).message);
+        }
+      }
+      const d = displayInfo(s);
       r.drawViewer(currentUniforms(s), {
         view: viewRef.current,
-        imageWidth: s.image?.width ?? 1,
-        imageHeight: s.image?.height ?? 1,
+        imageWidth: d?.width ?? 1,
+        imageHeight: d?.height ?? 1,
         split: s.split ? s.splitPos * r.canvas.width : -1,
         bypass: s.bypass,
         dither: true,
         maskView: MASK_VIEW[s.maskView],
         maskNode: s.nodes.indexOf(selectedNode(s)),
+        matrix: d?.matrix ?? IDENTITY_MATRIX,
+        grain: d?.grain ?? { amount: 0, scale: [1, 1] },
       });
     });
   }, []);
@@ -88,13 +134,13 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
 
   const fit = useCallback(() => {
     const c = canvasRef.current;
-    const img = useGrade.getState().image;
-    if (!c || !img) return;
-    const scale = Math.min(c.width / img.width, c.height / img.height) * 0.96;
+    const d = displayInfo(useGrade.getState());
+    if (!c || !d) return;
+    const scale = Math.min(c.width / d.width, c.height / d.height) * 0.96;
     setView({
       scale,
-      offsetX: (c.width - img.width * scale) / 2,
-      offsetY: (c.height - img.height * scale) / 2,
+      offsetX: (c.width - d.width * scale) / 2,
+      offsetY: (c.height - d.height * scale) / 2,
     });
   }, [setView]);
 
@@ -121,20 +167,20 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
           const u = toUniforms(primary, { curves: curves ? bakeCurves(curves) : undefined });
           const out = r.renderFull({ data: new Uint8Array(data), width, height }, [u], { dither });
           draw();
-          return Array.from(out);
+          return Array.from(out.pixels);
         },
         gradeNodes(data, width, height, nodes, dither) {
-          const chain = nodes.map((n) =>
-            toUniforms(n.primary, {
-              enabled: n.enabled ?? true,
-              curves: n.curves ? bakeCurves(n.curves) : undefined,
-              lut: n.cube ? { lut: parseCube(n.cube), intensity: n.lutIntensity ?? 1 } : null,
-              mask: n.qualifier && n.window ? maskUniform(n.qualifier, n.window) : null,
-            }),
-          );
-          const out = r.renderFull({ data: new Uint8Array(data), width, height }, chain, { dither });
+          const out = r.renderFull({ data: new Uint8Array(data), width, height }, testChain(nodes), { dither });
           draw();
-          return Array.from(out);
+          return Array.from(out.pixels);
+        },
+        developNodes(data, width, height, develop, nodes, dither) {
+          const src = { data: new Uint8Array(data), width, height };
+          const plan = planDevelop(develop, width, height, 1);
+          const base = plan.needsBase ? computeBase(src, develop.geometry, width, height) : null;
+          const out = r.renderFull(src, testChain(nodes), { dither, develop: { plan, base } });
+          draw();
+          return { pixels: Array.from(out.pixels), width: out.width, height: out.height };
         },
       };
     } catch (e) {
@@ -173,12 +219,26 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   // 새 이미지 → 프록시 텍스처 교체 후 화면 맞춤
   useEffect(() => {
     rendererRef.current?.setPreview(image?.proxy ?? null);
+    devDirty.current = true;
     if (image) fit();
     else draw();
   }, [image, fit, draw]);
 
-  // 보정값이 바뀔 때마다 다시 그림
-  useEffect(() => useGrade.subscribe(draw), [draw]);
+  useEffect(() => {
+    if (dispKey) fit();
+  }, [dispKey, fit]);
+
+  // 보정값이 바뀔 때마다 다시 그림 (형태·디테일이나 보이는 영역이 바뀌면 미리보기 현상부터)
+  useEffect(
+    () =>
+      useGrade.subscribe((s, p) => {
+        if (s.develop !== p.develop || (s.correctionTab === 'transform') !== (p.correctionTab === 'transform')) {
+          devDirty.current = true;
+        }
+        draw();
+      }),
+    [draw],
+  );
 
   // 확대 단축키
   useEffect(() => {
@@ -204,9 +264,9 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const toImage = useCallback((clientX: number, clientY: number): Point => {
     const [x, y] = toCanvas({ clientX, clientY });
     const v = viewRef.current;
-    const img = useGrade.getState().image;
-    if (!img) return { x: 0, y: 0 };
-    return { x: (x - v.offsetX) / v.scale / img.width, y: (y - v.offsetY) / v.scale / img.height };
+    const d = displayInfo(useGrade.getState());
+    if (!d) return { x: 0, y: 0 };
+    return { x: (x - v.offsetX) / v.scale / d.width, y: (y - v.offsetY) / v.scale / d.height };
   }, []);
 
   const onWheel = (e: React.WheelEvent) => {
@@ -218,7 +278,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (!image || e.button !== 0) return;
     const s = useGrade.getState();
-    if (s.viewerTool !== 'none') {
+    if (s.viewerTool !== 'none' && s.viewerTool !== 'level') {
       const p = toImage(e.clientX, e.clientY);
       if (p.x < 0 || p.y < 0 || p.x > 1 || p.y > 1) return;
       if (s.viewerTool === 'pen') {
@@ -269,14 +329,17 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
         onPointerDown={onPointerDown}
         onDoubleClick={() => tool === 'none' && fit()}
       />
-      {image && showWindow && (
+      {image && disp && showWindow && (
         <WindowOverlay
           view={view}
           dpr={window.devicePixelRatio || 1}
-          imageWidth={image.width}
-          imageHeight={image.height}
+          imageWidth={disp.width}
+          imageHeight={disp.height}
           toImage={toImage}
         />
+      )}
+      {image && disp && transformView && (
+        <CropOverlay view={view} dpr={window.devicePixelRatio || 1} frameWidth={disp.width} frameHeight={disp.height} toImage={toImage} />
       )}
       {error && <div className="viewer-empty">{error}</div>}
       {!image && !error && (
@@ -302,7 +365,13 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       )}
       {image && tool !== 'none' && (
         <div className="viewer-tool-hint" data-testid="tool-hint">
-          {tool === 'pen' ? '클릭해 점 추가 · 점 더블클릭으로 삭제' : tool === 'pick' ? '고를 색을 클릭' : '더할 색을 클릭'}
+          {tool === 'pen'
+            ? '클릭해 점 추가 · 점 더블클릭으로 삭제'
+            : tool === 'level'
+              ? '수평(또는 수직)이어야 할 선을 따라 끌기'
+              : tool === 'pick'
+                ? '고를 색을 클릭'
+                : '더할 색을 클릭'}
           <button className="btn btn-ghost" onClick={() => useGrade.getState().setViewerTool('none')}>
             끝내기 (Esc)
           </button>

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScopeRenderer, type ScopeMode, type ScopeStats } from '../engine/scopes';
+import { outputSize, planDevelop } from '../engine/develop';
+import { ANALYSIS_WIDTH, ScopeRenderer, type ScopeMode, type ScopeStats } from '../engine/scopes';
+import { baseFor } from '../state/display';
 import { currentUniforms, useGrade } from '../state/store';
 
 const TABS: Array<[ScopeMode, string]> = [
@@ -175,11 +177,29 @@ export function ScopePanel() {
     return () => ro.disconnect();
   }, [draw]);
 
+  // 형태·디테일을 반영한 분석 원본 (크롭 결과를 분석 해상도로)
+  const develop = useCallback(() => {
+    const r = rendererRef.current;
+    const s = useGrade.getState();
+    const img = s.image;
+    if (!r || !img) return;
+    const g = s.develop.geometry;
+    const [cw, ch] = outputSize(g, img.width, img.height);
+    const scale = Math.min(img.proxy.width / img.width, ANALYSIS_WIDTH / cw, ANALYSIS_WIDTH / ch);
+    const plan = planDevelop(s.develop, img.width, img.height, scale);
+    try {
+      r.setDevelop({ plan, base: plan.needsBase ? baseFor(img.baseSource, g, img.width, img.height, g.crop) : null }, img.proxy);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+
   useEffect(() => {
     rendererRef.current?.setImage(image?.proxy ?? null);
     if (!image) setStats(null);
+    develop();
     draw();
-  }, [image, draw]);
+  }, [image, draw, develop]);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -190,9 +210,10 @@ export function ScopePanel() {
   useEffect(
     () =>
       useGrade.subscribe((s, p) => {
-        if (s.nodes !== p.nodes) draw();
+        if (s.develop !== p.develop) develop();
+        if (s.nodes !== p.nodes || s.develop !== p.develop) draw();
       }),
-    [draw],
+    [draw, develop],
   );
 
   const rect = plotRect(mode, size.w, size.h);
