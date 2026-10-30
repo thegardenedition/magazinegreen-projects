@@ -24,6 +24,11 @@ npm run test:e2e   # Playwright E2E (빌드 후 미리보기 서버에서 실행
 
 WebGL2를 지원하는 최신 Chrome, Edge, Safari, Firefox가 필요합니다.
 
+## 배포
+
+`https://grade.magazinegreen.co.kr` — 이 저장소를 가져온 별도 Vercel 프로젝트(Root Directory: `green-grade`)로 배포합니다.
+빌드 설정과 검색 색인 금지 헤더는 `vercel.json`에 있습니다. `main`에 머지하면 자동으로 다시 배포됩니다.
+
 ## 색처리 파이프라인
 
 ```
