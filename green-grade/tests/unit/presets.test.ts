@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { defaultPrimary, gradePixel8, toUniforms, type Vec3 } from '../../src/engine/color';
+import { defaultPrimary, gradePixel8, toUniforms } from '../../src/engine/color';
 import { MAX_NODES } from '../../src/engine/constants';
-import { bakeCurves } from '../../src/engine/curves';
 import { buildLut } from '../../src/engine/lut';
-import { BUILTIN_PRESETS, parsePreset, serializePreset, type Preset } from '../../src/engine/presets';
+import { parsePreset, serializePreset, type Preset } from '../../src/engine/presets';
 import {
   commitHistory,
   createNode,
@@ -63,20 +62,6 @@ describe('프리셋 직렬화', () => {
     expect(n.curves.y).toEqual([{ x: 0, y: 0 }, { x: 1, y: 1 }]);
     expect(n.name).toBe('노드 1');
   });
-});
-
-describe('정원 기본 프리셋', () => {
-  const leaf: Vec3 = [70, 140, 45];
-  for (const p of BUILTIN_PRESETS) {
-    it(`${p.name}: 저장 형식으로 왕복 가능하고 실제로 색을 바꾼다`, () => {
-      expect(p.nodes.length).toBeLessThanOrEqual(MAX_NODES);
-      const back = parsePreset(serializePreset(p));
-      expect(back.nodes.map((n) => n.name)).toEqual(p.nodes.map((n) => n.name));
-      const chain = back.nodes.map((n) => toUniforms(n.primary, { curves: bakeCurves(n.curves) }));
-      const samples: Vec3[] = [leaf, [120, 160, 215], [110, 85, 60], [200, 200, 195]];
-      expect(samples.some((s) => gradePixel8(s, chain).some((v, i) => v !== s[i]))).toBe(true);
-    });
-  }
 });
 
 describe('노드 체인', () => {

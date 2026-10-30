@@ -1,6 +1,6 @@
 // 프리셋: 노드 체인 전체를 JSON 하나로 저장·불러오기. LUT도 데이터째 넣어 파일 하나로 완결된다.
 
-import { defaultPrimary, defaultWheel, LUMA, type PrimaryParams, type Vec3, type WheelName, type WheelValue } from './color';
+import { defaultPrimary, defaultWheel, type PrimaryParams, type Vec3, type WheelName, type WheelValue } from './color';
 import { MAX_NODES } from './constants';
 import { CUSTOM_CURVES, defaultCurves, HUE_CURVES, type CurvePoint, type CurvesParams } from './curves';
 import { LUT_MAX_SIZE, type CubeLut } from './lut';
@@ -33,6 +33,27 @@ export interface Preset {
   name: string;
   description?: string;
   nodes: PresetNode[];
+}
+
+/** 기본 제공 프리셋의 분류 */
+export type PresetCategory = 'garden' | 'correction' | 'bw' | 'film' | 'cinematic';
+
+export const PRESET_CATEGORIES: Array<[PresetCategory, string]> = [
+  ['garden', '정원'],
+  ['correction', '보정'],
+  ['bw', '흑백'],
+  ['film', '필름'],
+  ['cinematic', '시네마틱'],
+];
+
+export interface BuiltinPreset extends Preset {
+  category: PresetCategory;
+  /**
+   * 의도적으로 색을 크게 바꾸는 룩(크로스 프로세스 등). 피부 색상 보존 검사에서 빠진다.
+   */
+  bold?: boolean;
+  /** 노출을 올리는 등 하이라이트가 잘릴 수 있는 프리셋. 새 클리핑 검사에서 빠진다. */
+  mayClip?: boolean;
 }
 
 // ── 직렬화 ──
@@ -229,157 +250,6 @@ export function parsePreset(text: string): Preset {
     })),
   };
 }
-
-// ── 정원 사진 기본 프리셋 ──
-
-/** 휠을 특정 색 방향으로 민 값 (amount: 0–1, 휠 반지름 비율) */
-function toward(rgb: Vec3, amount: number, master: number): WheelValue {
-  const y = LUMA[0] * rgb[0] + LUMA[1] * rgb[1] + LUMA[2] * rgb[2];
-  const cb = (rgb[2] - y) / 1.8556;
-  const cr = (rgb[0] - y) / 1.5748;
-  const len = Math.hypot(cb, cr) || 1;
-  return { x: (cb / len) * amount, y: (cr / len) * amount, master };
-}
-
-const AMBER: Vec3 = [1, 0.62, 0.2];
-const TEAL: Vec3 = [0.1, 0.55, 0.6];
-
-// 색상축 위치. 순색이 아니라 실제 정원 색의 자리(gardenSwatches.ts 측정값)에 맞춘다.
-// 예: 실제 잎은 순수 초록(0.35)보다 노랑 쪽인 0.24–0.34에, 맑은 하늘은 파랑(0.70)이 아닌 0.61에 있다.
-/** 새순·연두 */
-const HUE_SPROUT = 0.245;
-/** 햇빛 받은 잎·잔디 */
-const HUE_FOLIAGE = 0.285;
-/** 중간 녹색 잎 */
-const HUE_LEAF = 0.316;
-/** 하늘 */
-const HUE_SKY = 0.61;
-/** 목재·흙 */
-const HUE_WOOD = 0.095;
-/** 붉은 벽돌과 목재의 가운데 (피부 0.07도 이 근처라 밝기로 따로 덜어 낸다) */
-const HUE_BRICK_WOOD = 0.065;
-
-/** 고른 색상 하나만 올리거나 내리는 커브 (양옆 고정점 포함) */
-const bump = (...pts: Array<[number, number]>): CurvePoint[] => {
-  const out: CurvePoint[] = [];
-  for (const [x, y] of pts) out.push({ x, y });
-  const xs = pts.map(([x]) => x);
-  const lo = Math.min(...xs) - 0.08;
-  const hi = Math.max(...xs) + 0.08;
-  out.push({ x: lo - Math.floor(lo), y: 0.5 }, { x: hi - Math.floor(hi), y: 0.5 });
-  return out.sort((a, b) => a.x - b.x);
-};
-
-function node(
-  name: string,
-  p: Partial<PrimaryParams>,
-  c: Partial<CurvesParams> = {},
-  extra: Partial<PresetNode> = {},
-): PresetNode {
-  return {
-    qualifier: defaultQualifier(),
-    window: defaultWindow(),
-    name,
-    enabled: true,
-    primary: { ...defaultPrimary(), ...p },
-    curves: { ...defaultCurves(), ...c },
-    lut: null,
-    lutIntensity: 1,
-    ...extra,
-  };
-}
-
-export const BUILTIN_PRESETS: Preset[] = [
-  {
-    name: '신록',
-    description: '연두는 노랑 쪽, 녹색은 청록 쪽으로 갈라 잎의 층을 살리고 녹색 과포화를 누른다',
-    nodes: [
-      node('톤', {
-        gamma: { x: 0, y: 0, master: 0.03 },
-        contrast: 1.04,
-      }, {
-        y: [{ x: 0, y: 0 }, { x: 0.75, y: 0.76 }, { x: 1, y: 0.985 }],
-      }),
-      node('녹색 분리', {}, {
-        // 연두 −5°, 중간 녹색 +5° → 두 녹색 사이가 약 10° 벌어진다. 햇빛 받은 잎(0.285)은 거의 제자리.
-        hueHue: bump([HUE_SPROUT, 0.46], [HUE_LEAF, 0.54]),
-        hueSat: bump([HUE_SPROUT, 0.48], [HUE_FOLIAGE, 0.45], [HUE_LEAF, 0.46]),
-        lumSat: [{ x: 0, y: 0.5 }, { x: 0.7, y: 0.5 }, { x: 1, y: 0.4 }],
-      }),
-    ],
-  },
-  {
-    name: '늦가을 정원',
-    description: '앰버빛 하이라이트, 가라앉은 섀도, 노랗게 바랜 녹색',
-    nodes: [
-      node('가을빛', {
-        temperature: 8,
-        gain: toward(AMBER, 0.3, 0.97),
-        lift: toward(TEAL, 0.12, -0.012),
-        saturation: 0.95,
-        contrast: 1.03,
-      }, {
-        hueHue: bump([HUE_FOLIAGE, 0.42]),
-        hueSat: bump([HUE_FOLIAGE, 0.42]),
-        lumSat: [{ x: 0, y: 0.33 }, { x: 0.42, y: 0.5 }, { x: 1, y: 0.5 }],
-      }),
-    ],
-  },
-  {
-    name: '흐린 날 구제',
-    description: '미드톤 대비를 세우고, 위쪽 그라디언트 창으로 하늘만 짙게',
-    nodes: [
-      node('대비', {
-        contrast: 1.06,
-        temperature: 3,
-        saturation: 0.93,
-      }, {
-        y: [{ x: 0, y: 0 }, { x: 0.25, y: 0.225 }, { x: 0.75, y: 0.78 }, { x: 1, y: 1 }],
-      }),
-      // 위쪽 그라디언트 창 안에서만: 하늘을 눌러 구름 결을 살리고 푸른 기를 더한다
-      node('하늘', {
-        gamma: { x: 0, y: 0, master: -0.15 },
-        temperature: -4,
-        saturation: 1,
-      }, {
-        hueLum: bump([HUE_SKY, 0.42]),
-        hueSat: bump([HUE_SKY, 0.55]),
-      }, {
-        window: { enabled: true, invert: false, feather: 0.05, shape: { type: 'gradient', x0: 0.5, y0: 0.05, x1: 0.5, y1: 0.55 } },
-      }),
-    ],
-  },
-  {
-    name: '매거진 내추럴',
-    description: '낮은 채도, 들린 블랙, 부드럽게 꺾이는 하이라이트',
-    nodes: [
-      node('내추럴', {
-        saturation: 0.93,
-        contrast: 0.97,
-        gain: toward(AMBER, 0.1, 1),
-      }, {
-        y: [{ x: 0, y: 0.085 }, { x: 0.5, y: 0.5 }, { x: 0.85, y: 0.83 }, { x: 1, y: 0.965 }],
-        lumSat: [{ x: 0, y: 0.42 }, { x: 0.25, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0.36 }],
-      }),
-    ],
-  },
-  {
-    name: '석재·목재 질감',
-    description: '중간톤 대비로 돌결과 나뭇결을 세우고, 돌은 무채색 그대로, 나무색은 깊게',
-    nodes: [
-      node('질감', {
-        contrast: 1.02,
-        saturation: 0.93,
-      }, {
-        y: [{ x: 0, y: 0 }, { x: 0.3, y: 0.285 }, { x: 0.5, y: 0.5 }, { x: 0.7, y: 0.72 }, { x: 1, y: 1 }],
-        // 벽돌(0.04)–나무(0.09) 사이를 함께 짙게. 그 사이의 피부는 밝기가 높으므로 Lum vs Sat로 다시 덜어 낸다.
-        hueSat: bump([HUE_BRICK_WOOD, 0.57]),
-        hueLum: bump([HUE_WOOD, 0.46]),
-        lumSat: [{ x: 0, y: 0.5 }, { x: 0.47, y: 0.5 }, { x: 0.6, y: 0.43 }, { x: 1, y: 0.43 }],
-      }),
-    ],
-  },
-];
 
 // ── 내 프리셋 (브라우저 저장소) ──
 

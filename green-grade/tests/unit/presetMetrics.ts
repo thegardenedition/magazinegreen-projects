@@ -1,22 +1,14 @@
 // 정원 프리셋 검증용 측정 도구 (테스트와 조정 스크립트가 함께 쓴다)
 
-import { gradePixel8, srgbToLinear, toUniforms, type Vec3 } from '../../src/engine/color';
-import { bakeCurves } from '../../src/engine/curves';
+import { gradePixel8, srgbToLinear, type Vec3 } from '../../src/engine/color';
+import { chainOfPreset } from '../../src/engine/presetChain';
 import { GARDEN_SWATCHES, swatch } from '../../src/engine/gardenSwatches';
-import { hslOf, maskUniform } from '../../src/engine/mask';
+import { hslOf } from '../../src/engine/mask';
 import type { Preset } from '../../src/engine/presets';
 
 export const ASPECT = 1.5;
 
-export function chainOf(p: Preset) {
-  return p.nodes.map((n) =>
-    toUniforms(n.primary, {
-      enabled: n.enabled,
-      curves: bakeCurves(n.curves),
-      mask: maskUniform(n.qualifier, n.window),
-    }),
-  );
-}
+export const chainOf = chainOfPreset;
 
 /** 프리셋을 적용한 8bit 결과 (견본의 보통 위치 v, 가로 가운데) */
 export function apply(p: Preset, rgb: Vec3, v = 0.5): Vec3 {
