@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { downloadBlob } from '../engine/image';
-import { parseCube } from '../engine/lut';
+import { parseCube, serializeCube } from '../engine/lut';
+import { bakeGradeLut, LUT_EXPORT_SIZES, windowNodeCount, type WindowHandling } from '../engine/lutExport';
 import {
   BUILTIN_PRESETS,
   loadUserPresets,
@@ -9,7 +10,7 @@ import {
   serializePreset,
   type Preset,
 } from '../engine/presets';
-import { currentPreset, presetToNodes, selectedNode, useGrade } from '../state/store';
+import { currentPreset, currentUniforms, presetToNodes, selectedNode, useGrade } from '../state/store';
 
 function applyPreset(p: Preset) {
   useGrade.getState().setNodes(presetToNodes(p));
@@ -203,6 +204,7 @@ export function PresetPanel() {
               </button>
             </div>
           )}
+          <LutExport />
           <input
             ref={lutFile}
             type="file"
@@ -222,5 +224,58 @@ export function PresetPanel() {
         </p>
       )}
     </section>
+  );
+}
+
+/** 지금의 그레이드(켜진 노드 전체)를 .cube로 굽기 */
+function LutExport() {
+  const [size, setSize] = useState<number>(33);
+  const [mode, setMode] = useState<WindowHandling>('exclude');
+  const [progress, setProgress] = useState<number | null>(null);
+  const windows = useGrade((s) => windowNodeCount(currentUniforms(s)));
+
+  const run = async () => {
+    setProgress(0);
+    try {
+      const lut = await bakeGradeLut(currentUniforms(), size, mode, 'GREEN GRADE', setProgress);
+      downloadBlob(new Blob([serializeCube(lut)], { type: 'text/plain' }), `GREEN_GRADE_${size}.cube`);
+    } finally {
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div className="lut-export">
+      <div className="preset-group-title">그레이드를 LUT로 내보내기</div>
+      <p className="muted small">
+        켜진 노드 전체를 하나의 .cube로 굽습니다. 다른 편집 프로그램이나 카메라 모니터에서 같은 인상을 낼 때 씁니다.
+      </p>
+      <div className="seg">
+        <span className="muted small">크기</span>
+        {LUT_EXPORT_SIZES.map((n) => (
+          <button key={n} className={`chip ${size === n ? 'on' : ''}`} onClick={() => setSize(n)} data-testid={`lut-size-${n}`}>
+            {n}³
+          </button>
+        ))}
+      </div>
+      {windows > 0 && (
+        <div className="lut-window-mode">
+          <p className="small">
+            창(Window)이 켜진 노드 {windows}개: 창은 위치 정보라 LUT에 담기지 않습니다.
+          </p>
+          <label className="small">
+            <input type="radio" checked={mode === 'exclude'} onChange={() => setMode('exclude')} data-testid="lut-window-exclude" />
+            그 노드를 빼고 굽기
+          </label>
+          <label className="small">
+            <input type="radio" checked={mode === 'ignore'} onChange={() => setMode('ignore')} data-testid="lut-window-ignore" />
+            창을 무시하고 화면 전체에 적용해 굽기
+          </label>
+        </div>
+      )}
+      <button className="btn" onClick={run} disabled={progress !== null} data-testid="lut-export">
+        {progress === null ? '.cube 내보내기' : `계산 중 ${Math.round(progress * 100)}%`}
+      </button>
+    </div>
   );
 }

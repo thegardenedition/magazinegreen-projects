@@ -102,3 +102,32 @@ export async function exportJpg(page: Page) {
   const { readFileSync } = await import('node:fs');
   return readFileSync((await download.path())!);
 }
+
+/** 여러 장 작업용 사진 3장 (크기·비율이 다르다) */
+export function writeBatchFixtures() {
+  writeFixtures();
+  const specs: Array<[string, number, number]> = [
+    ['정원-A.png', 1200, 800],
+    ['정원-B.png', 800, 1000],
+    ['정원-C.png', 1000, 667],
+  ];
+  return specs.map(([name, w, h]) => {
+    const file = join(FIXTURE_DIR, name);
+    if (!existsSync(file)) writeGardenPng(file, w, h);
+    return file;
+  });
+}
+
+/** STORE 방식 ZIP 읽기 */
+export function readZip(buf: Buffer) {
+  const out: Array<{ name: string; data: Buffer }> = [];
+  let i = 0;
+  while (buf.readUInt32LE(i) === 0x04034b50) {
+    const size = buf.readUInt32LE(i + 18);
+    const nameLen = buf.readUInt16LE(i + 26);
+    const name = buf.subarray(i + 30, i + 30 + nameLen).toString('utf8');
+    out.push({ name, data: buf.subarray(i + 30 + nameLen, i + 30 + nameLen + size) });
+    i += 30 + nameLen + size;
+  }
+  return out;
+}

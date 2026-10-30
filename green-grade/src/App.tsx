@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ACCEPTED_TYPES, loadImage } from './engine/image';
+import { ACCEPTED_TYPES } from './engine/image';
+import { addFiles, copyGrade, gradeSummary, pasteGrade, useGallery } from './state/gallery';
 import { useGrade } from './state/store';
 import { ExportDialog } from './ui/ExportDialog';
+import { Filmstrip } from './ui/Filmstrip';
 import { NodePanel } from './ui/NodePanel';
 import { CorrectionPanel } from './ui/Panels';
 import { PresetPanel } from './ui/PresetPanel';
@@ -16,25 +18,18 @@ export function App() {
   const canUndo = useGrade((s) => s.past.length > 0);
   const canRedo = useGrade((s) => s.future.length > 0);
   const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const error = useGallery((s) => s.error);
+  const hasItems = useGallery((s) => s.items.length > 0);
 
   const open = () => fileRef.current?.click();
-
-  const load = async (file: File | undefined) => {
-    if (!file) return;
-    setError(null);
-    try {
-      const prev = useGrade.getState().image;
-      const img = await loadImage(file);
-      useGrade.getState().setImage(img);
-      if (prev) {
-        prev.full.close();
-        if (prev.proxy !== prev.full) prev.proxy.close();
-      }
-    } catch (e) {
-      setError((e as Error).message);
-    }
+  const load = (files: FileList | null | undefined) => {
+    if (files?.length) addFiles(Array.from(files));
   };
+
+  useEffect(() => {
+    // E2E 테스트에서 사진별 그레이드를 확인할 때 쓴다
+    (window as unknown as { __GG_GALLERY__: unknown }).__GG_GALLERY__ = { summary: gradeSummary };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,6 +43,14 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         s.redo();
+      } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString()) {
+        if (!s.image) return;
+        e.preventDefault();
+        copyGrade();
+      } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'v') {
+        if (!useGallery.getState().clipboard) return;
+        e.preventDefault();
+        pasteGrade();
       } else if (mod && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         open();
@@ -77,7 +80,7 @@ export function App() {
 
   return (
     <div
-      className={`app ${dragging ? 'is-dragging' : ''}`}
+      className={`app ${dragging ? 'is-dragging' : ''} ${hasItems ? 'has-film' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -88,7 +91,7 @@ export function App() {
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        load(e.dataTransfer.files[0]);
+        load(e.dataTransfer.files);
       }}
     >
       <header className="topbar">
@@ -102,10 +105,11 @@ export function App() {
           ref={fileRef}
           type="file"
           accept={ACCEPTED_TYPES.join(',')}
+          multiple
           hidden
           data-testid="file-input"
           onChange={(e) => {
-            load(e.target.files?.[0]);
+            load(e.target.files);
             e.target.value = '';
           }}
         />
@@ -165,6 +169,8 @@ export function App() {
         <Viewer onOpen={open} />
         <NodePanel />
       </main>
+
+      <Filmstrip onOpen={open} />
 
       <footer className="dock">
         <ScopePanel />

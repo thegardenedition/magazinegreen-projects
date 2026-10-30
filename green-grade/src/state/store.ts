@@ -333,3 +333,11 @@ export function presetToNodes(p: Preset): GradeNode[] {
 export function currentPreset(name: string, s: Grade = useGrade.getState()): Preset {
   return { name, nodes: s.nodes.map(({ id: _id, ...rest }) => rest) };
 }
+
+/** 다른 사진으로 넘어갈 때: 되돌리기 기록을 비우고 지금 상태를 기준으로 삼는다 */
+export function resetHistory() {
+  clearTimeout(timer);
+  timer = undefined;
+  committed = pick(useGrade.getState());
+  useGrade.setState({ past: [], future: [] });
+}

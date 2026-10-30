@@ -28,6 +28,7 @@ button, input { font: inherit; color: inherit; }
 .error { color: var(--danger); }
 
 .app { display: grid; grid-template-rows: 44px minmax(0, 1fr) 340px; height: 100%; }
+.app.has-film { grid-template-rows: 44px minmax(0, 1fr) auto 340px; }
 .app.is-dragging .viewer { outline: 2px dashed var(--accent); outline-offset: -8px; }
 
 /* 상단 바 */
@@ -122,6 +123,11 @@ button, input { font: inherit; color: inherit; }
 .preset-msg { margin: 0; padding: 4px 10px 6px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .lut-info { display: flex; flex-direction: column; gap: 6px; }
 .lut-info p { margin: 0; }
+.lut-export { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.lut-export p { margin: 0; }
+.lut-export > .btn { align-self: flex-start; height: 24px; padding: 0 8px; font-size: 11px; }
+.lut-window-mode { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: 3px; }
+.lut-window-mode label { display: flex; align-items: center; gap: 6px; }
 .lut-intensity { display: grid; grid-template-columns: 30px 1fr 36px; align-items: center; gap: 6px; font-size: 11px; }
 
 /* Primary */
@@ -205,6 +211,24 @@ button, input { font: inherit; color: inherit; }
 .win-handle { fill: #151515; stroke: #fff; stroke-width: 1.5; pointer-events: all; cursor: grab; }
 .win-rot { fill: #fff; stroke: #151515; }
 
+/* 필름스트립 */
+.filmstrip { border-top: 1px solid var(--line); background: var(--bg-deep); min-width: 0; }
+.film-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 8px; }
+.film-tools .btn { height: 22px; padding: 0 8px; font-size: 11px; }
+.film-note { margin-left: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.film-list { list-style: none; margin: 0; padding: 0 8px 6px; display: flex; gap: 6px; overflow-x: auto; }
+.film-item { position: relative; flex: none; width: 104px; }
+.film-thumb { display: block; width: 104px; height: 64px; padding: 0; border: 1px solid var(--line-2); border-radius: 3px; background: #111; cursor: pointer; overflow: hidden; }
+.film-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.film-wait { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #1a1a1a, #222, #1a1a1a); }
+.film-item.current .film-thumb { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.film-item.selected .film-thumb { outline: 2px solid #d6d6d6; outline-offset: 1px; }
+.film-check { position: absolute; top: 3px; left: 3px; display: flex; padding: 1px; border-radius: 2px; background: rgba(0,0,0,.55); }
+.film-check input { margin: 0; accent-color: var(--accent); }
+.film-remove { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border: 0; border-radius: 2px; background: rgba(0,0,0,.6); color: var(--text); font-size: 12px; line-height: 1; cursor: pointer; opacity: 0; }
+.film-item:hover .film-remove { opacity: 1; }
+.film-name { display: block; margin-top: 2px; font-size: 10px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 내보내기 */
 .modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 16px; }
 .modal { width: 380px; max-width: 100%; background: var(--panel); border: 1px solid var(--line-2); border-radius: 6px; padding: 18px; }
@@ -218,7 +242,7 @@ button, input { font: inherit; color: inherit; }
 /* 좁은 화면: 세로로 쌓고 스크롤 */
 @media (max-width: 1100px) {
   body { overflow: auto; }
-  .app { grid-template-rows: 44px 60vh auto; height: auto; min-height: 100%; }
+  .app, .app.has-film { grid-template-rows: 44px 60vh auto auto; height: auto; min-height: 100%; }
   .workspace { grid-template-columns: 1fr; }
   .panel-nodes { border-left: 0; border-top: 1px solid var(--line); max-height: 360px; }
   .dock { grid-template-columns: 1fr; }
