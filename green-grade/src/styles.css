@@ -123,6 +123,12 @@ button, input { font: inherit; color: inherit; }
 .preset-msg { margin: 0; padding: 4px 10px 6px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .lut-info { display: flex; flex-direction: column; gap: 6px; }
 .lut-info p { margin: 0; }
+.library { display: flex; flex-direction: column; gap: 6px; }
+.library-search { width: 100%; text-align: left; }
+.library-chips { display: flex; flex-wrap: wrap; gap: 2px; }
+.library-chips .chip { height: 20px; padding: 0 6px; font-size: 10px; }
+.library-list { display: flex; flex-direction: column; gap: 2px; }
+.preset-item.active { border-color: var(--accent); background: var(--panel-2); }
 .lut-export { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .lut-export p { margin: 0; }
 .lut-export > .btn { align-self: flex-start; height: 24px; padding: 0 8px; font-size: 11px; }

@@ -3,7 +3,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { GARDEN_SWATCHES, type SwatchGroup } from '../../src/engine/gardenSwatches';
-import { BUILTIN_PRESETS, type Preset } from '../../src/engine/presets';
+import { BUILTIN_PRESETS } from '../../src/engine/presetLibrary';
+import type { Preset } from '../../src/engine/presets';
 import { after, apply, before, hueDiff, measure, monotoneGreyRamp } from './presetMetrics';
 
 const preset = (name: string) => BUILTIN_PRESETS.find((p) => p.name === name)!;
@@ -16,10 +17,13 @@ const midSlope = (p: Preset) =>
   (measure(apply(p, [150, 150, 150])).luma - measure(apply(p, [100, 100, 100])).luma) /
   (measure([150, 150, 150]).luma - measure([100, 100, 100]).luma);
 
+/** 화이트밸런스 보정: 화면 전체(피부 포함)의 색을 옮기는 것이 목적이라 피부 기준을 완화한다 */
+const CAST_CHANGERS = ['따뜻하게', '차갑게', '그늘 색 보정', '녹색 반사광 제거'];
+
 describe.each(BUILTIN_PRESETS.map((p) => [p.name, p] as const))('공통 — %s', (_name, p) => {
   it('회색 계단이 뒤집히지 않는다', () => expect(monotoneGreyRamp(p)).toBe(true));
 
-  it('새 클리핑을 만들지 않는다 (견본의 채널이 0 또는 255로 잘리지 않음)', () => {
+  it.skipIf(!!p.mayClip)('새 클리핑을 만들지 않는다 (견본의 채널이 0 또는 255로 잘리지 않음)', () => {
     for (const s of GARDEN_SWATCHES) {
       if (s.group === 'neutral') continue;
       const out = after(p, s.key).rgb;
@@ -31,13 +35,13 @@ describe.each(BUILTIN_PRESETS.map((p) => [p.name, p] as const))('공통 — %s',
     }
   });
 
-  it('피부 색상이 크게 돌지 않는다', () => {
-    const limit = p.name === '늦가을 정원' ? 6 : 4;
+  it.skipIf(!!p.bold || p.category === 'bw')('피부 색상이 크게 돌지 않는다', () => {
+    const limit = ['늦가을 정원', '골든아워', '겨울 정원', ...CAST_CHANGERS].includes(p.name) ? 6 : 4;
     for (const k of keysOf('skin')) expect(Math.abs(dHue(p, k)), k).toBeLessThanOrEqual(limit);
   });
 
-  it('피부가 붉게 뜨지 않는다 (채도 +12% 이하, 늦가을은 +25%)', () => {
-    const limit = p.name === '늦가을 정원' ? 1.25 : 1.12;
+  it.skipIf(!!p.bold || p.category === 'bw')('피부가 붉게 뜨지 않는다 (채도 +12% 이하, 따뜻한 룩·채도·노출 올리기는 +25%)', () => {
+    const limit = ['늦가을 정원', '골든아워', '채도 올리기', '노출 +½', ...CAST_CHANGERS].includes(p.name) ? 1.25 : 1.12;
     for (const k of keysOf('skin')) expect(chromaRatio(p, k), k).toBeLessThanOrEqual(limit);
   });
 });

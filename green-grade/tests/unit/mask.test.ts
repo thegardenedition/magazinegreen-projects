@@ -17,7 +17,8 @@ import {
   type WindowParams,
   type WindowShape,
 } from '../../src/engine/mask';
-import { BUILTIN_PRESETS, parsePreset, serializePreset } from '../../src/engine/presets';
+import { BUILTIN_PRESETS } from '../../src/engine/presetLibrary';
+import { parsePreset, serializePreset } from '../../src/engine/presets';
 
 const lin8 = (c: Vec3) => c.map((v) => srgbToLinear(v / 255)) as Vec3;
 const LEAF = lin8([60, 140, 50]);

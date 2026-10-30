@@ -2,15 +2,32 @@ import { useRef, useState } from 'react';
 import { downloadBlob } from '../engine/image';
 import { parseCube, serializeCube } from '../engine/lut';
 import { bakeGradeLut, LUT_EXPORT_SIZES, windowNodeCount, type WindowHandling } from '../engine/lutExport';
+import { buildLibraryLut, LUT_CATEGORIES, LUT_LIBRARY } from '../engine/lutLibrary';
 import {
-  BUILTIN_PRESETS,
   loadUserPresets,
   parsePreset,
+  PRESET_CATEGORIES,
   saveUserPresets,
   serializePreset,
   type Preset,
 } from '../engine/presets';
+import { BUILTIN_PRESETS } from '../engine/presetLibrary';
 import { currentPreset, currentUniforms, presetToNodes, selectedNode, useGrade } from '../state/store';
+import { LibraryList, type LibraryItem } from './LibraryList';
+
+const PRESET_ITEMS: LibraryItem[] = BUILTIN_PRESETS.map((p) => ({
+  key: p.name,
+  name: p.name,
+  description: p.description ?? '',
+  category: p.category,
+}));
+
+const LUT_ITEMS: LibraryItem[] = LUT_LIBRARY.map((l) => ({
+  key: l.id,
+  name: l.name,
+  description: l.description,
+  category: l.category,
+}));
 
 function applyPreset(p: Preset) {
   useGrade.getState().setNodes(presetToNodes(p));
@@ -87,17 +104,17 @@ export function PresetPanel() {
 
       {tab === 'presets' ? (
         <div className="preset-body">
-          <div className="preset-group-title">정원 프리셋</div>
-          <ul className="preset-list" data-testid="builtin-presets">
-            {BUILTIN_PRESETS.map((p) => (
-              <li key={p.name}>
-                <button className="preset-item" onClick={() => applyPreset(p)} title={p.description}>
-                  <span>{p.name}</span>
-                  <span className="muted small">{p.description}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <LibraryList
+            items={PRESET_ITEMS}
+            categories={PRESET_CATEGORIES}
+            onPick={(key) => {
+              const p = BUILTIN_PRESETS.find((x) => x.name === key)!;
+              applyPreset(p);
+              setMessage({ text: `'${p.name}' 적용 (노드 ${p.nodes.length}개) — 되돌리기로 취소` });
+            }}
+            testId="builtin-presets"
+            placeholder={`프리셋 ${BUILTIN_PRESETS.length}종 검색`}
+          />
           <div className="preset-group-title">내 프리셋</div>
           {user.length === 0 && <p className="muted small preset-empty">저장한 프리셋이 없습니다.</p>}
           <ul className="preset-list" data-testid="user-presets">
@@ -200,10 +217,23 @@ export function PresetPanel() {
                 .cube 3D LUT(최대 65³)를 이 노드에 적용합니다. LUT는 sRGB 사진 기준으로 만든 것을 쓰세요.
               </p>
               <button className="btn btn-primary" onClick={() => lutFile.current?.click()}>
-                .cube 불러오기
+                .cube 파일 불러오기
               </button>
             </div>
           )}
+          <div className="preset-group-title">LUT 라이브러리 · 누르면 선택 노드에 적용</div>
+          <LibraryList
+            items={LUT_ITEMS}
+            categories={LUT_CATEGORIES}
+            activeKey={LUT_LIBRARY.find((l) => l.name === node.lut?.name)?.id ?? null}
+            onPick={(id) => {
+              const lut = buildLibraryLut(id);
+              setLut(lut);
+              setMessage({ text: `${lut.name} → ${node.name}` });
+            }}
+            testId="lut-library"
+            placeholder={`LUT ${LUT_LIBRARY.length}종 검색`}
+          />
           <LutExport />
           <input
             ref={lutFile}
