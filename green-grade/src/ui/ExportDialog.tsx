@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { downloadBlob, exportFileName, exportJpeg } from '../engine/image';
 import { getActiveRenderer } from '../engine/renderer';
-import { useGrade } from '../state/store';
+import { currentUniforms, useGrade } from '../state/store';
 
 export function ExportDialog() {
   const open = useGrade((s) => s.exportOpen);
@@ -21,8 +21,7 @@ export function ExportDialog() {
     // 진행률 표시가 먼저 그려지도록 한 프레임 양보
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     try {
-      const { primary, nodeEnabled } = useGrade.getState();
-      const blob = await exportJpeg(renderer, image, primary, nodeEnabled, quality / 100, setProgress);
+      const blob = await exportJpeg(renderer, image, currentUniforms(), quality / 100, setProgress);
       downloadBlob(blob, exportFileName(image.name, 'jpg'));
       setOpen(false);
     } catch (e) {

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toUniforms, type PrimaryParams } from '../engine/color';
+import { bakeCurves, type CurvesParams } from '../engine/curves';
 import { Renderer, setActiveRenderer, type ViewState } from '../engine/renderer';
-import { useGrade } from '../state/store';
+import { currentUniforms, useGrade } from '../state/store';
 
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 16;
@@ -10,7 +11,14 @@ declare global {
   interface Window {
     /** 테스트용 훅: GPU 셰이더로 픽셀을 처리해 결과를 돌려준다 */
     __GG__?: {
-      gradePixels(data: number[], width: number, height: number, primary: PrimaryParams, dither: boolean): number[];
+      gradePixels(
+        data: number[],
+        width: number,
+        height: number,
+        primary: PrimaryParams,
+        dither: boolean,
+        curves?: CurvesParams,
+      ): number[];
     };
   }
 }
@@ -35,7 +43,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       const r = rendererRef.current;
       if (!r) return;
       const s = useGrade.getState();
-      r.drawViewer(toUniforms(s.primary, s.nodeEnabled), {
+      r.drawViewer(currentUniforms(s), {
         view: viewRef.current,
         imageWidth: s.image?.width ?? 1,
         imageHeight: s.image?.height ?? 1,
@@ -86,8 +94,9 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       rendererRef.current = r;
       setActiveRenderer(r);
       window.__GG__ = {
-        gradePixels(data, width, height, primary, dither) {
-          const out = r.renderFull({ data: new Uint8Array(data), width, height }, toUniforms(primary), { dither });
+        gradePixels(data, width, height, primary, dither, curves) {
+          const u = toUniforms(primary, { curves: curves ? bakeCurves(curves) : undefined });
+          const out = r.renderFull({ data: new Uint8Array(data), width, height }, u, { dither });
           draw();
           return Array.from(out);
         },

@@ -34,7 +34,7 @@ describe('기본값은 아무것도 바꾸지 않는다', () => {
   it('노드를 끄면 보정값이 있어도 원본', () => {
     const p = defaultPrimary();
     p.gain.master = 3;
-    expect(gradePixel8([90, 140, 60], toUniforms(p, false))).toEqual([90, 140, 60]);
+    expect(gradePixel8([90, 140, 60], toUniforms(p, { enabled: false }))).toEqual([90, 140, 60]);
   });
 });
 

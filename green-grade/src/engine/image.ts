@@ -1,4 +1,4 @@
-import { toUniforms, type PrimaryParams } from './color';
+import type { GradeUniforms } from './color';
 import type { Renderer } from './renderer';
 
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -48,12 +48,11 @@ export function exportFileName(original: string, ext: string) {
 export async function exportJpeg(
   renderer: Renderer,
   image: LoadedImage,
-  primary: PrimaryParams,
-  enabled: boolean,
+  uniforms: GradeUniforms,
   quality: number,
   onProgress?: (p: number) => void,
 ): Promise<Blob> {
-  const pixels = renderer.renderFull(image.full, toUniforms(primary, enabled), { dither: true, onProgress });
+  const pixels = renderer.renderFull(image.full, uniforms, { dither: true, onProgress });
   const canvas = document.createElement('canvas');
   canvas.width = image.width;
   canvas.height = image.height;

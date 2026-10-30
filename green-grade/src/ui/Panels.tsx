@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGrade } from '../state/store';
+import { CurvesPanel } from './CurvesPanel';
 import { PrimaryPanel } from './PrimaryPanel';
 
 function Placeholder({ phase, children }: { phase: number; children: string }) {
@@ -11,24 +12,6 @@ function Placeholder({ phase, children }: { phase: number; children: string }) {
   );
 }
 
-const SCOPE_TABS = ['Waveform', 'Parade', 'Vectorscope', 'Histogram'];
-
-export function ScopePanel() {
-  const [tab, setTab] = useState(SCOPE_TABS[0]);
-  return (
-    <section className="panel">
-      <header className="tabs">
-        {SCOPE_TABS.map((t) => (
-          <button key={t} className={`tab ${t === tab ? 'on' : ''}`} onClick={() => setTab(t)}>
-            {t}
-          </button>
-        ))}
-      </header>
-      <Placeholder phase={2}>{`${tab} 스코프는 다음 단계에서 GPU로 실시간 계산해 표시합니다.`}</Placeholder>
-    </section>
-  );
-}
-
 const CORRECTION_TABS = [
   { id: 'primary', label: 'Primary', phase: 1 },
   { id: 'curves', label: 'Curves', phase: 2 },
@@ -36,27 +19,40 @@ const CORRECTION_TABS = [
   { id: 'window', label: 'Window', phase: 4 },
 ];
 
+/** 지금 단계까지 구현된 탭 */
+const AVAILABLE_PHASE = 2;
+
 export function CorrectionPanel() {
+  const [tab, setTab] = useState('primary');
   const resetPrimary = useGrade((s) => s.resetPrimary);
+  const resetCurves = useGrade((s) => s.resetCurves);
   return (
     <section className="panel panel-correction">
       <header className="tabs">
         {CORRECTION_TABS.map((t) => (
           <button
             key={t.id}
-            className={`tab ${t.phase === 1 ? 'on' : ''}`}
-            disabled={t.phase > 1}
-            title={t.phase > 1 ? `Phase ${t.phase}에서 제공` : undefined}
+            className={`tab ${t.id === tab ? 'on' : ''}`}
+            disabled={t.phase > AVAILABLE_PHASE}
+            title={t.phase > AVAILABLE_PHASE ? `Phase ${t.phase}에서 제공` : undefined}
+            onClick={() => setTab(t.id)}
+            data-testid={`tab-${t.id}`}
           >
             {t.label}
           </button>
         ))}
         <span className="spacer" />
-        <button className="btn btn-ghost" onClick={resetPrimary} data-testid="reset-primary">
-          Primary 리셋
-        </button>
+        {tab === 'primary' ? (
+          <button className="btn btn-ghost" onClick={resetPrimary} data-testid="reset-primary">
+            Primary 리셋
+          </button>
+        ) : (
+          <button className="btn btn-ghost" onClick={resetCurves} data-testid="reset-curves">
+            커브 전체 리셋
+          </button>
+        )}
       </header>
-      <PrimaryPanel />
+      {tab === 'primary' ? <PrimaryPanel /> : <CurvesPanel />}
     </section>
   );
 }

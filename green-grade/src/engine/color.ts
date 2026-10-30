@@ -2,7 +2,10 @@
 // GLSL 셰이더(shaders.ts)는 이 파일의 수식을 그대로 옮긴 것이며,
 // 단위 테스트와 E2E 테스트가 둘의 결과가 같은지 검증한다.
 
-export type Vec3 = [number, number, number];
+import { GRADING_GAMMA, LUMA, type Vec3 } from './constants';
+import { bakeCurves, defaultCurves, lookupCustom, lookupHue, lookupLumSat, RED_ANGLE, HUE_SHIFT_MAX_DEG, type CurveLuts } from './curves';
+
+export { GRADING_GAMMA, LUMA, type Vec3 };
 
 export interface WheelValue {
   /** 휠 위 색 위치. 벡터스코프 기준 U(가로), V(세로). 단위 원 안. */
@@ -26,12 +29,6 @@ export interface PrimaryParams {
   saturation: number;
   hue: number;
 }
-
-/** Rec.709 휘도 계수 (선형 sRGB와 원색 공유) */
-export const LUMA: Vec3 = [0.2126, 0.7152, 0.0722];
-
-/** 그레이딩 인코딩 지수. 톤 조작(Lift/Gamma/Contrast)은 이 지각적 공간에서 한다. */
-export const GRADING_GAMMA = 2.4;
 
 /** 18% 그레이가 그레이딩 인코딩에서 갖는 값 ≈ 0.490 */
 export const MID_GREY_PIVOT = Math.pow(0.18, 1 / GRADING_GAMMA);
@@ -141,6 +138,14 @@ export interface GradeUniforms {
   saturation: number;
   /** 열 우선(column-major) 3x3, WebGL uniformMatrix3fv 순서 */
   hueMatrix: number[];
+  /** 커브 표 (curves.ts의 bakeCurves) */
+  curves: CurveLuts;
+}
+
+let identityLuts: CurveLuts | null = null;
+/** 모든 커브가 기본값인 표 (한 번만 굽는다) */
+export function identityCurveLuts(): CurveLuts {
+  return (identityLuts ??= bakeCurves(defaultCurves()));
 }
 
 export function whiteBalanceGains(temperature: number, tint: number): Vec3 {
@@ -168,7 +173,11 @@ export function hueRotationMatrix(degrees: number): number[] {
   return [m[0][0], m[1][0], m[2][0], m[0][1], m[1][1], m[2][1], m[0][2], m[1][2], m[2][2]];
 }
 
-export function toUniforms(p: PrimaryParams, enabled = true): GradeUniforms {
+export function toUniforms(
+  p: PrimaryParams,
+  opts: { enabled?: boolean; curves?: CurveLuts } = {},
+): GradeUniforms {
+  const enabled = opts.enabled ?? true;
   const off = wheelChannels('offset', p.offset);
   const gain = wheelChannels('gain', p.gain);
   const lift = wheelChannels('lift', p.lift);
@@ -184,6 +193,7 @@ export function toUniforms(p: PrimaryParams, enabled = true): GradeUniforms {
     pivot: p.pivot,
     saturation: p.saturation,
     hueMatrix: hueRotationMatrix(p.hue),
+    curves: opts.curves ?? identityCurveLuts(),
   };
 }
 
@@ -208,9 +218,11 @@ function spow(x: number, e: number): number {
  *  5) Lift             — p + lift·(1−p)
  *  6) Gamma            — p^(1/(1+g))
  *  7) Contrast/Pivot   — (p−pivot)·contrast + pivot
- *  8) 선형 복귀         — p^2.4
- *  9) Saturation       — 휘도 기준 채도
- * 10) Hue              — 회색 축 회전
+ *  8) Custom Curves    — Y(전 채널) → R/G/B 순
+ *  9) 선형 복귀         — p^2.4
+ * 10) Saturation       — 휘도 기준 채도
+ * 11) Hue              — 회색 축 회전
+ * 12) Hue/Lum 커브      — 그레이딩 인코딩의 Y'CbCr에서 색상각·채도·휘도 조정
  */
 export function gradeLinear(rgb: Vec3, u: GradeUniforms): Vec3 {
   if (!u.enabled) return [...rgb] as Vec3;
@@ -220,16 +232,50 @@ export function gradeLinear(rgb: Vec3, u: GradeUniforms): Vec3 {
     p = p + u.lift[i] * (1 - p);
     p = spow(p, u.gammaExp[i]);
     p = (p - u.pivot) * u.contrast + u.pivot;
+    p = lookupCustom(u.curves.data, 0, p);
+    p = lookupCustom(u.curves.data, 1 + i, p);
     return spow(p, GRADING_GAMMA);
   });
   const y = LUMA[0] * c[0] + LUMA[1] * c[1] + LUMA[2] * c[2];
   c = c.map((v) => y + (v - y) * u.saturation);
   const m = u.hueMatrix;
-  return [
+  const out: Vec3 = [
     m[0] * c[0] + m[3] * c[1] + m[6] * c[2],
     m[1] * c[0] + m[4] * c[1] + m[7] * c[2],
     m[2] * c[0] + m[5] * c[1] + m[8] * c[2],
   ];
+  return u.curves.hueActive ? applyHueCurves(out, u.curves) : out;
+}
+
+const smoothstep = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/** 셰이더 applyHueCurves와 동일 */
+export function applyHueCurves(lin: Vec3, l: CurveLuts): Vec3 {
+  const p = lin.map((v) => spow(v, 1 / GRADING_GAMMA));
+  let y = LUMA[0] * p[0] + LUMA[1] * p[1] + LUMA[2] * p[2];
+  let cb = (p[2] - y) / 1.8556;
+  let cr = (p[0] - y) / 1.5748;
+  const chroma = Math.hypot(cb, cr);
+  // 무채색은 색상각이 정의되지 않으므로 건드리지 않는다
+  if (chroma < 1e-6) return [...lin] as Vec3;
+  const a0 = Math.atan2(cr, cb);
+  let h = (a0 - RED_ANGLE) / (2 * Math.PI);
+  h -= Math.floor(h);
+  const shift = (lookupHue(l.data, 0, h) - 0.5) * 2 * ((HUE_SHIFT_MAX_DEG * Math.PI) / 180);
+  const sat = 2 * lookupHue(l.data, 1, h) * 2 * lookupLumSat(l.data, y);
+  const lum = 1 + (lookupHue(l.data, 2, h) - 0.5) * smoothstep(0, 0.02, chroma);
+  const a = a0 + shift;
+  const c2 = chroma * sat;
+  y *= lum;
+  cb = c2 * Math.cos(a);
+  cr = c2 * Math.sin(a);
+  const r = y + 1.5748 * cr;
+  const b = y + 1.8556 * cb;
+  const g = (y - LUMA[0] * r - LUMA[2] * b) / LUMA[1];
+  return [spow(r, GRADING_GAMMA), spow(g, GRADING_GAMMA), spow(b, GRADING_GAMMA)];
 }
 
 /** 8bit sRGB 픽셀 하나를 처리 (디더링 없음). E2E에서 GPU 결과와 비교하는 기준값. */

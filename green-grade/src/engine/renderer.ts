@@ -1,4 +1,5 @@
 import type { GradeUniforms } from './color';
+import { LUT_ROWS, LUT_SIZE } from './curves';
 import { EXPORT_FRAGMENT, VERTEX_SHADER, VIEWER_FRAGMENT } from './shaders';
 
 export type TexSource = ImageBitmap | { data: Uint8Array; width: number; height: number };
@@ -31,9 +32,9 @@ function compile(gl: WebGL2RenderingContext, type: number, src: string) {
   return sh;
 }
 
-function link(gl: WebGL2RenderingContext, fs: string) {
+export function link(gl: WebGL2RenderingContext, fs: string, vs = VERTEX_SHADER) {
   const prog = gl.createProgram()!;
-  gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER));
+  gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, vs));
   gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, fs));
   gl.bindAttribLocation(prog, 0, 'a_pos');
   gl.linkProgram(prog);
@@ -43,13 +44,13 @@ function link(gl: WebGL2RenderingContext, fs: string) {
   return prog;
 }
 
-export class Renderer {
+/** WebGL2 컨텍스트 하나와 보정 셰이더 공통 자원(전체 화면 삼각형, 커브 표 텍스처) */
+export class GLBase {
   readonly gl: WebGL2RenderingContext;
   readonly maxTextureSize: number;
-  private viewerProg: WebGLProgram;
-  private exportProg: WebGLProgram;
-  private vao: WebGLVertexArrayObject;
-  private previewTex: WebGLTexture | null = null;
+  protected vao: WebGLVertexArrayObject;
+  private curvesTex: WebGLTexture;
+  private curvesData: Float32Array | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const gl = canvas.getContext('webgl2', {
@@ -60,8 +61,6 @@ export class Renderer {
     if (!gl) throw new Error('이 브라우저는 WebGL2를 지원하지 않습니다.');
     this.gl = gl;
     this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-    this.viewerProg = link(gl, VIEWER_FRAGMENT);
-    this.exportProg = link(gl, EXPORT_FRAGMENT);
 
     this.vao = gl.createVertexArray()!;
     gl.bindVertexArray(this.vao);
@@ -70,6 +69,13 @@ export class Renderer {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    // 커브 표: RGBA32F, texelFetch로만 읽으므로 필터링 확장이 필요 없다
+    this.curvesTex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, this.curvesTex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, LUT_SIZE, LUT_ROWS);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   }
 
   createTexture(src: TexSource, mipmap: boolean): WebGLTexture {
@@ -97,12 +103,7 @@ export class Renderer {
     return tex;
   }
 
-  setPreview(proxy: ImageBitmap | null) {
-    if (this.previewTex) this.gl.deleteTexture(this.previewTex);
-    this.previewTex = proxy ? this.createTexture(proxy, true) : null;
-  }
-
-  private setGradeUniforms(prog: WebGLProgram, u: GradeUniforms, dither: boolean) {
+  protected setGradeUniforms(prog: WebGLProgram, u: GradeUniforms, dither: boolean) {
     const gl = this.gl;
     const loc = (n: string) => gl.getUniformLocation(prog, n);
     gl.uniform1i(loc('u_enabled'), u.enabled ? 1 : 0);
@@ -116,7 +117,35 @@ export class Renderer {
     gl.uniform1f(loc('u_saturation'), u.saturation);
     gl.uniformMatrix3fv(loc('u_hueMatrix'), false, u.hueMatrix);
     gl.uniform1i(loc('u_dither'), dither ? 1 : 0);
+    gl.uniform1i(loc('u_hueActive'), u.curves.hueActive ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.curvesTex);
+    if (this.curvesData !== u.curves.data) {
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, LUT_SIZE, LUT_ROWS, gl.RGBA, gl.FLOAT, u.curves.data);
+      this.curvesData = u.curves.data;
+    }
+    gl.uniform1i(loc('u_curves'), 1);
+    gl.activeTexture(gl.TEXTURE0);
   }
+}
+
+export class Renderer extends GLBase {
+  private viewerProg: WebGLProgram;
+  private exportProg: WebGLProgram;
+  private previewTex: WebGLTexture | null = null;
+
+  constructor(canvas: HTMLCanvasElement) {
+    super(canvas);
+    this.viewerProg = link(this.gl, VIEWER_FRAGMENT);
+    this.exportProg = link(this.gl, EXPORT_FRAGMENT);
+  }
+
+  setPreview(proxy: ImageBitmap | null) {
+    if (this.previewTex) this.gl.deleteTexture(this.previewTex);
+    this.previewTex = proxy ? this.createTexture(proxy, true) : null;
+  }
+
 
   drawViewer(u: GradeUniforms, d: ViewerDraw) {
     const gl = this.gl;

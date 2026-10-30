@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ACCEPTED_TYPES, loadImage } from './engine/image';
 import { useGrade } from './state/store';
 import { ExportDialog } from './ui/ExportDialog';
-import { CorrectionPanel, NodePanel, PresetPanel, ScopePanel } from './ui/Panels';
+import { CorrectionPanel, NodePanel, PresetPanel } from './ui/Panels';
+import { ScopePanel } from './ui/ScopePanel';
 import { Viewer } from './ui/Viewer';
 
 export function App() {
@@ -10,6 +11,8 @@ export function App() {
   const image = useGrade((s) => s.image);
   const split = useGrade((s) => s.split);
   const bypass = useGrade((s) => s.bypass);
+  const canUndo = useGrade((s) => s.past.length > 0);
+  const canRedo = useGrade((s) => s.future.length > 0);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +39,14 @@ export function App() {
       if ((e.target as HTMLElement).closest('input:not([type=range]), textarea')) return;
       const s = useGrade.getState();
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'o') {
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) s.redo();
+        else s.undo();
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        s.redo();
+      } else if (mod && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         open();
       } else if (mod && e.key.toLowerCase() === 'e') {
@@ -98,6 +108,24 @@ export function App() {
         )}
         {error && <span className="error">{error}</span>}
         <span className="spacer" />
+        <button
+          className="btn btn-ghost"
+          onClick={() => useGrade.getState().undo()}
+          disabled={!canUndo}
+          title="되돌리기 (Ctrl+Z)"
+          data-testid="undo"
+        >
+          ↶ 되돌리기
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={() => useGrade.getState().redo()}
+          disabled={!canRedo}
+          title="다시 실행 (Ctrl+Shift+Z)"
+          data-testid="redo"
+        >
+          ↷ 다시 실행
+        </button>
         <button
           className={`btn btn-toggle ${split ? 'on' : ''}`}
           onClick={() => useGrade.getState().toggleSplit()}
