@@ -104,6 +104,20 @@ export const DETAIL_SPECS: Record<DetailName, DetailSpec> = {
 
 export const DETAIL_NAMES = Object.keys(DETAIL_SPECS) as DetailName[];
 
+/** 프리셋에 담을 수 있는 디테일 값 (룩을 이루는 효과·질감). 샤프닝·노이즈 감소는 사진마다 달라 담지 않는다. */
+export const PRESET_DETAIL_KEYS: DetailName[] = [
+  'grain',
+  'grainSize',
+  'vignette',
+  'vignetteMidpoint',
+  'vignetteFeather',
+  'glow',
+  'halation',
+  'clarity',
+  'dehaze',
+  'texture',
+];
+
 export function defaultGeometry(): Geometry {
   return {
     rotate: 0,

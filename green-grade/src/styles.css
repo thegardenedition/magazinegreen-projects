@@ -394,3 +394,9 @@ button, input { font: inherit; color: inherit; }
 .user-lut .preset-item { flex: 1; min-width: 0; }
 .user-lut-remove { flex: none; width: 28px; padding: 0; font-size: 16px; }
 .app-mobile .user-lut-remove { width: 40px; }
+
+/* 프리셋 미리보기 썸네일 */
+.preset-item:has(.preset-thumb) { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.preset-thumb { flex: none; width: 64px; height: 42px; object-fit: cover; border-radius: 3px; background: #111; }
+.preset-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+.app-mobile .preset-thumb { width: 84px; height: 56px; }

@@ -1,5 +1,5 @@
-// 기본 프리셋 42종이 이름대로의 효과를 내는지 확인한다.
-// (계조 반전·새 클리핑·피부 색상 같은 공통 안전선은 gardenPresets.test.ts가 42종 모두에 적용한다)
+// 기본 프리셋 112종이 이름대로의 효과를 내는지 확인한다.
+// (계조 반전·새 클리핑·피부 색상 같은 공통 안전선은 gardenPresets.test.ts가 112종 모두에 적용한다)
 
 import { describe, expect, it } from 'vitest';
 import { gradePixel8, srgbToLinear, type Vec3 } from '../../src/engine/color';
@@ -24,10 +24,16 @@ const colored = GARDEN_SWATCHES.filter((s) => before(s.key).chroma > 0.05).map((
 const avgChroma = (p: Preset) => colored.reduce((a, k) => a + chromaRatio(p, k), 0) / colored.length;
 
 describe('라이브러리 구성', () => {
-  it('42종, 분류별 정원 13 · 보정 12 · 흑백 6 · 필름 6 · 시네마틱 5', () => {
-    expect(BUILTIN_PRESETS).toHaveLength(42);
+  it('112종, 분류별 정원 25 · 계절·날씨 10 · 보정 22 · 흑백 15 · 필름 15 · 시네마틱 15 · 크리에이티브 10', () => {
+    expect(BUILTIN_PRESETS).toHaveLength(112);
     const count = (c: string) => BUILTIN_PRESETS.filter((p) => p.category === c).length;
-    expect(PRESET_CATEGORIES.map(([c]) => count(c))).toEqual([13, 12, 6, 6, 5]);
+    expect(PRESET_CATEGORIES.map(([c]) => count(c))).toEqual([25, 10, 22, 15, 15, 15, 10]);
+  });
+
+  it('효과를 담은 프리셋은 효과 값이 저장 형식으로 왕복한다', () => {
+    const withFx = BUILTIN_PRESETS.filter((p) => p.detail);
+    expect(withFx.length).toBeGreaterThanOrEqual(15);
+    for (const p of withFx) expect(parsePreset(serializePreset(p)).detail, p.name).toEqual(p.detail);
   });
 
   it('이름이 겹치지 않고, 설명이 있고, 노드 수 제한을 지킨다', () => {
@@ -223,3 +229,50 @@ describe('시네마틱', () => {
 function lumaRatioGrey(name: string) {
   return measure(grey(preset(name), 118)).luma / measure([118, 118, 118]).luma;
 }
+
+describe('확장 프리셋', () => {
+  it('노출 ±1: 18% 회색의 빛의 양이 ×2 / ×0.5', () => {
+    const lin = (p: Preset) => srgbToLinear(grey(p, 118)[1] / 255) / srgbToLinear(118 / 255);
+    expect(lin(preset('노출 +1'))).toBeCloseTo(2, 1);
+    expect(lin(preset('노출 −1'))).toBeCloseTo(0.5, 1);
+  });
+  it('밝은 곳·어두운 곳 균형: 구름은 눌리고 그늘은 들린다', () => {
+    const p = preset('밝은 곳·어두운 곳 균형');
+    expect(lumaRatio(p, 'cloud')).toBeLessThan(0.95);
+    expect(lumaRatio(p, 'shade')).toBeGreaterThan(1.1);
+  });
+  it('진한 색 누르기: 진한 꽃은 채도가 내려가고 옅은 색은 그대로', () => {
+    const p = preset('진한 색 누르기');
+    const vivid = GARDEN_SWATCHES.filter((s) => before(s.key).chroma > 0.3).map((s) => s.key);
+    expect(vivid.length).toBeGreaterThan(0);
+    for (const k of vivid) expect(chromaRatio(p, k), k).toBeLessThan(0.95);
+    expect(Math.abs(chromaRatio(p, 'skinLight') - 1)).toBeLessThan(0.04);
+  });
+  it('흑백 필터: 파랑 필터는 하늘이 밝고, 주황 필터는 하늘이 어둡다', () => {
+    const sky = (name: string) => after(preset(name), 'skyClear').luma;
+    expect(sky('흑백 · 파랑 필터')).toBeGreaterThan(sky('흑백 · 주황 필터') * 1.2);
+    for (const name of ['흑백 · 파랑 필터', '흑백 · 노랑 필터', '흑백 · 주황 필터', '흑백 필름 그레인']) {
+      const c = after(preset(name), 'leaf').rgb;
+      expect(Math.max(...c) - Math.min(...c), name).toBeLessThanOrEqual(1);
+    }
+  });
+  it('초록만 남기기: 잎은 색이 남고 붉은 꽃·하늘은 흑백', () => {
+    const p = preset('초록만 남기기');
+    expect(chromaRatio(p, 'leaf')).toBeGreaterThan(0.9);
+    expect(after(p, 'skyClear').chroma).toBeLessThan(0.03);
+  });
+  it('듀오톤: 그림자와 하이라이트가 서로 다른 색', () => {
+    const p = preset('듀오톤 · 남색과 주황');
+    expect(rb(grey(p, 40))).toBeLessThan(0);
+    expect(rb(grey(p, 215))).toBeGreaterThan(0);
+  });
+  it('미세먼지 걷기·온실은 디헤이즈를, 필름 룩은 그레인·할레이션을 함께 담는다', () => {
+    expect(preset('미세먼지 걷기').detail?.dehaze).toBeGreaterThan(20);
+    expect(preset('8mm 홈무비').detail?.grain).toBeGreaterThan(40);
+    expect(preset('시네마 네거티브').detail?.halation).toBeGreaterThan(20);
+    // 필름 룩끼리 바꿔도 앞 룩의 효과가 남지 않도록 효과 값을 모두 적는다
+    expect(Object.keys(preset('할레이션 필름').detail!)).toEqual(
+      expect.arrayContaining(['grain', 'vignette', 'glow', 'halation']),
+    );
+  });
+});

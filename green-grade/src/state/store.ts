@@ -28,6 +28,7 @@ import {
   defaultDevelop,
   defaultGeometry,
   DETAIL_SPECS,
+  PRESET_DETAIL_KEYS,
   updateGeometry,
   type DetailName,
   type Develop,
@@ -372,8 +373,19 @@ export function presetToNodes(p: Preset): GradeNode[] {
   return p.nodes.map((n) => ({ ...n, id: newNodeId() }));
 }
 
-export function currentPreset(name: string, s: Pick<Grade, 'nodes'> = useGrade.getState()): Preset {
-  return { name, nodes: s.nodes.map(({ id: _id, ...rest }) => rest) };
+export function currentPreset(name: string, s: Pick<Grade, 'nodes'> & Partial<Pick<Grade, 'develop'>> = useGrade.getState()): Preset {
+  const nodes = s.nodes.map(({ id: _id, ...rest }) => rest);
+  // 기본값과 다른 효과·질감 값만 함께 저장
+  const d = s.develop?.detail;
+  const detail = d ? Object.fromEntries(PRESET_DETAIL_KEYS.filter((k) => d[k] !== DETAIL_SPECS[k].def).map((k) => [k, d[k]])) : {};
+  return Object.keys(detail).length ? { name, nodes, detail } : { name, nodes };
+}
+
+/** 프리셋 적용: 노드를 바꾸고, 프리셋이 정한 디테일 값만 바꾼다 */
+export function applyPresetToGrade(p: Preset) {
+  const g = useGrade.getState();
+  g.setNodes(presetToNodes(p));
+  if (p.detail) useGrade.setState((s) => ({ develop: { ...s.develop, detail: { ...s.develop.detail, ...p.detail } } }));
 }
 
 /** 다른 사진으로 넘어갈 때: 되돌리기 기록을 비우고 지금 상태를 기준으로 삼는다 */

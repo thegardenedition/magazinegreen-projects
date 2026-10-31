@@ -5,6 +5,8 @@ export interface LibraryItem {
   name: string;
   description: string;
   category: string;
+  /** 지금 사진에 적용한 미리보기 이미지 URL */
+  thumb?: string;
 }
 
 interface Props {
@@ -74,8 +76,11 @@ export function LibraryList({ items, categories, onPick, activeKey, testId, plac
                     title={it.description}
                     data-testid={`${testId}-item`}
                   >
-                    <span>{it.name}</span>
-                    <span className="muted small">{it.description}</span>
+                    {it.thumb && <img className="preset-thumb" src={it.thumb} alt="" data-testid={`${testId}-thumb`} />}
+                    <span className="preset-text">
+                      <span>{it.name}</span>
+                      <span className="muted small">{it.description}</span>
+                    </span>
                   </button>
                 </li>
               ))}

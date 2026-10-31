@@ -2,6 +2,7 @@
 
 import { defaultMixer, defaultPrimary, defaultWheel, type PrimaryParams, type RgbMixer, type Vec3, type WheelName, type WheelValue } from './color';
 import { MAX_NODES } from './constants';
+import { DETAIL_SPECS, PRESET_DETAIL_KEYS, type Detail } from './develop';
 import { CUSTOM_CURVES, defaultCurves, HUE_CURVES, type CurvePoint, type CurvesParams } from './curves';
 import { LUT_MAX_SIZE, type CubeLut } from './lut';
 import {
@@ -33,17 +34,21 @@ export interface Preset {
   name: string;
   description?: string;
   nodes: PresetNode[];
+  /** 함께 바꿀 디테일 효과(그레인·할레이션·비네트 등). 적힌 값만 바꾸고 나머지는 그대로 둔다. */
+  detail?: Partial<Detail>;
 }
 
 /** 기본 제공 프리셋의 분류 */
-export type PresetCategory = 'garden' | 'correction' | 'bw' | 'film' | 'cinematic';
+export type PresetCategory = 'garden' | 'season' | 'correction' | 'bw' | 'film' | 'cinematic' | 'creative';
 
 export const PRESET_CATEGORIES: Array<[PresetCategory, string]> = [
   ['garden', '정원'],
+  ['season', '계절·날씨'],
   ['correction', '보정'],
   ['bw', '흑백'],
   ['film', '필름'],
   ['cinematic', '시네마틱'],
+  ['creative', '크리에이티브'],
 ];
 
 export interface BuiltinPreset extends Preset {
@@ -63,6 +68,7 @@ interface PresetJson {
   version: number;
   name: string;
   description?: string;
+  detail?: Partial<Detail>;
   nodes: Array<Omit<PresetNode, 'lut'> & { lut: (Omit<CubeLut, 'data'> & { data: number[] }) | null }>;
 }
 
@@ -74,6 +80,7 @@ export function serializePreset(p: Preset): string {
     version: PRESET_VERSION,
     name: p.name,
     ...(p.description ? { description: p.description } : {}),
+    ...(p.detail && Object.keys(p.detail).length ? { detail: p.detail } : {}),
     nodes: p.nodes.map((n) => ({
       ...n,
       lut: n.lut
@@ -258,6 +265,7 @@ export function parsePreset(text: string): Preset {
   return {
     name: typeof o.name === 'string' && o.name.trim() ? o.name.trim() : '이름 없는 프리셋',
     description: typeof o.description === 'string' ? o.description : undefined,
+    detail: readDetail(o.detail),
     nodes: o.nodes.slice(0, MAX_NODES).map((n, i) => ({
       name: typeof n?.name === 'string' && n.name ? n.name : `노드 ${i + 1}`,
       enabled: n?.enabled !== false,
@@ -269,6 +277,18 @@ export function parsePreset(text: string): Preset {
       window: readWindow(n?.window),
     })),
   };
+}
+
+function readDetail(v: unknown): Partial<Detail> | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const out: Partial<Detail> = {};
+  for (const k of PRESET_DETAIL_KEYS) {
+    if (typeof o[k] !== 'number' || !Number.isFinite(o[k])) continue;
+    const spec = DETAIL_SPECS[k];
+    out[k] = num(o[k], spec.def, spec.min, spec.max);
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 // ── 내 프리셋 (브라우저 저장소) ──
