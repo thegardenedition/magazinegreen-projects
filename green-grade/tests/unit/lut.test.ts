@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyLut, defaultPrimary, gradePixel8, linearToSrgb, srgbToLinear, toUniforms, type Vec3 } from '../../src/engine/color';
-import { buildLut, identityLut, parseCube, sampleLut, serializeCube } from '../../src/engine/lut';
+import { buildLut, identityLut, parseCube, sampleLut, serializeCube, serializeCube1D } from '../../src/engine/lut';
 
 const withLut = (cube: string, intensity = 1) =>
   toUniforms(defaultPrimary(), { lut: { lut: parseCube(cube), intensity } });
@@ -40,6 +40,7 @@ DOMAIN_MAX 1 1 1
     expect(() => parseCube('0 0 0\n')).toThrow('LUT_3D_SIZE');
     expect(() => parseCube('LUT_3D_SIZE 2\n0 0 0\n')).toThrow('8개');
     expect(() => parseCube('LUT_1D_SIZE 1024\n')).toThrow('1D');
+    expect(() => parseCube('LUT_1D_SIZE 1\n0 0 0\n')).toThrow('범위');
     expect(() => parseCube('LUT_3D_SIZE 99\n')).toThrow('지원 범위');
     expect(() => parseCube('LUT_3D_SIZE 2\n0 0 x\n')).toThrow('읽을 수 없습니다');
   });
@@ -81,5 +82,22 @@ describe('LUT 적용', () => {
   it('DOMAIN이 0–1이 아니면 입력을 그 범위로 맞춘다', () => {
     const l = { ...identityLut(2), domainMin: [0, 0, 0] as Vec3, domainMax: [2, 2, 2] as Vec3 };
     expect(sampleLut(l, [1, 1, 1])).toEqual([0.5, 0.5, 0.5]);
+  });
+});
+
+describe('1D LUT', () => {
+  it('채널별 곡선을 65³ 3D LUT로 바꿔 읽는다', () => {
+    const text = serializeCube1D('Square', 256, (x) => x * x);
+    const lut = parseCube(text);
+    expect(lut.size).toBe(65);
+    expect(lut.name).toBe('Square');
+    const o = sampleLut(lut, [0.5, 0.25, 1]);
+    expect(o[0]).toBeCloseTo(0.25, 3);
+    expect(o[1]).toBeCloseTo(0.0625, 3);
+    expect(o[2]).toBeCloseTo(1, 6);
+  });
+  it('LUT_1D_INPUT_RANGE를 따른다', () => {
+    const lut = parseCube('LUT_1D_SIZE 2\nLUT_1D_INPUT_RANGE 0 2\n0 0 0\n1 1 1\n');
+    expect(sampleLut(lut, [1, 1, 1])[0]).toBeCloseTo(0.5, 6);
   });
 });

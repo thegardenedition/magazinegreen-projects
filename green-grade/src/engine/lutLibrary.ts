@@ -1,9 +1,12 @@
-// 기본 제공 LUT 라이브러리 (4개 분류, 50종). 파일로 들고 있지 않고 쓸 때 함수로 계산해 만든다.
+// 기본 제공 LUT 라이브러리 (6개 분류, 98종). 파일로 들고 있지 않고 쓸 때 함수로 계산해 만든다.
+// 구성은 DaVinci Resolve에 딸린 LUT 폴더(카메라 제조사별, VFX IO, Film Looks)를 따랐지만,
+// 그 파일을 옮긴 것이 아니라 공개된 수식(제조사 백서·표준 문서)으로 직접 만든다.
 // - 유틸리티 7: 항등, 반전, 흑백, 폴스 컬러, 비디오↔풀 레벨
-// - 카메라 로그 14: 제조사 공개 로그 곡선 + 색역 원색 → sRGB (클리핑 / 부드러운 하이라이트)
+// - VFX IO 15: 선형·sRGB·Rec.709·감마·Cineon·로그 사이의 1차원 변환
+// - 카메라 로그 41: 19개 로그 곡선 + 색역 원색 → sRGB (클리핑 / 부드러운 하이라이트) + Sony 스타일 3
+// - 필름 룩 6: 프린트 필름 2종 × 흰색 D55·D60·D65 (스타일 근사)
 // - 룩 16: 필름·시네마 룩 (sRGB 코드값 → sRGB 코드값)
 // - 정원 13: 정원 프리셋을 LUT로 구운 것
-// 다른 프로그램의 LUT 파일을 옮긴 것이 아니라, 아래 수식으로 직접 만든다.
 
 import { linearToSrgb, LUMA, srgbToLinear, type Vec3 } from './color';
 import { buildLut, type CubeLut } from './lut';
@@ -11,11 +14,13 @@ import { bakeGradeLutSync } from './lutExport';
 import { BUILTIN_PRESETS } from './presetLibrary';
 import { chainOfPreset } from './presetChain';
 
-export type LutCategory = 'utility' | 'camera' | 'look' | 'garden';
+export type LutCategory = 'utility' | 'vfx' | 'camera' | 'film' | 'look' | 'garden';
 
 export const LUT_CATEGORIES: Array<[LutCategory, string]> = [
   ['utility', '유틸리티'],
+  ['vfx', 'VFX IO'],
   ['camera', '카메라 로그'],
+  ['film', '필름 룩'],
   ['look', '룩'],
   ['garden', '정원'],
 ];
@@ -32,6 +37,12 @@ export interface LibraryLut {
    * 직선 변환은 그대로 두고 최종 출력에서 자른다.
    */
   extendedRange?: boolean;
+  /** 이 LUT의 기본 격자 크기 (가파른 1차원 곡선은 65) */
+  size?: number;
+  /** 카메라 → sRGB 변환: 18% 회색의 입력 코드값 (sRGB 118 근처가 되어야 한다) */
+  grey?: number;
+  /** 세 채널에 같은 1차원 곡선이면 그 함수 (.cube로 받을 때 1D LUT로 쓴다) */
+  curve?: (v: number) => number;
   build(size: number): CubeLut;
 }
 
@@ -118,7 +129,62 @@ export const LOG_CURVES = {
     const e = x <= 0.5 ? (x * x) / 3 : (Math.exp((x - c) / a) + b) / 12;
     return e * (0.18 / ((0.38 * 0.38) / 3));
   },
+  /** Sony S-Log2: 18% 회색 ≈ 347/1023 */
+  slog2: (v: number) => {
+    const x = legalToFull(v);
+    const r = x >= 0.030001222851889303 ? Math.pow(10, (x - 0.616596 - 0.03) / 0.432699) - 0.037584 : (x - 0.030001222851889303) / 5;
+    return ((r * 0.9) * 219) / 155;
+  },
+  /** ARRI LogC4: 18% 회색 = 0.278396 */
+  logc4: (x: number) => {
+    const a = (2 ** 18 - 16) / 117.45;
+    const b = (1023 - 95) / 1023;
+    const c = 95 / 1023;
+    const s = (7 * Math.LN2 * 2 ** (7 - (14 * c) / b)) / (a * b);
+    const t = (2 ** (14 * (-c / b) + 6) - 64) / a;
+    return x >= 0 ? (2 ** ((14 * (x - c)) / b + 6) - 64) / a : x * s + t;
+  },
+  /** Canon Log (1세대): 비디오 레벨 코드값, 18% 회색 ≈ 0.343 */
+  clog: (v: number) => ((Math.pow(10, (legalToFull(v) - 0.0730597) / 0.529136) - 1) / 10.1596) * 0.9,
+  /** Canon Log 2: 비디오 레벨 코드값, 18% 회색 ≈ 0.404 */
+  clog2: (v: number) => ((Math.pow(10, (legalToFull(v) - 0.092864125) / 0.24136077) - 1) / 87.09937546) * 0.9,
+  /** Fujifilm F-Log2: 18% 회색 = 0.391 */
+  flog2: (x: number) => {
+    const [a, b, c, d, e, f] = [5.555556, 0.064829, 0.245281, 0.384316, 8.799461, 0.092864];
+    return x >= 0.100686685370811 ? (Math.pow(10, (x - d) / c) - b) / a : (x - f) / e;
+  },
+  /** DJI D-Log: 18% 회색 ≈ 0.399 */
+  dlog: (x: number) => (x <= 0.14 ? (x - 0.0929) / 6.025 : (Math.pow(10, 3.89616 * x - 2.27752) - 0.0108) / 0.9892),
+  /** RED Log3G10: 18% 회색 = 1/3 */
+  log3g10: (x: number) => (x < 0 ? x / 15.1927 : (Math.pow(10, x / 0.224282) - 1) / 155.975327) - 0.01,
+  /** Blackmagic Design Film Gen 5: 18% 회색 ≈ 0.384 */
+  bmdgen5: (x: number) => (x < 0.005 * 8.283605932 + 0.09246575342 ? (x - 0.09246575342) / 8.283605932 : Math.exp((x - 0.5300133392) / 0.08692876065) - 0.005494072432),
+  /** GoPro Protune Flat: 18% 회색 ≈ 0.646 */
+  protune: (x: number) => (Math.pow(113, x) - 1) / 112,
+  /** Apple Log: 18% 회색 ≈ 0.488 */
+  applelog: (x: number) => {
+    const [R0, Rt, c, beta, gamma, delta] = [-0.05641088, 0.01, 47.28711236, 0.00964052, 0.08550479, 0.69336945];
+    const cut = gamma * Math.log2(Rt + beta) + delta;
+    if (x >= cut) return 2 ** ((x - delta) / gamma) - beta;
+    return x > 0 ? Math.sqrt(x / c) + R0 : R0;
+  },
+  /** PQ (SMPTE ST 2084): 203 nit(BT.2408 기준 흰색)를 1로 둔다 */
+  pq: (x: number) => pqToNits(x) / PQ_REFERENCE_WHITE,
 };
+
+/** ST 2084 상수 */
+const PQ = { m1: 2610 / 16384, m2: (2523 / 4096) * 128, c1: 3424 / 4096, c2: (2413 / 4096) * 32, c3: (2392 / 4096) * 32 };
+const PQ_REFERENCE_WHITE = 203;
+
+function pqToNits(e: number): number {
+  const p = Math.pow(Math.max(0, e), 1 / PQ.m2);
+  return 10000 * Math.pow(Math.max(p - PQ.c1, 0) / (PQ.c2 - PQ.c3 * p), 1 / PQ.m1);
+}
+
+function nitsToPq(nits: number): number {
+  const y = Math.pow(Math.max(0, nits) / 10000, PQ.m1);
+  return Math.pow((PQ.c1 + PQ.c2 * y) / (1 + PQ.c3 * y), PQ.m2);
+}
 
 /** 18% 회색의 코드값 (테스트·설명용) */
 export const LOG_GREY: Record<keyof typeof LOG_CURVES, number> = {
@@ -129,6 +195,17 @@ export const LOG_GREY: Record<keyof typeof LOG_CURVES, number> = {
   flog: 0.459318,
   nlog: (650 * Math.cbrt(0.18 + 0.0075)) / 1023,
   hlg: 0.38,
+  slog2: 0.339533,
+  logc4: 0.278396,
+  clog: 0.34339,
+  clog2: 0.403589,
+  flog2: 0.391007,
+  dlog: 0.398765,
+  log3g10: 1 / 3,
+  bmdgen5: 0.383562,
+  protune: 0.645623,
+  applelog: 0.488272,
+  pq: nitsToPq(0.18 * PQ_REFERENCE_WHITE),
 };
 
 /** 0.55 위에서 부드럽게 꺾여 1에 다가가는 숄더 (기울기 연속) */
@@ -145,14 +222,30 @@ interface CameraSpec {
   note: string;
 }
 
+const S_GAMUT: [XY, XY, XY] = [[0.73, 0.28], [0.14, 0.855], [0.1, -0.05]];
+const S_GAMUT3_CINE: [XY, XY, XY] = [[0.766, 0.275], [0.225, 0.8], [0.089, -0.087]];
+const CINEMA_GAMUT: [XY, XY, XY] = [[0.74, 0.27], [0.17, 1.14], [0.08, -0.1]];
+
 const CAMERAS: CameraSpec[] = [
-  { id: 'sony', name: 'Sony S-Log3 / S-Gamut3.Cine', curve: 'slog3', primaries: [[0.766, 0.275], [0.225, 0.8], [0.089, -0.087]], note: 'Sony 카메라' },
+  { id: 'bmd-gen5', name: 'Blackmagic Film Gen 5 / Wide Gamut', curve: 'bmdgen5', primaries: [[0.7177215, 0.3171181], [0.228041, 0.861569], [0.1005841, -0.0820452]], note: 'Blackmagic 카메라(Gen 5 색과학, BRAW·ProRes Film)' },
   { id: 'arri', name: 'ARRI LogC3 / AWG3 (EI 800)', curve: 'logc3', primaries: [[0.684, 0.313], [0.221, 0.848], [0.0861, -0.102]], note: 'ARRI ALEXA 계열' },
-  { id: 'canon', name: 'Canon Log 3 / Cinema Gamut', curve: 'clog3', primaries: [[0.74, 0.27], [0.17, 1.14], [0.08, -0.1]], note: 'Canon 카메라(비디오 레벨 녹화)' },
+  { id: 'arri-logc4', name: 'ARRI LogC4 / AWG4', curve: 'logc4', primaries: [[0.7347, 0.2653], [0.1424, 0.8576], [0.0991, -0.0308]], note: 'ARRI ALEXA 35' },
+  { id: 'sony', name: 'Sony S-Log3 / S-Gamut3.Cine', curve: 'slog3', primaries: S_GAMUT3_CINE, note: 'Sony 카메라' },
+  { id: 'sony-sgamut3', name: 'Sony S-Log3 / S-Gamut3', curve: 'slog3', primaries: S_GAMUT, note: 'Sony 카메라(넓은 S-Gamut3)' },
+  { id: 'sony-slog2', name: 'Sony S-Log2 / S-Gamut', curve: 'slog2', primaries: S_GAMUT, note: '이전 Sony 카메라' },
+  { id: 'canon-clog', name: 'Canon Log / Cinema Gamut', curve: 'clog', primaries: CINEMA_GAMUT, note: 'Canon 카메라(1세대 Canon Log, 비디오 레벨)' },
+  { id: 'canon-clog2', name: 'Canon Log 2 / Cinema Gamut', curve: 'clog2', primaries: CINEMA_GAMUT, note: 'Canon 시네마 카메라(비디오 레벨)' },
+  { id: 'canon', name: 'Canon Log 3 / Cinema Gamut', curve: 'clog3', primaries: CINEMA_GAMUT, note: 'Canon 카메라(비디오 레벨 녹화)' },
   { id: 'panasonic', name: 'Panasonic V-Log / V-Gamut', curve: 'vlog', primaries: [[0.73, 0.28], [0.165, 0.84], [0.1, -0.03]], note: 'Panasonic LUMIX 등' },
   { id: 'fujifilm', name: 'Fujifilm F-Log / F-Gamut', curve: 'flog', primaries: REC2020, note: 'Fujifilm X·GFX' },
+  { id: 'fujifilm-flog2', name: 'Fujifilm F-Log2 / F-Gamut', curve: 'flog2', primaries: REC2020, note: 'Fujifilm X·GFX (넓은 관용도)' },
   { id: 'nikon', name: 'Nikon N-Log / Rec.2020', curve: 'nlog', primaries: REC2020, note: 'Nikon Z 계열' },
+  { id: 'dji', name: 'DJI D-Log / D-Gamut', curve: 'dlog', primaries: [[0.71, 0.31], [0.21, 0.88], [0.09, -0.08]], note: 'DJI 드론·짐벌 카메라' },
+  { id: 'red', name: 'RED Log3G10 / REDWideGamutRGB', curve: 'log3g10', primaries: [[0.780308, 0.304253], [0.121595, 1.493994], [0.095612, -0.084589]], note: 'RED 카메라(IPP2)' },
+  { id: 'gopro', name: 'GoPro Protune Flat / Native', curve: 'protune', primaries: [[0.698448, 0.193026], [0.329555, 1.024597], [0.108443, -0.034679]], note: 'GoPro(Protune 플랫)' },
+  { id: 'apple', name: 'Apple Log / Rec.2020', curve: 'applelog', primaries: REC2020, note: 'iPhone 15 Pro 이후 Apple Log' },
   { id: 'hlg', name: 'HLG / Rec.2020', curve: 'hlg', primaries: REC2020, note: 'HLG로 찍은 영상·사진' },
+  { id: 'pq', name: 'PQ (ST 2084) / Rec.2020', curve: 'pq', primaries: REC2020, note: 'HDR10·PQ 영상(203 nit를 흰색으로)' },
 ];
 
 function cameraLut(cam: CameraSpec, soft: boolean): LibraryLut {
@@ -162,8 +255,9 @@ function cameraLut(cam: CameraSpec, soft: boolean): LibraryLut {
     id: `camera-${cam.id}-${soft ? 'soft' : 'clip'}`,
     name: `${cam.name} → sRGB${soft ? ' (부드러운 하이라이트)' : ''}`,
     category: 'camera',
+    grey: LOG_GREY[cam.curve],
     description: `${cam.note}의 로그 영상·사진을 sRGB로. ${
-      soft ? '밝은 부분을 부드럽게 눌러 잘림을 줄인다.' : '기술적 변환: 1을 넘는 밝기는 잘린다.'
+      soft ? '밝은 부분을 부드럽게 눌러 잘림을 줄인다 (Extended Video에 해당).' : '기술적 변환: 1을 넘는 밝기는 잘린다.'
     } 노드 체인의 첫 노드에 쓴다.`,
     build: (size) =>
       buildLut(size, `${cam.name} to sRGB${soft ? ' soft' : ''}`, (r, g, b) => {
@@ -254,6 +348,157 @@ const LOOKS: LibraryLut[] = [
   look('punchy', '하이 콘트라스트 컬러', '강한 대비와 진한 색', (c) => sat(per(c, (v) => sCurve(v, 0.5)), 1.04)),
 ];
 
+// ── Sony 스타일 (S-Log3 / S-Gamut3.Cine → 표시용 룩) ──
+
+/** 장면 선형 → sRGB 코드값, 부드러운 숄더 */
+const sceneToSrgb = (v: number, gain = 1) => linearToSrgb(clamp01(softShoulder(Math.max(0, v * gain))));
+
+function sonyStyle(id: string, name: string, description: string, tone: (c: Vec3) => Vec3): LibraryLut {
+  const m = gamutToRec709(...S_GAMUT3_CINE);
+  return {
+    id: `camera-sony-${id}`,
+    name: `Sony S-Log3 / S-Gamut3.Cine → ${name}`,
+    category: 'camera',
+    description: `${description} Sony가 배포하는 같은 이름 LUT의 공개 데이터가 없어, 특성을 따라 만든 스타일 근사다.`,
+    build: (size) =>
+      buildLut(size, `S-Log3 S-Gamut3.Cine to ${name}`, (r, g, b) => {
+        const lin = apply3(m, [LOG_CURVES.slog3(r), LOG_CURVES.slog3(g), LOG_CURVES.slog3(b)]);
+        return clampRgb(tone(per(lin, (v) => sceneToSrgb(v))));
+      }),
+  };
+}
+
+const SONY_STYLES: LibraryLut[] = [
+  sonyStyle('lc709', 'LC-709 스타일', '낮은 대비와 들린 블랙의 무난한 표시용 톤.', (c) => per(c, (v) => 0.025 + 0.95 * sCurve(v, -0.12))),
+  sonyStyle('lc709a', 'LC-709 Type A 스타일', '낮은 대비에 조금 진한 색과 따뜻한 하이라이트.', (c) =>
+    sat(splitTone(per(c, (v) => 0.02 + 0.96 * sCurve(v, -0.06)), [0.5, 0.5, 0.5], [1, 0.9, 0.75], 0.03), 1.08),
+  ),
+  sonyStyle('cine709', 'Cine+709 스타일', '중간톤 대비가 단단하고 하이라이트를 일찍 눌러 주는 영화 톤.', (c) => per(c, (v) => sCurve(v, 0.18))),
+];
+
+// ── VFX IO (1차원 변환, 코드값 0–1을 그대로 해석) ──
+
+const CINEON_OFFSET = Math.pow(10, ((95 - 685) * 0.002) / 0.6);
+export const cineonToLinear = (v: number) => (Math.pow(10, ((v * 1023 - 685) * 0.002) / 0.6) - CINEON_OFFSET) / (1 - CINEON_OFFSET);
+export const linearToCineon = (x: number) => (685 + (Math.log10(x * (1 - CINEON_OFFSET) + CINEON_OFFSET) * 0.6) / 0.002) / 1023;
+const rec709Oetf = (x: number) => (x < 0.018 ? 4.5 * x : 1.099 * Math.pow(x, 0.45) - 0.099);
+const rec709Inverse = (v: number) => (v < 0.081 ? v / 4.5 : Math.pow((v + 0.099) / 1.099, 1 / 0.45));
+const logc3Encode = (x: number) => (x > 0.010591 ? 0.24719 * Math.log10(5.555556 * x + 0.052272) + 0.385537 : 5.367655 * x + 0.092809);
+const slog3Encode = (x: number) =>
+  x >= 0.01125 ? (420 + Math.log10((x + 0.01) / 0.19) * 261.5) / 1023 : ((x * (171.2102946929 - 95)) / 0.01125 + 95) / 1023;
+
+function curveLut(id: string, name: string, description: string, f: (v: number) => number, size = 65): LibraryLut {
+  return {
+    id: `vfx-${id}`,
+    name,
+    category: 'vfx',
+    description,
+    size,
+    curve: (v) => clamp01(f(v)),
+    build: (s) => buildLut(s, name, (r, g, b) => [r, g, b].map((v) => clamp01(f(v))) as Vec3),
+  };
+}
+
+const VFX: LibraryLut[] = [
+  curveLut('lin-to-srgb', 'Linear → sRGB', '선형 값을 sRGB 표시 코드로 (렌더·합성 결과 확인)', linearToSrgb),
+  curveLut('srgb-to-lin', 'sRGB → Linear', 'sRGB 코드를 선형 값으로', srgbToLinear),
+  curveLut('lin-to-709', 'Linear → Rec.709', '선형 값을 Rec.709(BT.709 OETF) 코드로', rec709Oetf),
+  curveLut('709-to-lin', 'Rec.709 → Linear', 'Rec.709 코드를 선형 값으로 (BT.709 OETF의 역)', rec709Inverse),
+  curveLut('lin-to-g22', 'Linear → Gamma 2.2', '선형 값을 감마 2.2 코드로', (v) => Math.pow(v, 1 / 2.2)),
+  curveLut('g22-to-lin', 'Gamma 2.2 → Linear', '감마 2.2 코드를 선형 값으로', (v) => Math.pow(v, 2.2)),
+  curveLut('lin-to-g24', 'Linear → Gamma 2.4', '선형 값을 감마 2.4(BT.1886) 코드로', (v) => Math.pow(v, 1 / 2.4)),
+  curveLut('g24-to-lin', 'Gamma 2.4 → Linear', '감마 2.4 코드를 선형 값으로', (v) => Math.pow(v, 2.4)),
+  curveLut('g24-to-srgb', 'Gamma 2.4 → sRGB', 'Rec.709(감마 2.4) 화면용으로 만든 영상을 sRGB 화면에 맞게', (v) => linearToSrgb(Math.pow(v, 2.4))),
+  curveLut('srgb-to-g24', 'sRGB → Gamma 2.4', 'sRGB 사진을 Rec.709(감마 2.4) 타임라인에 맞게', (v) => Math.pow(srgbToLinear(v), 1 / 2.4)),
+  curveLut('cineon-to-lin', 'Cineon Log → Linear', 'Cineon(Kodak 10bit 로그, 흰색 685·검정 95) 코드를 선형 값으로', cineonToLinear, 33),
+  curveLut('lin-to-cineon', 'Linear → Cineon Log', '선형 값을 Cineon 로그 코드로', linearToCineon),
+  curveLut('cineon-to-srgb', 'Cineon Log → sRGB', 'Cineon 스캔을 sRGB로 보기 (부드러운 하이라이트)', (v) => sceneToSrgb(cineonToLinear(v)), 33),
+  curveLut('lin-to-logc3', 'Linear → ARRI LogC3', '선형 값을 LogC3(EI 800) 코드로', logc3Encode),
+  curveLut('lin-to-slog3', 'Linear → Sony S-Log3', '선형 값을 S-Log3 코드로', slog3Encode),
+];
+
+// ── 필름 룩: 프린트 필름 에뮬레이션 (Rec.709/sRGB 입력) ──
+
+/** 흰색 좌표의 Rec.709 선형 RGB (가장 큰 채널 = 1) */
+function whiteRgb(w: XY): Vec3 {
+  const xyz: Vec3 = [w[0] / w[1], 1, (1 - w[0] - w[1]) / w[1]];
+  const rgb = apply3(inverse(REC709), xyz);
+  const k = Math.max(...rgb);
+  return rgb.map((v) => v / k) as Vec3;
+}
+
+const WHITES: Array<[string, XY]> = [
+  ['D55', [0.3324, 0.3474]],
+  ['D60', [0.32168, 0.33767]],
+  ['D65', D65],
+];
+
+interface PrintStock {
+  id: string;
+  name: string;
+  note: string;
+  /** 염료 간섭: 행 합이 1인 선형 혼합 (회색은 그대로) */
+  crosstalk: Mat3;
+  /** 채널별 S커브 세기 */
+  contrast: Vec3;
+  toe: number;
+  span: number;
+  shadow: Vec3;
+  high: Vec3;
+  split: number;
+  /** 하이라이트로 갈수록 채도를 줄이는 정도 */
+  highDesat: number;
+}
+
+const STOCKS: PrintStock[] = [
+  {
+    id: '2383',
+    name: '2383 프린트 스타일',
+    note: '극장 상영용 프린트 필름의 깊은 블랙, 단단한 중간톤 대비, 청록 섀도와 따뜻한 하이라이트',
+    crosstalk: [[1.06, -0.04, -0.02], [-0.03, 1.05, -0.02], [-0.01, -0.07, 1.08]],
+    contrast: [0.4, 0.38, 0.44],
+    toe: 0.012,
+    span: 0.95,
+    shadow: [0.2, 0.55, 0.62],
+    high: [1, 0.78, 0.5],
+    split: 0.05,
+    highDesat: 0.14,
+  },
+  {
+    id: '3513',
+    name: '3513DI 프린트 스타일',
+    note: '디지털 중간본용 프린트 필름의 조금 낮은 대비, 차분한 녹색과 중립에 가까운 하이라이트',
+    crosstalk: [[1.03, -0.01, -0.02], [-0.02, 1.04, -0.02], [-0.01, -0.03, 1.04]],
+    contrast: [0.32, 0.32, 0.35],
+    toe: 0.018,
+    span: 0.95,
+    shadow: [0.35, 0.55, 0.5],
+    high: [1, 0.9, 0.78],
+    split: 0.035,
+    highDesat: 0.08,
+  },
+];
+
+function filmLut(stock: PrintStock, [wName, w]: [string, XY]): LibraryLut {
+  const white = whiteRgb(w);
+  return {
+    id: `film-${stock.id}-${wName.toLowerCase()}`,
+    name: `Rec.709 → ${stock.name} ${wName}`,
+    category: 'film',
+    description: `${stock.note}. 흰색 ${wName}${wName === 'D65' ? '(화면과 같은 중립)' : wName === 'D60' ? '(조금 따뜻하게)' : '(극장 영사처럼 따뜻하게)'}. 필름 제조사·Blackmagic의 측정 LUT가 아니라 특성을 따라 만든 스타일 근사다.`,
+    build: (size) =>
+      buildLut(size, `Rec709 ${stock.name} ${wName}`, (r, g, b) => {
+        const lin = apply3(stock.crosstalk, [srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)]).map((v) => Math.max(0, v)) as Vec3;
+        let o = per(lin, (v, i) => stock.toe + stock.span * sCurve(linearToSrgb(Math.min(1, v)), stock.contrast[i]));
+        o = splitTone(o, stock.shadow, stock.high, stock.split);
+        o = sat(o, 1 - stock.highDesat * luma(o));
+        return clampRgb(per(o, (v, i) => linearToSrgb(srgbToLinear(clamp01(v)) * white[i])));
+      }),
+  };
+}
+
+const FILM_LOOKS: LibraryLut[] = STOCKS.flatMap((st) => WHITES.map((w) => filmLut(st, w)));
+
 // ── 유틸리티 ──
 
 const UTILITIES: LibraryLut[] = [
@@ -329,7 +574,10 @@ const GARDEN_LUTS: LibraryLut[] = BUILTIN_PRESETS.filter((p) => p.category === '
 
 export const LUT_LIBRARY: LibraryLut[] = [
   ...UTILITIES,
+  ...VFX,
   ...CAMERAS.flatMap((c) => [cameraLut(c, false), cameraLut(c, true)]),
+  ...SONY_STYLES,
+  ...FILM_LOOKS,
   ...LOOKS,
   ...GARDEN_LUTS,
 ];
@@ -339,14 +587,15 @@ export const LIBRARY_LUT_SIZE = 33;
 
 const built = new Map<string, CubeLut>();
 
-/** 라이브러리 LUT를 만든다 (같은 LUT는 한 번만 계산) */
-export function buildLibraryLut(id: string, size = LIBRARY_LUT_SIZE): CubeLut {
-  const key = `${id}@${size}`;
+/** 라이브러리 LUT를 만든다 (같은 LUT는 한 번만 계산). 크기를 주지 않으면 그 LUT의 기본 크기. */
+export function buildLibraryLut(id: string, size?: number): CubeLut {
+  const item = LUT_LIBRARY.find((x) => x.id === id);
+  if (!item) throw new Error(`LUT 없음: ${id}`);
+  const n = size ?? item.size ?? LIBRARY_LUT_SIZE;
+  const key = `${id}@${n}`;
   let l = built.get(key);
   if (!l) {
-    const item = LUT_LIBRARY.find((x) => x.id === id);
-    if (!item) throw new Error(`LUT 없음: ${id}`);
-    l = { ...item.build(size), name: item.name };
+    l = { ...item.build(n), name: item.name };
     built.set(key, l);
   }
   return l;

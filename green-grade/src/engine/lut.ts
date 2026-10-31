@@ -18,9 +18,12 @@ export interface LutUniform {
 }
 
 export const LUT_MAX_SIZE = 65;
+/** 1D LUT는 이 크기의 3D LUT로 바꿔 쓴다 */
+export const LUT_1D_AS_3D = 65;
 
 export function parseCube(text: string, name = 'LUT'): CubeLut {
   let size = 0;
+  let size1d = 0;
   let title = '';
   let domainMin: Vec3 = [0, 0, 0];
   let domainMax: Vec3 = [1, 1, 1];
@@ -33,16 +36,17 @@ export function parseCube(text: string, name = 'LUT'): CubeLut {
     const rest = line.slice(head.length).trim();
     if (head === 'TITLE') title = rest.replace(/^"|"$/g, '');
     else if (head === 'LUT_3D_SIZE') size = parseInt(rest, 10);
-    else if (head === 'LUT_1D_SIZE') throw new Error('1D LUT는 지원하지 않습니다. 3D .cube 파일을 사용하세요.');
+    else if (head === 'LUT_1D_SIZE') size1d = parseInt(rest, 10);
     else if (head === 'DOMAIN_MIN') domainMin = parseTriple(rest, ln);
     else if (head === 'DOMAIN_MAX') domainMax = parseTriple(rest, ln);
-    else if (head === 'LUT_3D_INPUT_RANGE') {
+    else if (head === 'LUT_3D_INPUT_RANGE' || head === 'LUT_1D_INPUT_RANGE') {
       const [a, b] = rest.split(/\s+/).map(Number);
       domainMin = [a, a, a];
       domainMax = [b, b, b];
     } else if (/^[-+.\d]/.test(head)) values.push(...parseTriple(line, ln));
     // 그 밖의 키워드(LUT_IN_VIDEO_RANGE 등)는 무시
   }
+  if (size1d && !size) return oneDimensional(values, size1d, domainMin, domainMax, title || name.replace(/\.cube$/i, ''));
   if (!size) throw new Error('LUT_3D_SIZE가 없습니다.');
   if (size < 2 || size > LUT_MAX_SIZE) throw new Error(`LUT 크기 ${size}는 지원 범위(2–${LUT_MAX_SIZE}) 밖입니다.`);
   const n3 = size * size * size;
@@ -60,6 +64,41 @@ export function parseCube(text: string, name = 'LUT'): CubeLut {
     data[i * 4 + 3] = 1;
   }
   return { name: title || name.replace(/\.cube$/i, ''), size, data, domainMin, domainMax };
+}
+
+/** 1D LUT(채널마다 따로인 곡선)를 65³ 3D LUT로 바꾼다. 격자점에서는 1D 곡선을 선형 보간한 값 그대로다. */
+function oneDimensional(values: number[], n: number, domainMin: Vec3, domainMax: Vec3, name: string): CubeLut {
+  if (n < 2 || n > 65536) throw new Error(`1D LUT 크기 ${n}는 지원 범위(2–65536) 밖입니다.`);
+  if (values.length !== n * 3) throw new Error(`1D LUT 데이터가 ${n}개여야 하는데 ${values.length / 3}개입니다.`);
+  const curve = (x: number, c: number) => {
+    const t = Math.min(1, Math.max(0, (x - domainMin[c]) / (domainMax[c] - domainMin[c]))) * (n - 1);
+    const i = Math.min(n - 2, Math.floor(t));
+    return values[i * 3 + c] + (values[(i + 1) * 3 + c] - values[i * 3 + c]) * (t - i);
+  };
+  const N = LUT_1D_AS_3D;
+  // 3D 격자는 1D의 입력 범위를 덮는다
+  const at = (k: number, c: number) => domainMin[c] + ((domainMax[c] - domainMin[c]) * k) / (N - 1);
+  const data = new Float32Array(N ** 3 * 4);
+  for (let b = 0; b < N; b++)
+    for (let g = 0; g < N; g++)
+      for (let r = 0; r < N; r++) {
+        const i = ((b * N + g) * N + r) * 4;
+        data[i] = curve(at(r, 0), 0);
+        data[i + 1] = curve(at(g, 1), 1);
+        data[i + 2] = curve(at(b, 2), 2);
+        data[i + 3] = 1;
+      }
+  return { name, size: N, data, domainMin, domainMax };
+}
+
+/** 1D .cube 쓰기 (같은 곡선을 세 채널에) */
+export function serializeCube1D(name: string, n: number, f: (x: number) => number): string {
+  const lines = [`TITLE "${name}"`, `LUT_1D_SIZE ${n}`];
+  for (let i = 0; i < n; i++) {
+    const v = fmt(f(i / (n - 1)));
+    lines.push(`${v} ${v} ${v}`);
+  }
+  return lines.join('\n') + '\n';
 }
 
 function parseTriple(s: string, ln: number): Vec3 {

@@ -4,13 +4,16 @@ import { parseCube, sampleLut, serializeCube } from '../../src/engine/lut';
 import { lutChain } from '../../src/engine/lutExport';
 import {
   buildLibraryLut,
+  cineonToLinear,
   gamutToRec709,
+  linearToCineon,
   LOG_CURVES,
   LOG_GREY,
   LUT_CATEGORIES,
   LUT_LIBRARY,
   softShoulder,
 } from '../../src/engine/lutLibrary';
+import { cubeFileName, libraryCubeText } from '../../src/engine/lutPack';
 import { chainOfPreset } from '../../src/engine/presetChain';
 import { BUILTIN_PRESETS } from '../../src/engine/presetLibrary';
 
@@ -25,15 +28,15 @@ const lum01 = (c: Vec3) => LUMA[0] * srgbToLinear(c[0]) + LUMA[1] * srgbToLinear
 const lumOf = (c: Vec3) => lum01(c.map((v) => v / 255) as Vec3);
 
 describe('라이브러리 구성', () => {
-  it('50종: 유틸리티 7 · 카메라 로그 14 · 룩 16 · 정원 13', () => {
-    expect(LUT_LIBRARY).toHaveLength(50);
+  it('98종: 유틸리티 7 · VFX IO 15 · 카메라 로그 41 · 필름 룩 6 · 룩 16 · 정원 13', () => {
+    expect(LUT_LIBRARY).toHaveLength(98);
     const count = (c: string) => LUT_LIBRARY.filter((l) => l.category === c).length;
-    expect(LUT_CATEGORIES.map(([c]) => count(c))).toEqual([7, 14, 16, 13]);
+    expect(LUT_CATEGORIES.map(([c]) => count(c))).toEqual([7, 15, 41, 6, 16, 13]);
   });
 
   it('id·이름이 겹치지 않고 설명이 있다', () => {
-    expect(new Set(LUT_LIBRARY.map((l) => l.id)).size).toBe(50);
-    expect(new Set(LUT_LIBRARY.map((l) => l.name)).size).toBe(50);
+    expect(new Set(LUT_LIBRARY.map((l) => l.id)).size).toBe(98);
+    expect(new Set(LUT_LIBRARY.map((l) => l.name)).size).toBe(98);
     for (const l of LUT_LIBRARY) expect(l.description, l.id).toBeTruthy();
   });
 });
@@ -113,6 +116,11 @@ describe('카메라 로그', () => {
       ['flog', 0.100537775223865],
       ['nlog', 452 / 1023],
       ['hlg', 0.5],
+      ['slog2', (0.030001222851889303 * 876 + 64) / 1023],
+      ['flog2', 0.100686685370811],
+      ['dlog', 0.14],
+      ['bmdgen5', 0.005 * 8.283605932 + 0.09246575342],
+      ['applelog', 0.08550479 * Math.log2(0.01 + 0.00964052) + 0.69336945],
     ];
     for (const [c, x] of joins) {
       // N-Log는 공개 상수가 반올림돼 경계에서 3×10⁻⁴만큼 어긋난다 (0.1% 미만)
@@ -133,19 +141,91 @@ describe('카메라 로그', () => {
     expect(softShoulder(0.8)).toBeLessThan(0.8);
   });
 
-  it.each(LUT_LIBRARY.filter((l) => l.category === 'camera').map((l) => [l.name, l] as const))(
+  it('제조사 문서의 18% 회색 값과 맞는다', () => {
+    expect(LOG_GREY.logc4).toBeCloseTo(0.278396, 6);
+    expect(LOG_GREY.log3g10).toBeCloseTo(1 / 3, 6);
+    expect(LOG_GREY.flog2 * 1023).toBeCloseTo(400, 0);
+    expect(LOG_GREY.slog2 * 1023).toBeCloseTo(347, 0);
+    expect(LOG_CURVES.log3g10(1 / 3)).toBeCloseTo(0.18, 4);
+    // PQ: 203 nit = 기준 흰색 = 선형 1
+    expect(LOG_CURVES.pq(0.58069)).toBeCloseTo(1, 2);
+  });
+
+  it.each(LUT_LIBRARY.filter((l) => l.grey !== undefined).map((l) => [l.name, l] as const))(
     '%s: 18%% 회색 코드값이 무채색 sRGB 118 근처가 된다',
     (_n, l) => {
-      const curve = Object.keys(LOG_CURVES).find((k) => l.id.includes(
-        { slog3: 'sony', logc3: 'arri', clog3: 'canon', vlog: 'panasonic', flog: 'fujifilm', nlog: 'nikon', hlg: 'hlg' }[k as keyof typeof LOG_CURVES],
-      )) as keyof typeof LOG_GREY;
-      const g = LOG_GREY[curve];
+      const g = l.grey!;
       const lut = buildLibraryLut(l.id, 65);
       const o = sampleLut(lut, [g, g, g]).map((v) => v * 255);
       for (const v of o) expect(Math.abs(v - 118)).toBeLessThanOrEqual(3);
       expect(Math.max(...o) - Math.min(...o)).toBeLessThanOrEqual(1);
     },
   );
+});
+
+describe('VFX IO', () => {
+  /** 격자점에서는 보간이 없으므로 수식 값이 그대로 들어 있다 */
+  const node = (id: string, i: number) => {
+    const lut = buildLibraryLut(id);
+    const n = lut.size;
+    const k = ((i * n + i) * n + i) * 4;
+    return { v: i / (n - 1), out: lut.data[k] };
+  };
+  it.each([
+    ['vfx-lin-to-srgb', srgbToLinear],
+    ['vfx-lin-to-logc3', LOG_CURVES.logc3],
+    ['vfx-lin-to-slog3', LOG_CURVES.slog3],
+    ['vfx-lin-to-cineon', cineonToLinear],
+  ] as const)('%s: 역변환하면 원래 선형 값', (id, inverse) => {
+    for (const i of [1, 5, 16, 40, 64]) {
+      const { v, out } = node(id, i);
+      expect(inverse(out)).toBeCloseTo(v, 4);
+    }
+  });
+  it('Cineon 흰색(685)은 선형 1, 검정(95)은 0', () => {
+    expect(cineonToLinear(685 / 1023)).toBeCloseTo(1, 6);
+    expect(cineonToLinear(95 / 1023)).toBeCloseTo(0, 6);
+    expect(linearToCineon(0.18) * 1023).toBeCloseTo(470, -1);
+  });
+  it('가파른 곡선은 65³로 만든다', () => {
+    expect(buildLibraryLut('vfx-lin-to-srgb').size).toBe(65);
+    expect(buildLibraryLut('camera-sony-clip').size).toBe(33);
+  });
+});
+
+describe('필름 룩', () => {
+  const warmth = (id: string) => {
+    const o = sample8(id, [235, 235, 235]);
+    return o[0] - o[2];
+  };
+  it('흰색이 D55 > D60 > D65 순으로 따뜻하다', () => {
+    for (const s of ['2383', '3513']) {
+      expect(warmth(`film-${s}-d55`)).toBeGreaterThan(warmth(`film-${s}-d60`));
+      expect(warmth(`film-${s}-d60`)).toBeGreaterThan(warmth(`film-${s}-d65`));
+    }
+  });
+  it('2383 스타일이 3513DI 스타일보다 중간톤 대비가 크다', () => {
+    const spread = (id: string) => lumOf(sample8(id, [190, 190, 190])) - lumOf(sample8(id, [70, 70, 70]));
+    expect(spread('film-2383-d65')).toBeGreaterThan(spread('film-3513-d65'));
+  });
+  it('2383 스타일은 섀도가 청록, 하이라이트가 따뜻하다', () => {
+    const sh = sample8('film-2383-d65', [40, 40, 40]);
+    const hi = sample8('film-2383-d65', [210, 210, 210]);
+    expect(sh[2]).toBeGreaterThan(sh[0]);
+    expect(hi[0]).toBeGreaterThan(hi[2]);
+  });
+});
+
+describe('Sony 스타일', () => {
+  it('LC-709 스타일은 블랙을 들어 올리고, Cine+709 스타일보다 대비가 낮다', () => {
+    // S-Log3의 블랙(코드 95/1023)
+    const black = (95 / 1023) * 255;
+    const lc = sample8('camera-sony-lc709', [black, black, black]);
+    expect(lc[1]).toBeGreaterThanOrEqual(5);
+    const g = LOG_GREY.slog3 * 255;
+    const spread = (id: string) => lumOf(sample8(id, [g + 60, g + 60, g + 60])) - lumOf(sample8(id, [g - 60, g - 60, g - 60]));
+    expect(spread('camera-sony-cine709')).toBeGreaterThan(spread('camera-sony-lc709'));
+  });
 });
 
 describe('룩', () => {
@@ -192,5 +272,29 @@ describe('노드에 넣으면 셰이더 경로로 그대로 쓰인다', () => {
     const via = gradePixel8(c, u);
     const direct = sampleLut(lut, c.map((v) => v / 255) as Vec3).map((v) => linearToSrgb(srgbToLinear(v)) * 255);
     via.forEach((v, i) => expect(Math.abs(v - direct[i])).toBeLessThanOrEqual(1));
+  });
+});
+
+describe('.cube 묶음', () => {
+  it('파일 이름은 겹치지 않고 다른 프로그램이 읽을 수 있는 문자만 쓴다', () => {
+    const names = LUT_LIBRARY.map((l) => cubeFileName(l.name));
+    expect(new Set(names).size).toBe(LUT_LIBRARY.length);
+    for (const n of names) {
+      expect(n).toMatch(/\.cube$/);
+      expect(n).not.toMatch(/[\\/:*?"<>|→]/);
+    }
+  });
+});
+
+describe('VFX IO를 1D .cube로', () => {
+  it('1D로 쓰고 다시 읽으면(앱 안에서는 65³로 바뀜) 격자점에서 수식 값과 같다', () => {
+    const lut = parseCube(libraryCubeText('vfx-lin-to-srgb'));
+    expect(lut.size).toBe(65);
+    for (const k of [1, 3, 12, 40, 64]) {
+      const v = k / 64;
+      expect(sampleLut(lut, [v, v, v])[0]).toBeCloseTo(linearToSrgb(v), 4);
+    }
+    expect(libraryCubeText('vfx-lin-to-srgb')).toContain('LUT_1D_SIZE 4096');
+    expect(libraryCubeText('camera-sony-clip')).toContain('LUT_3D_SIZE 33');
   });
 });

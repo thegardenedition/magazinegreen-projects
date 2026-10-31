@@ -4,7 +4,7 @@ import { bakeCurves, defaultCurves } from '../../src/engine/curves';
 import { sampleLut } from '../../src/engine/lut';
 import { bakeGradeLut, lutChain, windowNodeCount } from '../../src/engine/lutExport';
 import { defaultQualifier, defaultShape, defaultWindow, maskUniform } from '../../src/engine/mask';
-import { buildZip, crc32, uniqueNames } from '../../src/engine/zip';
+import { buildZip, crc32, deflateRaw, uniqueNames } from '../../src/engine/zip';
 
 /** ZIP을 읽어 (이름, 데이터) 목록으로 */
 async function readZip(blob: Blob) {
@@ -102,5 +102,21 @@ describe('그레이드 → .cube', () => {
     expect(ignored[1].mask).toBeNull();
     expect(ignored[2].mask?.qualifier).toBeTruthy();
     expect(ignored[2].mask?.window).toBeNull();
+  });
+});
+
+describe('ZIP 압축', () => {
+  it('DEFLATE로 넣은 항목을 풀면 원래 데이터이고 CRC가 맞다', async () => {
+    const { inflateRawSync } = await import('node:zlib');
+    const text = new TextEncoder().encode('0.000000 0.000000 0.000000\n'.repeat(500));
+    const deflated = (await deflateRaw(text))!;
+    expect(deflated.length).toBeLessThan(text.length / 10);
+    const zip = new Uint8Array(await buildZip([{ name: 'a.cube', data: text, deflated }]).arrayBuffer());
+    const v = new DataView(zip.buffer);
+    expect(v.getUint16(8, true)).toBe(8);
+    expect(v.getUint32(14, true)).toBe(crc32(text));
+    const size = v.getUint32(18, true);
+    expect(v.getUint32(22, true)).toBe(text.length);
+    expect(Buffer.from(inflateRawSync(zip.subarray(30 + 6, 30 + 6 + size))).equals(Buffer.from(text))).toBe(true);
   });
 });

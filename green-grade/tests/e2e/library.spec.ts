@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { join } from 'node:path';
 import { defaultPrimary, gradePixel8, toUniforms, type Vec3 } from '../../src/engine/color';
-import { serializeCube } from '../../src/engine/lut';
+import { parseCube, sampleLut, serializeCube } from '../../src/engine/lut';
 import { buildLibraryLut } from '../../src/engine/lutLibrary';
-import { exportJpg, FIXTURE_DIR, regionMean, writeFixtures } from './helpers';
+import { exportJpg, FIXTURE_DIR, readZip, regionMean, writeFixtures } from './helpers';
 
 const GARDEN = join(FIXTURE_DIR, 'garden.png');
 const LEAVES = { x: 0.1, y: 0.45, w: 0.8, h: 0.3 };
@@ -34,16 +34,20 @@ test('프리셋 라이브러리: 42종, 분류·검색, 흑백 적용', async ({
   await page.screenshot({ path: join('test-results', 'library-presets.png') });
 });
 
-test('LUT 라이브러리: 50종, 분류·검색, 적용과 강조 표시', async ({ page }) => {
+test('LUT 라이브러리: 98종, 분류·검색, 적용과 강조 표시', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles(GARDEN);
   await page.getByTestId('tab-lut').click();
   const items = page.getByTestId('lut-library-item');
-  await expect(items).toHaveCount(50);
+  await expect(items).toHaveCount(98);
   await page.getByTestId('lut-library-cat-camera').click();
-  await expect(items).toHaveCount(14);
+  await expect(items).toHaveCount(41);
   await page.getByTestId('lut-library-cat-all').click();
   await page.getByTestId('lut-library-search').fill('S-Log3');
-  await expect(items).toHaveCount(2);
+  // S-Gamut3.Cine·S-Gamut3 × 2, Sony 스타일 3, Linear → S-Log3
+  await expect(items).toHaveCount(8);
+  await page.getByTestId('lut-library-cat-vfx').click();
+  await expect(items).toHaveCount(1);
+  await page.getByTestId('lut-library-cat-all').click();
   await page.getByTestId('lut-library-search').fill('흑백 (휘도)');
   await items.first().click();
   await expect(page.getByTestId('lut-info')).toContainText('흑백 (휘도)');
@@ -63,7 +67,18 @@ test('라이브러리 LUT의 GPU 결과가 기준 수식과 1 LSB 이내로 일�
     colors.push(c);
     pixels.push(...c, 255);
   }
-  for (const id of ['camera-sony-soft', 'camera-arri-clip', 'look-print-warm', 'look-cross', 'garden-신록', 'util-legal-to-full']) {
+  for (const id of [
+    'camera-sony-soft',
+    'camera-arri-clip',
+    'camera-bmd-gen5-soft',
+    'camera-pq-clip',
+    'vfx-lin-to-srgb',
+    'film-2383-d55',
+    'look-print-warm',
+    'look-cross',
+    'garden-신록',
+    'util-legal-to-full',
+  ]) {
     const lut = buildLibraryLut(id);
     const cube = serializeCube(lut);
     const gpu = await page.evaluate(
@@ -78,4 +93,22 @@ test('라이브러리 LUT의 GPU 결과가 기준 수식과 1 LSB 이내로 일�
     });
     expect(max, id).toBeLessThanOrEqual(1);
   }
+});
+
+test('라이브러리 전체를 .cube ZIP으로 받는다 (분류별 폴더)', async ({ page }) => {
+  await page.getByTestId('tab-lut').click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('lut-pack').click()]);
+  expect(download.suggestedFilename()).toBe('GREEN GRADE LUT.zip');
+  const { readFileSync } = await import('node:fs');
+  const files = readZip(readFileSync((await download.path())!));
+  expect(files).toHaveLength(99);
+  expect(files[0].name).toBe('GREEN GRADE LUT/읽어보기.txt');
+  const folders = new Set(files.slice(1).map((f) => f.name.split('/')[1]));
+  expect([...folders]).toEqual(['01 유틸리티', '02 VFX IO', '03 카메라 로그', '04 필름 룩', '05 룩', '06 정원']);
+  const bmd = files.find((f) => f.name.endsWith('Blackmagic Film Gen 5 - Wide Gamut to sRGB.cube'))!;
+  const lut = parseCube(bmd.data.toString('utf8'));
+  expect(lut.size).toBe(33);
+  // 18% 회색 → sRGB 118 근처
+  const g = sampleLut(lut, [0.383562, 0.383562, 0.383562]).map((v) => v * 255);
+  for (const v of g) expect(Math.abs(v - 118)).toBeLessThanOrEqual(3);
 });
