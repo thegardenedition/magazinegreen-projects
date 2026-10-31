@@ -61,7 +61,12 @@ export type DetailName =
   | 'clarity'
   | 'dehaze'
   | 'grain'
-  | 'grainSize';
+  | 'grainSize'
+  | 'vignette'
+  | 'vignetteMidpoint'
+  | 'vignetteFeather'
+  | 'glow'
+  | 'halation';
 
 export type Detail = Record<DetailName, number>;
 
@@ -90,6 +95,11 @@ export const DETAIL_SPECS: Record<DetailName, DetailSpec> = {
   dehaze: { label: '디헤이즈', group: '질감', def: 0, min: -100, max: 100, step: 1 },
   grain: { label: '양', group: '그레인', def: 0, min: 0, max: 100, step: 1 },
   grainSize: { label: '크기', group: '그레인', def: 100, min: 50, max: 300, step: 5 },
+  vignette: { label: '비네트', group: '효과', def: 0, min: -100, max: 100, step: 1 },
+  vignetteMidpoint: { label: '비네트 중심', group: '효과', def: 50, min: 0, max: 100, step: 1 },
+  vignetteFeather: { label: '비네트 부드러움', group: '효과', def: 50, min: 0, max: 100, step: 1 },
+  glow: { label: '글로우', group: '효과', def: 0, min: 0, max: 100, step: 1 },
+  halation: { label: '할레이션', group: '효과', def: 0, min: 0, max: 100, step: 1 },
 };
 
 export const DETAIL_NAMES = Object.keys(DETAIL_SPECS) as DetailName[];
@@ -319,6 +329,11 @@ export interface DetailUniforms {
   texture: [number, number, number];
   clarity: number;
   dehaze: number;
+  /** 비네트: 양(−1–1), 시작 반경, 퍼짐 */
+  vignette: [number, number, number];
+  /** 글로우·할레이션 양 (0–1) */
+  glow: number;
+  halation: number;
 }
 
 /** 색상 노이즈 감소가 경계를 넘지 않도록 쓰는 밝기 차 σ */
@@ -345,15 +360,28 @@ export function detailUniforms(d: Detail, pxScale: number, fullLong: number): De
     texture: d.texture !== 0 ? [d.texture / 100, texSigma, radiusOf(texSigma, 3, 48)] : [0, 1, 0],
     clarity: d.clarity / 100,
     dehaze: d.dehaze / 100,
+    vignette: [(d.vignette ?? 0) / 100, (d.vignetteMidpoint ?? 50) / 100, 0.05 + (d.vignetteFeather ?? 50) / 100],
+    glow: (d.glow ?? 0) / 100,
+    halation: (d.halation ?? 0) / 100,
   };
 }
 
 /** 디테일 처리(그레인 제외)가 하나라도 켜져 있는지 */
 export function detailActive(d: Detail): boolean {
-  return d.noiseLuma > 0 || d.noiseColor > 0 || d.sharpen > 0 || d.texture !== 0 || d.clarity !== 0 || d.dehaze !== 0;
+  return (
+    d.noiseLuma > 0 ||
+    d.noiseColor > 0 ||
+    d.sharpen > 0 ||
+    d.texture !== 0 ||
+    d.clarity !== 0 ||
+    d.dehaze !== 0 ||
+    !!d.vignette ||
+    !!d.glow ||
+    !!d.halation
+  );
 }
 
-export const needsBase = (d: Detail) => d.clarity !== 0 || d.dehaze !== 0;
+export const needsBase = (d: Detail) => d.clarity !== 0 || d.dehaze !== 0 || !!d.glow || !!d.halation;
 
 /** 타일 가장자리에 덧붙일 여유 픽셀 (노이즈 감소 + 블러 반경) */
 export function apronOf(du: DetailUniforms): number {
@@ -437,6 +465,8 @@ export interface DevelopBase {
   data: Float32Array;
   /** 대기광 (그레이딩 인코딩) */
   airlight: Vec3;
+  /** RGBA: rgb = 글로우(밝은 부분을 넓게 번진 선형 RGB), a = 할레이션(밝은 부분 휘도를 좁게 번진 것) */
+  fx: Float32Array;
 }
 
 /** 기준 격자의 긴 변 */
@@ -558,7 +588,62 @@ export function computeBase(src: PixelSource, g: Geometry, fullW: number, fullH:
     data[i * 4] = blurY[i];
     data[i * 4 + 1] = Math.min(1, Math.max(0, haze[i]));
   }
-  return { width: bw, height: bh, data, airlight: air };
+
+  // 글로우·할레이션: 밝은 부분(선형)만 뽑아 넓게 / 좁게 번진다
+  const glowSrc = [0, 1, 2].map(() => new Float32Array(n));
+  const halSrc = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let yl = 0;
+    for (let c = 0; c < 3; c++) {
+      const l = dec(p[i * 3 + c]);
+      glowSrc[c][i] = Math.max(0, l - GLOW_THRESHOLD) / (1 - GLOW_THRESHOLD);
+      yl += LUMA[c] * l;
+    }
+    halSrc[i] = Math.max(0, yl - HALATION_THRESHOLD) / (1 - HALATION_THRESHOLD);
+  }
+  const glow = glowSrc.map((a) => gaussBlur(a, bw, bh, 0.03 * long));
+  const hal = gaussBlur(halSrc, bw, bh, 0.008 * long);
+  const fx = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    fx[i * 4] = glow[0][i];
+    fx[i * 4 + 1] = glow[1][i];
+    fx[i * 4 + 2] = glow[2][i];
+    fx[i * 4 + 3] = hal[i];
+  }
+  return { width: bw, height: bh, data, airlight: air, fx };
+}
+
+/** 글로우·할레이션이 시작되는 선형 밝기 */
+export const GLOW_THRESHOLD = 0.55;
+export const HALATION_THRESHOLD = 0.45;
+/** 할레이션의 색 (필름 뒷면에서 반사된 빛의 붉은 번짐) */
+export const HALATION_TINT: Vec3 = [1, 0.3, 0.08];
+
+/** 기준 격자의 다른 표(fx 등)를 출력 좌표로 쌍선형 보간 (RGBA 4채널) */
+export function sampleGrid(b: DevelopBase, grid: Float32Array, u: number, v: number): [number, number, number, number] {
+  const fx = u * b.width - 0.5;
+  const fy = v * b.height - 0.5;
+  const x0 = Math.floor(fx);
+  const y0 = Math.floor(fy);
+  const tx = fx - x0;
+  const ty = fy - y0;
+  const at = (x: number, y: number, c: number) =>
+    grid[(Math.min(b.height - 1, Math.max(0, y)) * b.width + Math.min(b.width - 1, Math.max(0, x))) * 4 + c];
+  const out: [number, number, number, number] = [0, 0, 0, 0];
+  for (let c = 0; c < 4; c++) {
+    const a = at(x0, y0, c) + (at(x0 + 1, y0, c) - at(x0, y0, c)) * tx;
+    const bb = at(x0, y0 + 1, c) + (at(x0 + 1, y0 + 1, c) - at(x0, y0 + 1, c)) * tx;
+    out[c] = a + (bb - a) * ty;
+  }
+  return out;
+}
+
+/** 비네트 가중치: 가운데 0 → 모서리 쪽 1 (셰이더 vignetteWeight와 같다) */
+export function vignetteWeight(u: number, v: number, aspect: number, mid: number, feather: number): number {
+  const dx = (u - 0.5) * aspect;
+  const dy = v - 0.5;
+  const d = Math.hypot(dx, dy) / (0.5 * Math.hypot(aspect, 1));
+  return smoothstep(mid, mid + feather, d);
 }
 
 /** 기준 격자를 출력 좌표로 쌍선형 보간 (셰이더 sampleBase와 같다) */
@@ -763,6 +848,10 @@ export function developReference(src: PixelSource, plan: DevelopPlan, base: Deve
           det += du.clarity * 0.9 * (d / (1 + 3 * Math.abs(d))) * mid;
         }
       }
+      const u = (x + 0.5) / w;
+      const vv = (y + 0.5) / h;
+      const fx = base && (du.glow > 0 || du.halation > 0) ? sampleGrid(base, base.fx, u, vv) : null;
+      const vw = du.vignette[0] !== 0 ? vignetteWeight(u, vv, w / h, du.vignette[1], du.vignette[2]) : 0;
       for (let c = 0; c < 3; c++) {
         let v = Q[i * 3 + c] + det;
         if (base && du.dehaze > 0) {
@@ -771,7 +860,11 @@ export function developReference(src: PixelSource, plan: DevelopPlan, base: Deve
         } else if (base && du.dehaze < 0) {
           v += (air[c] - v) * (-du.dehaze * 0.45);
         }
-        out[i * 3 + c] = dec(v);
+        let lin = dec(v);
+        if (fx) lin += du.glow * 1.2 * fx[c] + du.halation * 1.5 * fx[3] * HALATION_TINT[c];
+        if (du.vignette[0] > 0) lin *= 1 - du.vignette[0] * 0.85 * vw;
+        else if (du.vignette[0] < 0) lin += Math.max(0, 1 - lin) * -du.vignette[0] * 0.6 * vw;
+        out[i * 3 + c] = lin;
       }
     }
   return out;

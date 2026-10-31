@@ -3,7 +3,7 @@
 // 큰 이미지는 타일로 나눠 처리하고, 타일마다 블러·노이즈 반경만큼 가장자리(apron)를 더 계산한다.
 // 이웃 픽셀은 항상 '출력 이미지 좌표를 가장자리로 고정한 뒤' 읽으므로 타일 경계에서도 결과가 같다.
 
-import { apronOf, OUTSIDE_EPS, OUTSIDE_ENCODED, NR_COLOR_EDGE, type DevelopBase, type DevelopPlan } from './develop';
+import { apronOf, HALATION_TINT, OUTSIDE_EPS, OUTSIDE_ENCODED, NR_COLOR_EDGE, type DevelopBase, type DevelopPlan } from './develop';
 import { link } from './glsl';
 
 const HEADER = /* glsl */ `#version 300 es
@@ -148,6 +148,29 @@ uniform vec4 u_sharp;      // 양, 마스킹, 반경 > 0
 uniform vec3 u_tex;        // 양, 반경 > 0, -
 uniform vec2 u_cd;         // 선명도, 디헤이즈
 uniform vec3 u_air;
+uniform sampler2D u_fx;    // rgb = 글로우, a = 할레이션 (기준 격자)
+uniform vec2 u_glow;       // 글로우, 할레이션
+uniform vec3 u_vig;        // 비네트 양, 시작, 퍼짐
+const vec3 HALATION_TINT = vec3(${HALATION_TINT.join(', ')});
+
+vec4 sampleFx(vec2 uv) {
+  ivec2 size = textureSize(u_fx, 0);
+  vec2 f = uv * vec2(size) - 0.5;
+  vec2 fl = floor(f);
+  vec2 t = f - fl;
+  ivec2 i0 = ivec2(fl);
+  ivec2 hi = size - 1;
+  vec4 a = mix(texelFetch(u_fx, clamp(i0, ivec2(0), hi), 0), texelFetch(u_fx, clamp(i0 + ivec2(1, 0), ivec2(0), hi), 0), t.x);
+  vec4 b = mix(texelFetch(u_fx, clamp(i0 + ivec2(0, 1), ivec2(0), hi), 0), texelFetch(u_fx, clamp(i0 + ivec2(1, 1), ivec2(0), hi), 0), t.x);
+  return mix(a, b, t.y);
+}
+
+float vignetteWeight(vec2 uv, float aspect) {
+  vec2 d = (uv - 0.5) * vec2(aspect, 1.0);
+  float r = length(d) / (0.5 * length(vec2(aspect, 1.0)));
+  float t = clamp((r - u_vig.y) / max(u_vig.z, 1e-5), 0.0, 1.0);
+  return t * t * (3.0 - 2.0 * t);
+}
 
 vec2 sampleBase(vec2 uv) {
   ivec2 size = textureSize(u_base, 0);
@@ -199,7 +222,18 @@ void main() {
   } else if (u_hasBase && u_cd.y < 0.0) {
     v += (u_air - v) * (-u_cd.y * 0.45);
   }
-  outColor = vec4(spow(v, GRADING_GAMMA), 1.0);
+  vec3 lin = spow(v, GRADING_GAMMA);
+  vec2 uv = (vec2(img) + 0.5) / vec2(u_outSize);
+  if (u_hasBase && (u_glow.x > 0.0 || u_glow.y > 0.0)) {
+    vec4 fx = sampleFx(uv);
+    lin += u_glow.x * 1.2 * fx.rgb + u_glow.y * 1.5 * fx.a * HALATION_TINT;
+  }
+  if (u_vig.x != 0.0) {
+    float w = vignetteWeight(uv, float(u_outSize.x) / float(u_outSize.y));
+    if (u_vig.x > 0.0) lin *= 1.0 - u_vig.x * 0.85 * w;
+    else lin += max(vec3(0.0), 1.0 - lin) * -u_vig.x * 0.6 * w;
+  }
+  outColor = vec4(lin, 1.0);
 }
 `;
 
@@ -236,6 +270,7 @@ export class Developer {
   private fbo: WebGLFramebuffer;
   private pool = new Map<Role, { tex: WebGLTexture; w: number; h: number }>();
   private baseTex: WebGLTexture;
+  private fxTex: WebGLTexture;
   private baseData: DevelopBase | null = null;
 
   constructor(
@@ -252,6 +287,7 @@ export class Developer {
     this.copy = link(gl, COPY_FRAGMENT);
     this.fbo = gl.createFramebuffer()!;
     this.baseTex = this.floatTexture(1, 1);
+    this.fxTex = this.floatTexture(1, 1);
   }
 
   private floatTexture(w: number, h: number, format: number = this.gl.RGBA32F, levels = 1) {
@@ -282,6 +318,9 @@ export class Developer {
     this.baseTex = this.floatTexture(base.width, base.height);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, base.width, base.height, gl.RGBA, gl.FLOAT, base.data);
+    gl.deleteTexture(this.fxTex);
+    this.fxTex = this.floatTexture(base.width, base.height);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, base.width, base.height, gl.RGBA, gl.FLOAT, base.fx);
     this.baseData = base;
   }
 
@@ -352,7 +391,9 @@ export class Developer {
     blurPass(tBlurH, tBlurV, 1);
 
     const tOut = this.texture('out', tw, th);
-    this.draw(this.combine, tOut, tw, th, [['u_nr', tNr], ['u_blur', tBlurV], ['u_base', this.baseTex]], (loc) => {
+    this.draw(this.combine, tOut, tw, th, [['u_nr', tNr], ['u_blur', tBlurV], ['u_base', this.baseTex], ['u_fx', this.fxTex]], (loc) => {
+      gl.uniform2f(loc('u_glow'), du.glow, du.halation);
+      gl.uniform3fv(loc('u_vig'), du.vignette);
       gl.uniform1i(loc('u_hasBase'), useBase ? 1 : 0);
       gl.uniform4f(loc('u_sharp'), du.sharpen[0], du.sharpen[1], sR > 0 ? 1 : 0, 0);
       gl.uniform3f(loc('u_tex'), du.texture[0], tR > 0 ? 1 : 0, 0);

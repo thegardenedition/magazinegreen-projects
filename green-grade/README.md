@@ -48,13 +48,15 @@ WebGL2를 지원하는 최신 Chrome, Edge, Safari, Firefox가 필요합니다.
  ⑥ Lift            p + lift·(1−p)       흰색 고정, 검정을 들어 올림
  ⑦ Gamma           p^(1/(1+g))          검정·흰색 고정, 중간톤 이동
  ⑧ Contrast/Pivot  (p−pivot)·c + pivot  기본 pivot 0.489 = 18% 그레이
+ ⑧' 구간 조정       Shadows·Highlights 막대 + Log 휠(Shadow·Midtone·Highlight, Low/High Range)
  ⑨ Custom Curves   Y(전 채널) → R/G/B     단조 3차 보간 표, 0–1 밖은 평행 이동
  ⑩ 선형 복귀       x = p^2.4
- ⑪ Saturation      Rec.709 휘도 기준
- ⑫ Hue             회색 축 회전 (무채색 불변)
+ ⑪ Saturation      Rec.709 휘도 기준, 이어서 Color Boost(탁한 색일수록 더)
+ ⑫ Hue · RGB Mixer 회색 축 회전과 채널 혼합을 한 행렬로 (Mixer 먼저)
  ⑬ 색상 커브        그레이딩 인코딩의 Y'CbCr에서
                     Hue vs Hue (색상각 ±60°) · Hue vs Sat (×0–2)
                     Hue vs Lum (루마 ±50%, 무채색 제외) · Lum vs Sat (×0–2)
+                    Sat vs Sat (×0–2) · Sat vs Lum (±50%) — 가로축 채도
  ⑭ LUT             선형 → sRGB 코드값 → 3D LUT(3선형 보간) → 선형, 강도만큼 섞음
    ⊕ 마스크         노드 출력 = mix(노드 입력, ②–⑭ 결과, Qualifier × Window)
    └──────────────────────────────────────────────────────────────────────┘
@@ -132,6 +134,43 @@ fp32로 유지되어 밴딩이 생기지 않고, 미리보기·타일 내보내�
   - 미리보기·내보내기가 같은 기준을 쓰므로 큰 흐름이 같습니다.
   - 픽셀마다 쌍선형 보간합니다.
 - CPU 기준 구현(`developReference`)이 같은 수식을 따르며, E2E에서 GPU 결과와 1 LSB 이내로 맞는지 확인합니다.
+
+## DaVinci Resolve에서 가져온 보정 도구
+
+Resolve 컬러 페이지에 있고 이 앱에 없던 도구 중, 노드 보정 구조(한 번의 셰이더 패스)에 들어가는 것을 넣었습니다.
+모두 CPU 기준 구현과 같은 수식이며, E2E에서 GPU 결과가 1 LSB 이내로 맞는지 확인합니다.
+
+| Resolve | 이 앱 | 위치 |
+|---|---|---|
+| Primaries 막대: Shadows · Highlights · Color Boost | 같은 이름 슬라이더 (−100–100) | Primary 탭 |
+| Log 휠 (Shadow·Midtone·Highlight, Low/High Range) | 'Log 휠'로 바꿔 보기. Primary 휠과 함께 적용 | Primary 탭 |
+| RGB Mixer (Monochrome, Preserve Luminance) | 출력 R·G·B마다 입력 비율, 흑백, 휘도 유지 | RGB Mixer 탭 |
+| Curves: Sat vs Sat · Sat vs Lum | 가로축이 채도(Qualifier와 같은 축)인 커브 2종 | Curves 탭 |
+| Film Look·FX: Vignette · Glow · Halation | 비네트(양·중심·부드러움), 글로우, 할레이션 | 디테일 탭 '효과' |
+| LUT: .cube · .3dl, LUT 폴더 | .3dl 읽기, 여러 파일 한 번에, 끌어다 놓기, '내 LUT' 보관 | LUT 탭 |
+
+- **Shadows / Highlights**: 그레이딩 인코딩 휘도의 어두운 쪽·밝은 쪽에만 밝기를 더하고 뺍니다. 그늘을 들거나 하늘을 살릴 때.
+- **Color Boost**: 채도가 낮은 색일수록 채도를 더 올리고(−면 내리고), 이미 진한 색과 회색은 거의 그대로 둡니다.
+- **Log 휠**
+  - Low Range 아래는 Shadow 휠, High Range 위는 Highlight 휠, 사이는 Midtone 휠이 색·밝기를 더합니다(경계는 부드럽게 겹침).
+  - Primary 휠이 전체 계조를 늘이고 당긴다면, Log 휠은 구간을 나눠 미는 도구입니다.
+- **RGB Mixer**: 선형 RGB에서 섞습니다.
+  - 흑백을 켜면 '출력 R' 행 하나로 흑백을 만듭니다. 예: 입력 G를 높이면 잎이 밝은 녹색 필터 흑백.
+  - 휘도 유지는 행마다 합이 1이 되도록 맞춥니다.
+- **Sat vs Sat / Sat vs Lum**: 이미 진한 꽃색만 채도를 낮추거나 어둡게 하는 식으로, 채도에 따라 다르게 조정합니다.
+- **비네트·글로우·할레이션** (디테일 탭 '효과', 사진 전체, 노드 보정 앞)
+  - 비네트: 크롭 결과 기준으로 모서리를 어둡게(+) 또는 밝게(−).
+  - 글로우: 밝은 부분(선형 0.55 이상)을 긴 변의 약 3% 반경으로 번지게 더합니다.
+  - 할레이션: 밝은 부분 휘도를 긴 변의 약 0.8% 반경으로 번지게 해 붉은 주황빛으로 더합니다. 필름 뒷면 반사를 흉내 냅니다.
+  - 글로우와 할레이션은 선명도·디헤이즈와 같은 저해상도 기준 격자에서 계산해, 미리보기와 내보내기가 같은 모양을 냅니다.
+- **LUT 삽입**
+  - LUT 탭 'LUT 파일 불러오기'에서 .cube·.3dl을 여러 개 고르거나, 화면 어디에든 끌어다 놓습니다.
+  - 첫 파일은 선택 노드에 바로 적용되고, 모두 '내 LUT'에 보관됩니다.
+  - 보관은 이 브라우저의 IndexedDB이므로 새로고침해도 남고, 다른 브라우저·기기에는 없습니다. ×로 지웁니다.
+  - .3dl은 첫 줄 입력 격자, 'Mesh' 줄의 출력 비트 수(없으면 값 범위로 10·12·16bit 추정), 파랑이 가장 빨리 바뀌는 순서를 따릅니다.
+
+넣지 않은 것: 노드별 블러·샤프닝, Color Warper, HDR 존 휠, Parallel·Layer 노드, 트래킹.
+노드 보정을 한 번의 셰이더 패스로 처리하는 구조라, 주변 픽셀을 보거나 노드를 갈래로 나누는 도구는 들어가지 않습니다.
 
 ## 마스크 (Qualifier · Window)
 
@@ -390,6 +429,20 @@ LUT 탭의 '그레이드를 LUT로 내보내기'는 켜진 노드 전체를 17³
     - 색상 노이즈 감소의 밝기 보존
     - 선명도·텍스처·디헤이즈 ± 방향
   - 그레인의 결정성·분포·해상도 독립성
+- `tests/unit/resolveTools.test.ts`
+  - Shadows·Highlights·Color Boost가 정한 구간에만 걸리는지
+  - Log 휠 구간과 Low Range
+  - RGB Mixer 흑백·채널 교환·휘도 유지
+  - Sat vs Sat·Sat vs Lum
+  - 새 값의 프리셋 왕복, 새 값이 없는 예전 파일은 기본값으로 읽는지
+  - .3dl 10·12·16bit 읽기
+  - 비네트·글로우·할레이션의 위치와 색
+- `tests/e2e/resolve.spec.ts`
+  - 새 노드 도구 8가지 조합의 GPU 결과가 기준 수식과 1 LSB 이내
+  - Log 휠 전환
+  - RGB Mixer 흑백 내보내기가 무채색
+  - .cube·.3dl 여러 개 불러오기 → 내 LUT 보관·적용 → 새로고침 뒤 유지 → 삭제
+  - LUT 끌어다 놓기
 - `tests/e2e/mask-notice.spec.ts` — 비네트 노드의 '창 바깥' 표시와 안내, '창 끄기' 후 가운데까지 밝아지는지, '전체용 새 노드'
 - `tests/e2e/mobile.spec.ts` — 390×664 터치 화면
   - 가로 넘침·세로 스크롤 없음, 사진이 없을 때도 뷰어 자리 확보

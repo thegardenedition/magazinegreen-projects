@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { toUniforms, type PrimaryParams } from '../engine/color';
+import { defaultPrimary, toUniforms, type PrimaryParams } from '../engine/color';
 import { bakeCurves, type CurvesParams } from '../engine/curves';
 import { computeBase, planDevelop, type Develop } from '../engine/develop';
 import { parseCube } from '../engine/lut';
@@ -15,8 +15,14 @@ import { WindowOverlay } from './WindowOverlay';
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 16;
 
+/** 테스트 훅이 받는 Primary 값. 나중에 생긴 값(Log 휠·Mixer 등)은 빠져 있으면 기본값을 쓴다. */
+export type TestPrimary = Pick<PrimaryParams, 'lift' | 'gamma' | 'gain' | 'offset' | 'temperature' | 'tint' | 'contrast' | 'pivot' | 'saturation' | 'hue'> &
+  Partial<PrimaryParams>;
+
+const fullPrimary = (p: TestPrimary): PrimaryParams => ({ ...defaultPrimary(), ...p });
+
 export interface TestNode {
-  primary: PrimaryParams;
+  primary: TestPrimary;
   curves?: CurvesParams;
   enabled?: boolean;
   cube?: string;
@@ -29,7 +35,7 @@ const MASK_VIEW = { off: 0, highlight: 1, bw: 2 } as const;
 
 function testChain(nodes: TestNode[]) {
   return nodes.map((n) =>
-    toUniforms(n.primary, {
+    toUniforms(fullPrimary(n.primary), {
       enabled: n.enabled ?? true,
       curves: n.curves ? bakeCurves(n.curves) : undefined,
       lut: n.cube ? { lut: parseCube(n.cube), intensity: n.lutIntensity ?? 1 } : null,
@@ -46,7 +52,7 @@ declare global {
         data: number[],
         width: number,
         height: number,
-        primary: PrimaryParams,
+        primary: TestPrimary,
         dither: boolean,
         curves?: CurvesParams,
       ): number[];
@@ -173,7 +179,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       setActiveRenderer(r);
       window.__GG__ = {
         gradePixels(data, width, height, primary, dither, curves) {
-          const u = toUniforms(primary, { curves: curves ? bakeCurves(curves) : undefined });
+          const u = toUniforms(fullPrimary(primary), { curves: curves ? bakeCurves(curves) : undefined });
           const out = r.renderFull({ data: new Uint8Array(data), width, height }, [u], { dither });
           draw();
           return Array.from(out.pixels);

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { downloadBlob } from '../engine/image';
-import { parseCube, serializeCube } from '../engine/lut';
+import { serializeCube, type CubeLut } from '../engine/lut';
+import { importAndApply, removeUserLut, useUserLuts, userLut } from '../state/userLuts';
 import { bakeGradeLut, LUT_EXPORT_SIZES, windowNodeCount, type WindowHandling } from '../engine/lutExport';
 import { buildLibraryLut, LUT_CATEGORIES, LUT_LIBRARY } from '../engine/lutLibrary';
 import { buildLibraryZip, PACK_FOLDER } from '../engine/lutPack';
@@ -81,16 +82,13 @@ export function PresetPanel() {
     downloadBlob(new Blob([serializePreset(p)], { type: 'application/json' }), `${safeFileName(p.name)}.json`);
   };
 
-  const importLut = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      const lut = parseCube(await file.text(), file.name);
-      setLut(lut);
-      setMessage({ text: `${lut.name} (${lut.size}³) → ${node.name}` });
-    } catch (e) {
-      setMessage({ text: (e as Error).message, error: true });
-    }
-  };
+  // 불러오기·끌어다 놓기 결과를 보여 주고 LUT 탭으로
+  const notice = useUserLuts((s) => s.notice);
+  useEffect(() => {
+    if (!notice) return;
+    setTab('lut');
+    setMessage({ text: notice.text, error: notice.error });
+  }, [notice]);
 
   return (
     <section className="panel panel-presets">
@@ -215,13 +213,18 @@ export function PresetPanel() {
           ) : (
             <div className="lut-info">
               <p className="muted small">
-                .cube 3D LUT(최대 65³)를 이 노드에 적용합니다. LUT는 sRGB 사진 기준으로 만든 것을 쓰세요.
+                .cube·.3dl LUT(최대 65³, 1D 포함)를 이 노드에 적용합니다. 여러 개를 한 번에 고르거나 화면에 끌어다 놓으면
+                모두 '내 LUT'에 보관됩니다. LUT는 sRGB 사진 기준으로 만든 것을 쓰세요.
               </p>
-              <button className="btn btn-primary" onClick={() => lutFile.current?.click()}>
-                .cube 파일 불러오기
+              <button className="btn btn-primary" onClick={() => lutFile.current?.click()} data-testid="lut-open">
+                LUT 파일 불러오기
               </button>
             </div>
           )}
+          <UserLutList onApply={(lut) => {
+            setLut(lut);
+            setMessage({ text: `${lut.name} → ${node.name}` });
+          }} activeName={node.lut?.name ?? null} />
           <div className="preset-group-title">LUT 라이브러리 · 누르면 선택 노드에 적용</div>
           <LibraryList
             items={LUT_ITEMS}
@@ -240,11 +243,12 @@ export function PresetPanel() {
           <input
             ref={lutFile}
             type="file"
-            accept=".cube"
+            accept=".cube,.3dl"
             hidden
             data-testid="lut-file"
+            multiple
             onChange={(e) => {
-              importLut(e.target.files?.[0]);
+              if (e.target.files?.length) importAndApply(Array.from(e.target.files));
               e.target.value = '';
             }}
           />
@@ -256,6 +260,39 @@ export function PresetPanel() {
         </p>
       )}
     </section>
+  );
+}
+
+/** 내 LUT: 불러온 파일을 보관한 목록. 누르면 적용, ×로 삭제 */
+function UserLutList({ onApply, activeName }: { onApply(lut: CubeLut): void; activeName: string | null }) {
+  const items = useUserLuts((s) => s.items);
+  return (
+    <div className="user-luts" data-testid="user-luts">
+      <div className="preset-group-title">내 LUT {items.length ? `· ${items.length}개` : ''}</div>
+      {items.length === 0 ? (
+        <p className="muted small preset-empty">불러온 .cube·.3dl 파일이 여기 보관됩니다 (이 브라우저에 저장).</p>
+      ) : (
+        <ul className="preset-list">
+          {items.map((it) => (
+            <li key={it.id} className="user-lut">
+              <button
+                className={`preset-item ${activeName === it.name ? 'active' : ''}`}
+                onClick={() => onApply(userLut(it.id))}
+                data-testid="user-lut-item"
+              >
+                <span>{it.name}</span>
+                <span className="muted small">
+                  {it.fileName} · {it.size}³
+                </span>
+              </button>
+              <button className="btn btn-ghost user-lut-remove" onClick={() => removeUserLut(it.id)} aria-label={`${it.name} 삭제`} data-testid="user-lut-remove">
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

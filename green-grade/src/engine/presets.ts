@@ -1,6 +1,6 @@
 // 프리셋: 노드 체인 전체를 JSON 하나로 저장·불러오기. LUT도 데이터째 넣어 파일 하나로 완결된다.
 
-import { defaultPrimary, defaultWheel, type PrimaryParams, type Vec3, type WheelName, type WheelValue } from './color';
+import { defaultMixer, defaultPrimary, defaultWheel, type PrimaryParams, type RgbMixer, type Vec3, type WheelName, type WheelValue } from './color';
 import { MAX_NODES } from './constants';
 import { CUSTOM_CURVES, defaultCurves, HUE_CURVES, type CurvePoint, type CurvesParams } from './curves';
 import { LUT_MAX_SIZE, type CubeLut } from './lut';
@@ -121,6 +121,26 @@ function readPrimary(v: unknown): PrimaryParams {
     pivot: num(o.pivot, d.pivot, 0, 1),
     saturation: num(o.saturation, d.saturation, 0, 2),
     hue: num(o.hue, d.hue, -180, 180),
+    shadow: readWheel('shadow', o.shadow),
+    midtone: readWheel('midtone', o.midtone),
+    highlight: readWheel('highlight', o.highlight),
+    lowRange: num(o.lowRange, d.lowRange, 0.05, 0.6),
+    highRange: num(o.highRange, d.highRange, 0.4, 0.95),
+    shadows: num(o.shadows, d.shadows, -100, 100),
+    highlights: num(o.highlights, d.highlights, -100, 100),
+    colorBoost: num(o.colorBoost, d.colorBoost, -100, 100),
+    mixer: readMixer(o.mixer),
+  };
+}
+
+function readMixer(v: unknown): RgbMixer {
+  const d = defaultMixer();
+  const o = (v ?? {}) as Partial<RgbMixer>;
+  const rows = Array.isArray(o.rows) && o.rows.length === 3 ? o.rows : d.rows;
+  return {
+    rows: rows.map((r, i) => [0, 1, 2].map((k) => num(Array.isArray(r) ? r[k] : undefined, d.rows[i][k], -2, 2))) as RgbMixer['rows'],
+    mono: o.mono === true,
+    preserve: o.preserve === true,
   };
 }
 

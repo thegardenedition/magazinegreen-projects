@@ -163,6 +163,10 @@ export class GLBase {
       loc('u_tone'),
       pad((u) => [u.contrast, u.pivot, u.saturation, u.lut?.intensity ?? 0], [0, 0, 0, 0]).flat(),
     );
+    gl.uniform4fv(loc('u_tone2'), pad((u) => [u.shadows, u.highlights, u.colorBoost, u.highRange], [0, 0, 0, 0.55]).flat());
+    gl.uniform4fv(loc('u_logS'), pad((u) => [...u.logShadow, u.lowRange], [0, 0, 0, 0.333]).flat());
+    gl.uniform3fv(loc('u_logM'), pad((u) => u.logMidtone, zero3).flat());
+    gl.uniform3fv(loc('u_logH'), pad((u) => u.logHighlight, zero3).flat());
     gl.uniform4iv(
       loc('u_flags'),
       pad(

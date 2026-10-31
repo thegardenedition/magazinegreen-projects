@@ -2,6 +2,7 @@ import { maskState } from '../engine/mask';
 import { selectedNode, useGrade, type CorrectionTab } from '../state/store';
 import { CurvesPanel } from './CurvesPanel';
 import { DetailPanel } from './DetailPanel';
+import { MixerPanel } from './MixerPanel';
 import { QualifierPanel, WindowPanel } from './MaskPanels';
 import { PrimaryPanel } from './PrimaryPanel';
 import { TransformPanel } from './TransformPanel';
@@ -9,6 +10,7 @@ import { TransformPanel } from './TransformPanel';
 const CORRECTION_TABS: Array<{ id: CorrectionTab; label: string; phase: number }> = [
   { id: 'primary', label: 'Primary', phase: 1 },
   { id: 'curves', label: 'Curves', phase: 2 },
+  { id: 'mixer', label: 'RGB Mixer', phase: 4 },
   { id: 'qualifier', label: 'HSL Qualifier', phase: 4 },
   { id: 'window', label: 'Window', phase: 4 },
   { id: 'transform', label: '형태', phase: 4 },
@@ -106,9 +108,10 @@ export function CorrectionPanel() {
           </button>
         )}
       </header>
-      {(tab === 'primary' || tab === 'curves') && <MaskNotice />}
+      {(tab === 'primary' || tab === 'curves' || tab === 'mixer') && <MaskNotice />}
       {tab === 'primary' && <PrimaryPanel />}
       {tab === 'curves' && <CurvesPanel />}
+      {tab === 'mixer' && <MixerPanel />}
       {tab === 'qualifier' && <QualifierPanel />}
       {tab === 'window' && <WindowPanel />}
       {tab === 'transform' && <TransformPanel />}
