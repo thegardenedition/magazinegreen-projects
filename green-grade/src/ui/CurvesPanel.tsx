@@ -6,6 +6,7 @@ import {
   HUE_CURVES,
   hueSwatch,
   isPeriodic,
+  isSatAxis,
   SIX_VECTORS,
   type CurvePoint,
   type CustomCurveName,
@@ -179,14 +180,16 @@ function CurveEditor({ name, width, height, color, ghosts = [], background, test
   );
 }
 
-function hueGradient(id: string, lum: boolean) {
+/** 커브 배경: 색상축(무지개), 휘도축(회색 계조), 채도축(회색 → 진한 색) */
+function hueGradient(id: string, axis: 'hue' | 'lum' | 'sat') {
   const stops = Array.from({ length: 25 }, (_, i) => i / 24);
+  const lum = axis === 'lum';
   return (
     <>
       <defs>
         <linearGradient id={id} x1="0" x2="1" y1="0" y2="0">
           {stops.map((t) => {
-            const c = lum ? [t, t, t] : hueSwatch(t);
+            const c = lum ? [t, t, t] : axis === 'sat' ? hueSwatch(0.08, t * 0.3, 0.5) : hueSwatch(t);
             return (
               <stop
                 key={t}
@@ -260,7 +263,7 @@ export function CurvesPanel() {
             </button>
           ))}
           <span className="spacer" />
-          {hueCurve !== 'lumSat' && (
+          {isPeriodic(hueCurve) && (
             <button className="btn btn-ghost" onClick={addSix} title="빨강·노랑·초록·청록·파랑·마젠타 위치에 점 추가">
               6점
             </button>
@@ -275,13 +278,13 @@ export function CurvesPanel() {
           width={380}
           height={200}
           color="#d6d6d6"
-          background={hueGradient(`grad-${hueCurve}`, hueCurve === 'lumSat')}
+          background={hueGradient(`grad-${hueCurve}`, hueCurve === 'lumSat' ? 'lum' : isSatAxis(hueCurve) ? 'sat' : 'hue')}
           testId="curve-hue"
         />
       </div>
       <p className="curves-help muted small">
         빈 곳을 눌러 점 추가 · 점 드래그 · 점 더블클릭/우클릭으로 삭제. 색상 커브는 가운데 선이 '변화 없음'입니다
-        (Hue vs Hue ±60°, Sat ×0–2, Lum ±50%).
+        (Hue vs Hue ±60°, Sat ×0–2, Lum ±50%). Sat vs Sat·Sat vs Lum은 가로축이 채도(왼쪽 무채색 → 오른쪽 진한 색)입니다.
       </p>
     </div>
   );

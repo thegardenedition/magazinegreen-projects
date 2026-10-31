@@ -1,10 +1,11 @@
-import { SCALAR_SPECS, type ScalarName, type WheelName } from '../engine/color';
+import { useState } from 'react';
+import { LOG_WHEELS, PRIMARY_WHEELS, SCALAR_SPECS, type ScalarName } from '../engine/color';
 import { selectedNode, useGrade } from '../state/store';
 import { ColorWheel, jogFill } from './ColorWheel';
 import { NumberField } from './NumberField';
 
-const WHEELS: WheelName[] = ['lift', 'gamma', 'gain', 'offset'];
-const SCALARS: ScalarName[] = ['temperature', 'tint', 'contrast', 'pivot', 'saturation', 'hue'];
+const SCALARS: ScalarName[] = ['temperature', 'tint', 'contrast', 'pivot', 'saturation', 'hue', 'shadows', 'highlights', 'colorBoost'];
+const LOG_SCALARS: ScalarName[] = ['lowRange', 'highRange'];
 
 function ScalarControl({ name }: { name: ScalarName }) {
   const spec = SCALAR_SPECS[name];
@@ -42,15 +43,28 @@ function ScalarControl({ name }: { name: ScalarName }) {
 }
 
 export function PrimaryPanel() {
+  // DaVinci처럼 Primary 휠(Lift/Gamma/Gain)과 Log 휠(Shadow/Midtone/Highlight)을 바꿔 본다. 두 휠은 함께 적용된다.
+  const [mode, setMode] = useState<'primary' | 'log'>('primary');
   return (
     <div className="primary">
+      <div className="wheel-mode library-chips">
+        <button className={`chip ${mode === 'primary' ? 'on' : ''}`} onClick={() => setMode('primary')} data-testid="wheels-primary">
+          Primary 휠
+        </button>
+        <button className={`chip ${mode === 'log' ? 'on' : ''}`} onClick={() => setMode('log')} data-testid="wheels-log">
+          Log 휠
+        </button>
+        <span className="muted small">
+          {mode === 'log' ? 'Low Range 아래 = Shadow, High Range 위 = Highlight, 사이 = Midtone' : 'Lift = 검정 쪽, Gamma = 중간, Gain = 흰색 쪽'}
+        </span>
+      </div>
       <div className="wheels">
-        {WHEELS.map((w) => (
+        {(mode === 'primary' ? PRIMARY_WHEELS : LOG_WHEELS).map((w) => (
           <ColorWheel key={w} name={w} />
         ))}
       </div>
       <div className="scalars">
-        {SCALARS.map((s) => (
+        {(mode === 'log' ? [...LOG_SCALARS, ...SCALARS] : SCALARS).map((s) => (
           <ScalarControl key={s} name={s} />
         ))}
       </div>

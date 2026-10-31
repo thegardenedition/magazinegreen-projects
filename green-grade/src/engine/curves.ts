@@ -9,19 +9,25 @@ export interface CurvePoint {
 }
 
 export type CustomCurveName = 'y' | 'r' | 'g' | 'b';
-export type HueCurveName = 'hueHue' | 'hueSat' | 'hueLum' | 'lumSat';
+export type HueCurveName = 'hueHue' | 'hueSat' | 'hueLum' | 'lumSat' | 'satSat' | 'satLum';
 
 export type CurvesParams = Record<CustomCurveName, CurvePoint[]> & Record<HueCurveName, CurvePoint[]>;
 
 export const CUSTOM_CURVES: CustomCurveName[] = ['y', 'r', 'g', 'b'];
-export const HUE_CURVES: HueCurveName[] = ['hueHue', 'hueSat', 'hueLum', 'lumSat'];
+export const HUE_CURVES: HueCurveName[] = ['hueHue', 'hueSat', 'hueLum', 'lumSat', 'satSat', 'satLum'];
 
 export const HUE_CURVE_LABELS: Record<HueCurveName, string> = {
   hueHue: 'Hue vs Hue',
   hueSat: 'Hue vs Sat',
   hueLum: 'Hue vs Lum',
   lumSat: 'Lum vs Sat',
+  satSat: 'Sat vs Sat',
+  satLum: 'Sat vs Lum',
 };
+
+/** 가로축이 채도인 커브 (Sat vs Sat, Sat vs Lum). 채도 = Cb·Cr 크기 / SAT_AXIS_SCALE (Qualifier와 같은 축) */
+export const isSatAxis = (name: CustomCurveName | HueCurveName) => name === 'satSat' || name === 'satLum';
+export const SAT_AXIS_SCALE = 0.5;
 
 /** Hue vs Hue 커브 맨 위/아래(y=1/0)에서의 색상 이동량 */
 export const HUE_SHIFT_MAX_DEG = 60;
@@ -29,7 +35,7 @@ export const HUE_SHIFT_MAX_DEG = 60;
 /** 표 해상도. 그레이딩 인코딩 0–1 구간을 1024칸으로 나눈다. */
 export const LUT_SIZE = 1024;
 
-/** 커브 표 텍스처의 행 구성: 0 = Y/R/G/B 커스텀, 1 = 색상 커브 3종, 2 = Lum vs Sat */
+/** 커브 표 텍스처의 행 구성: 0 = Y/R/G/B 커스텀, 1 = 색상 커브 3종, 2 = Lum vs Sat(r) · Sat vs Sat(g) · Sat vs Lum(b) */
 export const LUT_ROWS = 3;
 
 export const identityCustom = (): CurvePoint[] => [
@@ -48,6 +54,8 @@ export function defaultCurves(): CurvesParams {
     hueSat: [],
     hueLum: [],
     lumSat: [],
+    satSat: [],
+    satLum: [],
   };
 }
 
@@ -134,16 +142,23 @@ export function bakeCurves(c: CurvesParams): CurveLuts {
   const data = new Float32Array(LUT_SIZE * LUT_ROWS * 4);
   const custom = CUSTOM_CURVES.map((n) => customEvaluator(c[n]));
   const hue = (['hueHue', 'hueSat', 'hueLum'] as const).map((n) => periodicEvaluator(c[n]));
-  const lumSat = customEvaluator(c.lumSat.length ? c.lumSat : [{ x: 0, y: 0.5 }]);
+  const flatOr = (pts: CurvePoint[] | undefined) => customEvaluator(pts?.length ? pts : [{ x: 0, y: 0.5 }]);
+  const lumSat = flatOr(c.lumSat);
+  const satSat = flatOr(c.satSat);
+  const satLum = flatOr(c.satLum);
   for (let i = 0; i < LUT_SIZE; i++) {
     const x = i / (LUT_SIZE - 1);
     const hx = i / LUT_SIZE;
     for (let k = 0; k < 4; k++) data[i * 4 + k] = custom[k](x);
     const r1 = (LUT_SIZE + i) * 4;
     for (let k = 0; k < 3; k++) data[r1 + k] = hue[k](hx);
-    data[(2 * LUT_SIZE + i) * 4] = lumSat(x);
+    const r2 = (2 * LUT_SIZE + i) * 4;
+    data[r2] = lumSat(x);
+    data[r2 + 1] = satSat(x);
+    data[r2 + 2] = satLum(x);
   }
-  return { data, hueActive: !(isFlat(c.hueHue) && isFlat(c.hueSat) && isFlat(c.hueLum) && isFlat(c.lumSat)) };
+  const flat = (['hueHue', 'hueSat', 'hueLum', 'lumSat', 'satSat', 'satLum'] as const).every((n) => isFlat(c[n] ?? []));
+  return { data, hueActive: !flat };
 }
 
 // ── 표 조회. 셰이더의 같은 이름 함수와 1:1 ──
@@ -168,14 +183,14 @@ export function lookupHue(data: Float32Array, ch: number, h: number): number {
   return data[row + i0 * 4 + ch] * (1 - t) + data[row + i1 * 4 + ch] * t;
 }
 
-/** Lum vs Sat 표(2행) 조회 */
-export function lookupLumSat(data: Float32Array, y: number): number {
+/** 2행 조회: ch 0 = Lum vs Sat(가로축 휘도), 1 = Sat vs Sat, 2 = Sat vs Lum(가로축 채도) */
+export function lookupLumSat(data: Float32Array, y: number, ch = 0): number {
   const q = Math.min(1, Math.max(0, y));
   const f = q * (LUT_SIZE - 1);
   const i0 = Math.min(LUT_SIZE - 2, Math.floor(f));
   const t = f - i0;
   const row = 2 * LUT_SIZE * 4;
-  return data[row + i0 * 4] * (1 - t) + data[row + (i0 + 1) * 4] * t;
+  return data[row + i0 * 4 + ch] * (1 - t) + data[row + (i0 + 1) * 4 + ch] * t;
 }
 
 // ── 색상축 ──

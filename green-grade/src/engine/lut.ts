@@ -101,6 +101,61 @@ export function serializeCube1D(name: string, n: number, f: (x: number) => numbe
   return lines.join('\n') + '\n';
 }
 
+/**
+ * Autodesk/Lustre .3dl 읽기.
+ * - 첫 줄(선택)은 입력 격자 위치 목록(예: 0 64 128 … 1023). 개수가 격자 크기다.
+ * - 'Mesh 4 12' 같은 줄의 두 번째 숫자는 출력 비트 수.
+ * - 나머지는 정수 R G B. 파랑이 가장 빨리 바뀌는 순서다(.cube와 반대).
+ */
+export function parse3dl(text: string, name = 'LUT'): CubeLut {
+  const rows: number[][] = [];
+  let shaper: number[] | null = null;
+  let outBits = 0;
+  const lines = text.split(/\r?\n/);
+  for (let ln = 0; ln < lines.length; ln++) {
+    const line = lines[ln].replace(/#.*/, '').trim();
+    if (!line) continue;
+    if (/^mesh/i.test(line)) {
+      const parts = line.split(/\s+/).map(Number);
+      if (Number.isFinite(parts[2])) outBits = parts[2];
+      continue;
+    }
+    if (/^[a-z]/i.test(line)) continue; // 3DMESH, LUT8 등 키워드
+    const v = line.split(/\s+/).map(Number);
+    if (v.some((x) => !Number.isFinite(x))) throw new Error(`${ln + 1}번째 줄을 읽을 수 없습니다: "${line}"`);
+    if (v.length > 3 && !shaper && !rows.length) shaper = v;
+    else if (v.length >= 3) rows.push(v.slice(0, 3));
+    else throw new Error(`${ln + 1}번째 줄을 읽을 수 없습니다: "${line}"`);
+  }
+  const n = shaper ? shaper.length : Math.round(Math.cbrt(rows.length));
+  if (n < 2 || n > LUT_MAX_SIZE) throw new Error(`.3dl 격자 크기 ${n}는 지원 범위(2–${LUT_MAX_SIZE}) 밖입니다.`);
+  if (rows.length !== n ** 3) throw new Error(`.3dl 데이터가 ${n ** 3}개여야 하는데 ${rows.length}개입니다.`);
+  const maxV = Math.max(...rows.map((r) => Math.max(r[0], r[1], r[2])));
+  const scale = outBits ? 2 ** outBits - 1 : maxV <= 1.0001 ? 1 : maxV <= 1023 ? 1023 : maxV <= 4095 ? 4095 : 65535;
+  const data = new Float32Array(n ** 3 * 4);
+  rows.forEach((v, k) => {
+    // .3dl 순서(k): R이 가장 느리고 B가 가장 빠르다 → .cube 순서(R이 가장 빠름)로 옮긴다
+    const r = Math.floor(k / (n * n));
+    const g = Math.floor(k / n) % n;
+    const b = k % n;
+    const i = ((b * n + g) * n + r) * 4;
+    data[i] = v[0] / scale;
+    data[i + 1] = v[1] / scale;
+    data[i + 2] = v[2] / scale;
+    data[i + 3] = 1;
+  });
+  return { name: name.replace(/\.3dl$/i, ''), size: n, data, domainMin: [0, 0, 0], domainMax: [1, 1, 1] };
+}
+
+/** 파일 이름의 확장자로 .cube / .3dl을 골라 읽는다 */
+export function parseLutFile(text: string, fileName: string): CubeLut {
+  if (/\.3dl$/i.test(fileName)) return parse3dl(text, fileName);
+  return parseCube(text, fileName);
+}
+
+/** 불러올 수 있는 LUT 파일인지 (확장자) */
+export const isLutFile = (name: string) => /\.(cube|3dl)$/i.test(name);
+
 function parseTriple(s: string, ln: number): Vec3 {
   const v = s.split(/\s+/).map(Number);
   if (v.length < 3 || v.slice(0, 3).some((x) => !Number.isFinite(x))) {

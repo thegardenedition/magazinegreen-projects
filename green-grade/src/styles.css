@@ -378,3 +378,19 @@ button, input { font: inherit; color: inherit; }
   .app-mobile .m-viewer { border-bottom: 0; border-right: 1px solid var(--line); }
   .app-mobile .m-nav-btn { height: 46px; }
 }
+
+/* Primary/Log 휠 전환, RGB Mixer */
+.wheel-mode { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }
+.mixer-rows { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.check input { accent-color: var(--accent); }
+.app-mobile .mixer-rows { grid-template-columns: 1fr; }
+.app-mobile .check { font-size: 14px; }
+.app-mobile .check input { width: 20px; height: 20px; }
+
+/* 내 LUT */
+.user-luts { margin-top: 8px; }
+.user-lut { display: flex; align-items: stretch; gap: 2px; }
+.user-lut .preset-item { flex: 1; min-width: 0; }
+.user-lut-remove { flex: none; width: 28px; padding: 0; font-size: 16px; }
+.app-mobile .user-lut-remove { width: 40px; }

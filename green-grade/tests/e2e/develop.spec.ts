@@ -104,6 +104,9 @@ test('형태·디테일·그레인: GPU 결과가 기준 수식과 1 LSB 이내�
     ['텍스처·선명도·디헤이즈 +', withDetail({ texture: 60, clarity: 50, dehaze: 40 }), defaultPrimary()],
     ['선명도·디헤이즈 −', withDetail({ clarity: -60, dehaze: -50 }), defaultPrimary()],
     ['그레인', withDetail({ grain: 60, grainSize: 150 }), graded],
+    ['비네트 + / 중심·부드러움', withDetail({ vignette: 70, vignetteMidpoint: 30, vignetteFeather: 40 }), graded],
+    ['비네트 −', withDetail({ vignette: -50 }), defaultPrimary()],
+    ['글로우 + 할레이션', withDetail({ glow: 70, halation: 80 }), graded],
     [
       '전부 함께',
       {

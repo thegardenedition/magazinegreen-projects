@@ -1,7 +1,7 @@
 // GLSL ES 3.00. 수식은 color.ts의 gradeLinear와 1:1로 대응한다.
 
 import { MAX_NODES } from './constants';
-import { HUE_SHIFT_MAX_DEG, LUT_SIZE, RED_ANGLE } from './curves';
+import { HUE_SHIFT_MAX_DEG, LUT_SIZE, RED_ANGLE, SAT_AXIS_SCALE } from './curves';
 import { GRAIN_STRENGTH } from './develop';
 import { MAX_POLY_POINTS, SAT_SCALE } from './mask';
 
@@ -37,6 +37,10 @@ uniform vec3 u_lift[MAX_NODES];
 uniform vec3 u_gammaExp[MAX_NODES];
 uniform mat3 u_hueMatrix[MAX_NODES];
 uniform vec4 u_tone[MAX_NODES];     // contrast, pivot, saturation, LUT 강도
+uniform vec4 u_tone2[MAX_NODES];    // shadows, highlights, color boost, high range
+uniform vec4 u_logS[MAX_NODES];     // Log 휠 Shadow RGB, low range
+uniform vec3 u_logM[MAX_NODES];     // Log 휠 Midtone RGB
+uniform vec3 u_logH[MAX_NODES];     // Log 휠 Highlight RGB
 uniform ivec4 u_flags[MAX_NODES];   // 색상 커브 사용, LUT 사용, LUT 크기, 마스크 비트
 uniform vec3 u_lutMin[MAX_NODES];
 uniform vec3 u_lutMax[MAX_NODES];
@@ -59,6 +63,7 @@ const float RED_ANGLE = ${RED_ANGLE.toFixed(9)};
 const float HUE_SHIFT_MAX = ${((HUE_SHIFT_MAX_DEG * Math.PI) / 180).toFixed(9)};
 const float TAU = 6.283185307;
 const float SAT_SCALE = ${SAT_SCALE.toFixed(6)};
+const float SAT_AXIS_SCALE = ${SAT_AXIS_SCALE.toFixed(6)};
 
 // 마스크 비트 (mask.ts의 maskBits와 같다)
 const int M_QUAL = 1;
@@ -105,12 +110,44 @@ float lookupHue(int row, int ch, float h) {
   return mix(texelFetch(u_curves, ivec2(i0, row), 0)[ch], texelFetch(u_curves, ivec2(i1, row), 0)[ch], t);
 }
 
-float lookupLumSat(int row, float y) {
+// ch 0 = Lum vs Sat, 1 = Sat vs Sat, 2 = Sat vs Lum
+float lookupLumSat(int row, int ch, float y) {
   float q = clamp(y, 0.0, 1.0);
   float f = q * float(LUT_SIZE - 1);
   int i0 = min(LUT_SIZE - 2, int(floor(f)));
   float t = f - float(i0);
-  return mix(texelFetch(u_curves, ivec2(i0, row), 0).r, texelFetch(u_curves, ivec2(i0 + 1, row), 0).r, t);
+  return mix(texelFetch(u_curves, ivec2(i0, row), 0)[ch], texelFetch(u_curves, ivec2(i0 + 1, row), 0)[ch], t);
+}
+
+float smooth01(float a, float b, float x) {
+  float t = clamp((x - a) / max(b - a, 1e-5), 0.0, 1.0);
+  return t * t * (3.0 - 2.0 * t);
+}
+
+// color.ts applyZones와 같다: Shadows/Highlights 막대 + Log 휠
+vec3 applyZones(int n, vec3 p) {
+  float yc = clamp(dot(p, LUMA), 0.0, 1.0);
+  vec4 t2 = u_tone2[n];
+  float d = 0.0;
+  if (t2.x != 0.0) d += t2.x * 0.25 * pow(1.0 - smooth01(0.0, 0.6, yc), 2.0);
+  if (t2.y != 0.0) d += t2.y * 0.25 * pow(smooth01(0.4, 1.0, yc), 2.0);
+  float lowR = u_logS[n].w;
+  float highR = t2.w;
+  float ws = 1.0 - smooth01(lowR * 0.5, lowR * 1.5, yc);
+  float span = 1.0 - highR;
+  float wh = smooth01(highR - span * 0.5, highR + span * 0.5, yc);
+  float wm = max(0.0, 1.0 - ws - wh);
+  return p + d + ws * u_logS[n].rgb + wm * u_logM[n] + wh * u_logH[n];
+}
+
+// color.ts applyColorBoost와 같다
+vec3 applyColorBoost(vec3 c, float k) {
+  float mx = max(c.r, max(c.g, c.b));
+  float mn = min(c.r, min(c.g, c.b));
+  float s = mx > 1e-6 ? (mx - mn) / mx : 0.0;
+  float f = 1.0 + k * (1.0 - min(1.0, s));
+  float y = dot(c, LUMA);
+  return y + (c - y) * f;
 }
 
 vec3 applyHueCurves(int n, vec3 lin) {
@@ -125,8 +162,10 @@ vec3 applyHueCurves(int n, vec3 lin) {
   h -= floor(h);
   int row = n * 3 + 1;
   float shift = (lookupHue(row, 0, h) - 0.5) * 2.0 * HUE_SHIFT_MAX;
-  float sat = 2.0 * lookupHue(row, 1, h) * 2.0 * lookupLumSat(row + 1, y);
-  float lum = 1.0 + (lookupHue(row, 2, h) - 0.5) * smoothstep(0.0, 0.02, chroma);
+  float sx = min(1.0, chroma / SAT_AXIS_SCALE);
+  float sat = 2.0 * lookupHue(row, 1, h) * 2.0 * lookupLumSat(row + 1, 0, y) * 2.0 * lookupLumSat(row + 1, 1, sx);
+  float edge = smoothstep(0.0, 0.02, chroma);
+  float lum = (1.0 + (lookupHue(row, 2, h) - 0.5) * edge) * (1.0 + (lookupLumSat(row + 1, 2, sx) - 0.5) * edge);
   float a = a0 + shift;
   float c2 = chroma * sat;
   y *= lum;
@@ -256,12 +295,14 @@ vec3 gradeNode(int n, vec3 c) {
   p = p + u_lift[n] * (1.0 - p);
   p = spow(p, u_gammaExp[n]);
   p = (p - tone.y) * tone.x + tone.y;
+  p = applyZones(n, p);
   int row = n * 3;
   p = vec3(lookupCustom(row, 0, p.r), lookupCustom(row, 0, p.g), lookupCustom(row, 0, p.b));
   p = vec3(lookupCustom(row, 1, p.r), lookupCustom(row, 2, p.g), lookupCustom(row, 3, p.b));
   c = spow(p, vec3(GRADING_GAMMA));
   float y = dot(c, LUMA);
   c = y + (c - y) * tone.z;
+  if (u_tone2[n].z != 0.0) c = applyColorBoost(c, u_tone2[n].z);
   c = u_hueMatrix[n] * c;
   if (u_flags[n].x != 0) c = applyHueCurves(n, c);
   if (u_flags[n].y != 0) c = applyLut(n, c);

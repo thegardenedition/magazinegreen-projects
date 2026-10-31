@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ACCEPTED_TYPES } from './engine/image';
 import { addFiles, copyGrade, gradeSummary, pasteGrade, useGallery } from './state/gallery';
 import { useGrade } from './state/store';
+import { importAndApply, loadUserLuts } from './state/userLuts';
+import { isLutFile } from './engine/lut';
 import { ExportDialog } from './ui/ExportDialog';
 import { Filmstrip } from './ui/Filmstrip';
 import { NodePanel } from './ui/NodePanel';
@@ -36,9 +38,19 @@ export function App() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('adjust');
 
   const open = () => fileRef.current?.click();
+  // 사진은 필름스트립으로, .cube·.3dl은 내 LUT에 보관하고 선택 노드에 적용
   const load = (files: FileList | null | undefined) => {
-    if (files?.length) addFiles(Array.from(files));
+    if (!files?.length) return;
+    const all = Array.from(files);
+    const luts = all.filter((f) => isLutFile(f.name));
+    const images = all.filter((f) => !isLutFile(f.name));
+    if (luts.length) importAndApply(luts);
+    if (images.length) addFiles(images);
   };
+
+  useEffect(() => {
+    loadUserLuts();
+  }, []);
 
   useEffect(() => {
     // E2E 테스트에서 사진별 그레이드를 확인할 때 쓴다

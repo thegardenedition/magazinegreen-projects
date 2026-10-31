@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import {
+  defaultMixer,
   defaultPrimary,
   defaultWheel,
+  type RgbMixer,
   SCALAR_SPECS,
   toUniforms,
   type GradeUniforms,
@@ -57,7 +59,7 @@ export interface GradeNode {
   window: WindowParams;
 }
 
-export type CorrectionTab = 'primary' | 'curves' | 'qualifier' | 'window' | 'transform' | 'detail';
+export type CorrectionTab = 'primary' | 'curves' | 'mixer' | 'qualifier' | 'window' | 'transform' | 'detail';
 export type MaskView = 'off' | 'highlight' | 'bw';
 /** 뷰어 클릭 동작: 스포이드(새로/더하기), 펜(폴리곤 점 추가), 수평 기준선 */
 export type ViewerTool = 'none' | 'pick' | 'pick-add' | 'pen' | 'level';
@@ -92,6 +94,7 @@ interface GradeState extends Grade {
   setCurve(name: CurveName, pts: CurvePoint[]): void;
   resetCurve(name: CurveName): void;
   resetCurves(): void;
+  setMixer(fn: (m: RgbMixer) => RgbMixer): void;
   setLut(lut: CubeLut | null): void;
   setLutIntensity(v: number): void;
   setQualifier(fn: (q: Qualifier) => Qualifier): void;
@@ -209,6 +212,7 @@ export const useGrade = create<GradeState>((set, get) => {
     resetCurve: (name) =>
       updateSel((n) => ({ curves: { ...n.curves, [name]: name.length === 1 ? identityCustom() : [] } })),
     resetCurves: () => updateSel(() => ({ curves: defaultCurves() })),
+    setMixer: (fn) => updateSel((n) => ({ primary: { ...n.primary, mixer: fn(n.primary.mixer ?? defaultMixer()) } })),
     setLut: (lut) => updateSel(() => ({ lut, lutIntensity: 1 })),
     setLutIntensity: (v) => updateSel(() => ({ lutIntensity: Math.min(1, Math.max(0, v)) })),
     setQualifier: (fn) => updateSel((n) => ({ qualifier: fn(n.qualifier) })),
