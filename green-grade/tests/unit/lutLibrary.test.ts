@@ -28,15 +28,15 @@ const lum01 = (c: Vec3) => LUMA[0] * srgbToLinear(c[0]) + LUMA[1] * srgbToLinear
 const lumOf = (c: Vec3) => lum01(c.map((v) => v / 255) as Vec3);
 
 describe('라이브러리 구성', () => {
-  it('98종: 유틸리티 7 · VFX IO 15 · 카메라 로그 41 · 필름 룩 6 · 룩 16 · 정원 13', () => {
-    expect(LUT_LIBRARY).toHaveLength(98);
+  it('110종: 유틸리티 7 · VFX IO 15 · 카메라 로그 41 · 필름 룩 6 · 룩 16 · 정원 25', () => {
+    expect(LUT_LIBRARY).toHaveLength(110);
     const count = (c: string) => LUT_LIBRARY.filter((l) => l.category === c).length;
-    expect(LUT_CATEGORIES.map(([c]) => count(c))).toEqual([7, 15, 41, 6, 16, 13]);
+    expect(LUT_CATEGORIES.map(([c]) => count(c))).toEqual([7, 15, 41, 6, 16, 25]);
   });
 
   it('id·이름이 겹치지 않고 설명이 있다', () => {
-    expect(new Set(LUT_LIBRARY.map((l) => l.id)).size).toBe(98);
-    expect(new Set(LUT_LIBRARY.map((l) => l.name)).size).toBe(98);
+    expect(new Set(LUT_LIBRARY.map((l) => l.id)).size).toBe(110);
+    expect(new Set(LUT_LIBRARY.map((l) => l.name)).size).toBe(110);
     for (const l of LUT_LIBRARY) expect(l.description, l.id).toBeTruthy();
   });
 });

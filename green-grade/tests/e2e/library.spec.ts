@@ -15,15 +15,16 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => !!window.__GG__);
 });
 
-test('프리셋 라이브러리: 42종, 분류·검색, 흑백 적용', async ({ page }) => {
+test('프리셋 라이브러리: 112종, 분류·검색, 흑백 적용', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles(GARDEN);
   const items = page.getByTestId('builtin-presets-item');
-  await expect(items).toHaveCount(42);
+  await expect(items).toHaveCount(112);
   await page.getByTestId('builtin-presets-cat-bw').click();
-  await expect(items).toHaveCount(6);
+  await expect(items).toHaveCount(15);
   await page.getByTestId('builtin-presets-cat-all').click();
+  // 이름·설명에서 찾는다: 아침 안개, 장마(안개 걷기), 미세먼지 걷기(안개를 걷고)
   await page.getByTestId('builtin-presets-search').fill('안개');
-  await expect(items).toHaveCount(1);
+  await expect(items).toHaveCount(3);
   await page.getByTestId('builtin-presets-search').fill('');
 
   await page.getByTestId('builtin-presets-cat-bw').click();
@@ -34,11 +35,11 @@ test('프리셋 라이브러리: 42종, 분류·검색, 흑백 적용', async ({
   await page.screenshot({ path: join('test-results', 'library-presets.png') });
 });
 
-test('LUT 라이브러리: 98종, 분류·검색, 적용과 강조 표시', async ({ page }) => {
+test('LUT 라이브러리: 110종, 분류·검색, 적용과 강조 표시', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles(GARDEN);
   await page.getByTestId('tab-lut').click();
   const items = page.getByTestId('lut-library-item');
-  await expect(items).toHaveCount(98);
+  await expect(items).toHaveCount(110);
   await page.getByTestId('lut-library-cat-camera').click();
   await expect(items).toHaveCount(41);
   await page.getByTestId('lut-library-cat-all').click();
@@ -101,7 +102,7 @@ test('라이브러리 전체를 .cube ZIP으로 받는다 (분류별 폴더)', a
   expect(download.suggestedFilename()).toBe('GREEN GRADE LUT.zip');
   const { readFileSync } = await import('node:fs');
   const files = readZip(readFileSync((await download.path())!));
-  expect(files).toHaveLength(99);
+  expect(files).toHaveLength(111);
   expect(files[0].name).toBe('GREEN GRADE LUT/읽어보기.txt');
   const folders = new Set(files.slice(1).map((f) => f.name.split('/')[1]));
   expect([...folders]).toEqual(['01 유틸리티', '02 VFX IO', '03 카메라 로그', '04 필름 룩', '05 룩', '06 정원']);
@@ -111,4 +112,38 @@ test('라이브러리 전체를 .cube ZIP으로 받는다 (분류별 폴더)', a
   // 18% 회색 → sRGB 118 근처
   const g = sampleLut(lut, [0.383562, 0.383562, 0.383562]).map((v) => v * 255);
   for (const v of g) expect(Math.abs(v - 118)).toBeLessThanOrEqual(3);
+});
+
+test('사진을 열면 프리셋마다 지금 사진으로 만든 미리보기가 붙는다', async ({ page }) => {
+  await page.getByTestId('file-input').setInputFiles(GARDEN);
+  const thumbs = page.getByTestId('builtin-presets-thumb');
+  await expect(thumbs).toHaveCount(112, { timeout: 60_000 });
+  // 흑백 프리셋의 썸네일은 무채색, 원본과는 다르다
+  const isGrey = await page.evaluate(async () => {
+    const item = [...document.querySelectorAll('[data-testid=builtin-presets-item]')].find((e) => e.textContent?.includes('흑백 · 노랑 필터'))!;
+    const img = item.querySelector('img')!;
+    const bmp = await createImageBitmap(await (await fetch(img.src)).blob());
+    const c = new OffscreenCanvas(bmp.width, bmp.height);
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    const d = ctx.getImageData(0, 0, bmp.width, bmp.height).data;
+    let max = 0;
+    for (let i = 0; i < d.length; i += 4) max = Math.max(max, Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]));
+    return max;
+  });
+  expect(isGrey).toBeLessThanOrEqual(6);
+  await page.screenshot({ path: join('test-results', 'preset-thumbs.png') });
+});
+
+test('효과를 담은 필름 프리셋은 디테일 효과도 함께 바꾼다', async ({ page }) => {
+  await page.getByTestId('file-input').setInputFiles(GARDEN);
+  await page.getByTestId('builtin-presets-search').fill('8mm');
+  await page.getByTestId('builtin-presets-item').first().click();
+  await page.getByTestId('tab-detail').click();
+  expect(Number(await page.getByRole('textbox', { name: '비네트 value' }).inputValue())).toBeGreaterThan(30);
+  // 다른 필름 룩으로 바꾸면 앞 룩의 비네트가 남지 않는다
+  await page.getByTestId('builtin-presets-search').fill('할레이션 필름');
+  await page.getByTestId('builtin-presets-item').first().click();
+  await expect(page.getByRole('textbox', { name: '비네트 value' })).toHaveValue('0');
+  expect(Number(await page.getByRole('textbox', { name: '할레이션 value' }).inputValue())).toBe(50);
 });

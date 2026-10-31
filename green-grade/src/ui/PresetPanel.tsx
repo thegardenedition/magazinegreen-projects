@@ -14,8 +14,9 @@ import {
   type Preset,
 } from '../engine/presets';
 import { BUILTIN_PRESETS } from '../engine/presetLibrary';
-import { currentPreset, currentUniforms, presetToNodes, selectedNode, useGrade } from '../state/store';
+import { applyPresetToGrade, currentPreset, currentUniforms, selectedNode, useGrade } from '../state/store';
 import { LibraryList, type LibraryItem } from './LibraryList';
+import { usePresetThumbs } from './usePresetThumbs';
 
 const PRESET_ITEMS: LibraryItem[] = BUILTIN_PRESETS.map((p) => ({
   key: p.name,
@@ -31,9 +32,7 @@ const LUT_ITEMS: LibraryItem[] = LUT_LIBRARY.map((l) => ({
   category: l.category,
 }));
 
-function applyPreset(p: Preset) {
-  useGrade.getState().setNodes(presetToNodes(p));
-}
+const applyPreset = applyPresetToGrade;
 
 const safeFileName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'preset';
 
@@ -48,6 +47,10 @@ export function PresetPanel() {
   const node = useGrade((s) => selectedNode(s));
   const setLut = useGrade((s) => s.setLut);
   const setLutIntensity = useGrade((s) => s.setLutIntensity);
+
+  // 프리셋 탭이 열려 있을 때 지금 사진으로 미리보기 썸네일을 만든다
+  const thumbs = usePresetThumbs(BUILTIN_PRESETS, tab === 'presets');
+  const presetItems = thumbs.size ? PRESET_ITEMS.map((it) => ({ ...it, thumb: thumbs.get(it.key) })) : PRESET_ITEMS;
 
   const storeUser = (list: Preset[]) => {
     setUser(list);
@@ -104,7 +107,7 @@ export function PresetPanel() {
       {tab === 'presets' ? (
         <div className="preset-body">
           <LibraryList
-            items={PRESET_ITEMS}
+            items={presetItems}
             categories={PRESET_CATEGORIES}
             onPick={(key) => {
               const p = BUILTIN_PRESETS.find((x) => x.name === key)!;

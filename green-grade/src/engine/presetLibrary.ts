@@ -1,11 +1,13 @@
-// 기본 제공 프리셋 라이브러리 (5개 분류, 42종).
-// 모든 값은 이 앱의 노드 기능(Primary, Curves, Qualifier, Window)만으로 만든다.
+// 기본 제공 프리셋 라이브러리 (7개 분류, 112종).
+// 값은 이 앱의 노드 기능(Primary·Log 휠·RGB Mixer·Curves·Qualifier·Window)으로 만들고,
+// 필름 룩 일부는 디테일 효과(그레인·할레이션·글로우·비네트)를 함께 담는다.
 // 공통 안전선(계조 반전·새 클리핑·피부 색상)과 정원 프리셋의 목표는 tests/unit/gardenPresets.test.ts,
 // 나머지 분류의 목표는 tests/unit/presetLibrary.test.ts에서 수치로 검증한다.
 
 import { defaultPrimary, LUMA, type PrimaryParams, type Vec3, type WheelValue } from './color';
 import { defaultCurves, type CurvePoint, type CurvesParams } from './curves';
 import { defaultQualifier, defaultWindow } from './mask';
+import type { Detail } from './develop';
 import type { BuiltinPreset, PresetNode } from './presets';
 
 // ── 만들기 도구 ──
@@ -555,7 +557,544 @@ const CINEMATIC: BuiltinPreset[] = [
   },
 ];
 
-export const BUILTIN_PRESETS: BuiltinPreset[] = [...GARDEN, ...CORRECTION, ...BW, ...FILM, ...CINEMATIC];
+// ── 확장 도구: RGB Mixer, 효과, 컬러 키 ──
+
+const mixer = (rows: [Vec3, Vec3, Vec3], mono = false, preserve = true): PrimaryParams['mixer'] => ({ rows, mono, preserve });
+/** 흑백 필터: 입력 R·G·B 비율 (합 1로 맞춰 밝기 유지) */
+const filterMono = (r: number, g: number, b: number) => mixer([[r, g, b], [0, 1, 0], [0, 0, 1]], true, true);
+/** 필름 룩 효과: 적지 않은 값은 기본값(효과 없음)으로 채워, 다른 필름 룩에서 바꿔도 깨끗하게 덮어쓴다 */
+const fx = (d: Partial<Detail>): Partial<Detail> => ({
+  grain: 0,
+  grainSize: 100,
+  vignette: 0,
+  vignetteMidpoint: 50,
+  vignetteFeather: 50,
+  glow: 0,
+  halation: 0,
+  ...d,
+});
+/** 한 색만 남기고 나머지를 흑백으로 (Qualifier 반전 + 채도 0) */
+const colorKey = (name: string, center: number, width: number) =>
+  node(name, { saturation: 0 }, {}, {
+    qualifier: {
+      enabled: true,
+      invert: true,
+      hue: { on: true, center, width, soft: 0.05 },
+      sat: { on: true, low: 0.12, high: 1, soft: 0.08 },
+      lum: { on: false, low: 0, high: 1, soft: 0.05 },
+    },
+  });
+
+const ROSE: Vec3 = [1, 0.35, 0.55];
+const CREAM: Vec3 = [1, 0.92, 0.75];
+const FOREST: Vec3 = [0.15, 0.4, 0.25];
+const NAVY: Vec3 = [0.12, 0.2, 0.55];
+const MAGENTA: Vec3 = [0.9, 0.2, 0.8];
+const YELLOW: Vec3 = [1, 0.9, 0.3];
+
+// ── 정원 확장 (12) ──
+
+const GARDEN_MORE: BuiltinPreset[] = [
+  {
+    category: 'garden',
+    name: '장미 정원',
+    description: '진한 장미·붉은 꽃만 채도와 깊이를 살린다 (옅은 피부색은 채도로 걸러 낸다)',
+    nodes: [
+      node('장미', { saturation: 1.15, gamma: master(-0.04) }, {}, {
+        qualifier: {
+          enabled: true,
+          invert: false,
+          hue: { on: true, center: 0.97, width: 0.06, soft: 0.04 },
+          sat: { on: true, low: 0.42, high: 1, soft: 0.08 },
+          lum: { on: false, low: 0, high: 1, soft: 0.05 },
+        },
+      }),
+    ],
+  },
+  {
+    category: 'garden',
+    name: '라벤더 밭',
+    description: '보라 꽃을 짙고 맑게, 하늘은 그대로',
+    nodes: [node('라벤더', { temperature: -3 }, { hueSat: bump([HUE_PURPLE, 0.6]), hueLum: bump([HUE_PURPLE, 0.46]) })],
+  },
+  {
+    category: 'garden',
+    name: '이끼·고사리',
+    description: '짙은 녹색을 깊고 촉촉하게, 그늘은 살짝 들어 올린다',
+    nodes: [node('이끼', { shadows: 18, colorBoost: 8 }, { hueSat: bump([HUE_LEAF, 0.55]), hueLum: bump([HUE_LEAF, 0.47]) })],
+  },
+  {
+    category: 'garden',
+    name: '잔디 정돈',
+    description: '누렇게 뜬 잔디를 푸른 쪽으로, 과한 형광 녹색은 누른다',
+    nodes: [node('잔디', {}, { hueHue: bump([HUE_SPROUT, 0.53], [HUE_FOLIAGE, 0.52]), hueSat: bump([HUE_FOLIAGE, 0.46]) })],
+  },
+  {
+    category: 'garden',
+    name: '역광 잎',
+    description: '햇빛이 비치는 잎: 하이라이트를 누르고 그늘을 들며, 밝은 곳에 옅은 빛 번짐',
+    nodes: [node('역광', { highlights: -22, shadows: 24, colorBoost: 12 })],
+    detail: fx({ glow: 14 }),
+  },
+  {
+    category: 'garden',
+    name: '그늘 정원',
+    description: '나무 그늘 아래: 어두운 곳을 들고 푸른 기운을 덜어 낸다',
+    nodes: [node('그늘', { shadows: 34, temperature: 6, colorBoost: 8 })],
+  },
+  {
+    category: 'garden',
+    name: '연못·물빛',
+    description: '물과 하늘의 청록을 맑게, 잎은 그대로',
+    nodes: [node('물빛', {}, { hueSat: bump([0.56, 0.58], [HUE_SKY, 0.56]), hueLum: bump([0.56, 0.48]) })],
+  },
+  {
+    category: 'garden',
+    name: '꽃밭 선명',
+    description: '탁한 꽃색은 살리고(Color Boost), 이미 진한 색은 더 오르지 않게 (Sat vs Sat)',
+    nodes: [node('꽃밭', { colorBoost: 22 }, { satSat: [{ x: 0, y: 0.5 }, { x: 0.55, y: 0.5 }, { x: 1, y: 0.4 }] })],
+  },
+  {
+    category: 'garden',
+    name: '돌길·자갈',
+    description: '돌·자갈에 낀 옅은 색 기운을 걷어 무채색으로, 중간톤 대비는 조금',
+    nodes: [node('돌길', { contrast: 1.05 }, { satSat: [{ x: 0, y: 0.25 }, { x: 0.12, y: 0.5 }, { x: 1, y: 0.5 }] })],
+  },
+  {
+    category: 'garden',
+    name: '정원 야경',
+    description: '조명 켠 저녁 정원: 그림자를 들고 조명 빛은 누르며, 주변은 푸르게',
+    bold: true,
+    nodes: [node('야경', { shadows: 22, highlights: -32, temperature: -8, highlight: toward(AMBER, 0.25, 0) })],
+    detail: fx({ glow: 18 }),
+  },
+  {
+    category: 'garden',
+    name: '실내 식물',
+    description: '실내 조명의 노란·녹색 기운을 덜고 잎색을 살린다',
+    nodes: [node('실내', { temperature: -6, tint: 8, colorBoost: 10 })],
+  },
+  {
+    category: 'garden',
+    name: '온실',
+    description: '유리에 비친 녹색 반사와 뿌연 공기를 걷는다',
+    nodes: [node('온실', { tint: 12, highlights: -14, contrast: 1.03 })],
+    detail: { dehaze: 15 },
+  },
+];
+
+// ── 계절·날씨 (10) ──
+
+const SEASON: BuiltinPreset[] = [
+  {
+    category: 'season',
+    name: '봄 아침',
+    description: '맑고 부드러운 아침 빛: 옅은 따뜻함, 들린 그림자',
+    nodes: [node('봄 아침', { temperature: 5, shadows: 14, contrast: 0.96, colorBoost: 10 })],
+  },
+  {
+    category: 'season',
+    name: '초여름 한낮',
+    description: '강한 해: 하이라이트를 누르고 색을 맑게',
+    nodes: [node('한낮', { highlights: -24, contrast: 1.04, colorBoost: 14 })],
+  },
+  {
+    category: 'season',
+    name: '장마',
+    description: '젖은 공기: 차분한 푸른 기운, 들린 그림자, 옅은 안개 걷기',
+    nodes: [node('장마', { temperature: -6, shadows: 16, saturation: 0.92 })],
+    detail: { dehaze: 12 },
+  },
+  {
+    category: 'season',
+    name: '미세먼지 걷기',
+    description: '뿌연 날: 안개를 걷고(디헤이즈) 대비와 색을 되살린다',
+    nodes: [node('맑게', { contrast: 1.05, colorBoost: 15 })],
+    detail: { dehaze: 35 },
+  },
+  {
+    category: 'season',
+    name: '초가을',
+    description: '녹색이 막 누렇게 기우는 때: 따뜻한 하이라이트',
+    nodes: [node('초가을', { temperature: 6, gain: toward(AMBER, 0.08, 1) }, { hueHue: bump([HUE_FOLIAGE, 0.44]) })],
+  },
+  {
+    category: 'season',
+    name: '가을 역광',
+    description: '낮은 가을 햇빛: 앰버 하이라이트와 번지는 빛',
+    bold: true,
+    nodes: [node('가을 역광', { temperature: 10, highlight: toward(AMBER, 0.3, 0), highlights: -12 })],
+    detail: fx({ glow: 22, halation: 10 }),
+  },
+  {
+    category: 'season',
+    name: '첫눈',
+    description: '눈 덮인 정원: 흰색을 깨끗하게 두고 그림자는 푸르게',
+    nodes: [node('첫눈', { temperature: -10, highlights: -10, shadow: toward(BLUE, 0.25, 0) })],
+  },
+  {
+    category: 'season',
+    name: '겨울 새벽',
+    description: '해 뜨기 전: 푸르고 차가운 빛, 낮은 채도',
+    bold: true,
+    nodes: [node('새벽', { temperature: -20, saturation: 0.8, gamma: master(-0.04) })],
+  },
+  {
+    category: 'season',
+    name: '노을 직후',
+    description: '해 진 뒤 하늘의 분홍·보랏빛',
+    bold: true,
+    mayClip: true,
+    nodes: [node('노을', { highlight: toward(ROSE, 0.3, 0), midtone: toward(MAGENTA, 0.1, 0), temperature: 4 })],
+  },
+  {
+    category: 'season',
+    name: '블루아워',
+    description: '해 진 뒤 푸른 시간: 푸른 그림자와 따뜻한 조명',
+    bold: true,
+    nodes: [node('블루아워', { temperature: -16, shadow: toward(BLUE, 0.3, 0), highlight: toward(AMBER, 0.25, 0) })],
+  },
+];
+
+// ── 보정 확장 (10) ──
+
+const CORRECTION_MORE: BuiltinPreset[] = [
+  {
+    category: 'correction',
+    name: '노출 +1',
+    description: '빛의 양 2배 (+1 스톱). 밝은 곳은 잘릴 수 있다',
+    bold: true,
+    mayClip: true,
+    nodes: [node('노출 +1', { offset: master(1) })],
+  },
+  {
+    category: 'correction',
+    name: '노출 −1',
+    description: '빛의 양 절반 (−1 스톱)',
+    nodes: [node('노출 −1', { offset: master(-1) })],
+  },
+  {
+    category: 'correction',
+    name: '텅스텐 조명 보정',
+    description: '백열등·전구색 조명의 강한 주황 기운을 걷는다',
+    bold: true,
+    mayClip: true,
+    nodes: [node('텅스텐', { temperature: -45 })],
+  },
+  {
+    category: 'correction',
+    name: '형광등 보정',
+    description: '형광등의 녹색 기운을 걷는다',
+    bold: true,
+    nodes: [node('형광등', { tint: 26, temperature: 4 })],
+  },
+  {
+    category: 'correction',
+    name: '밝은 곳·어두운 곳 균형',
+    description: '하이라이트는 누르고 그늘은 들어 넓은 계조를 화면에 담는다',
+    nodes: [node('균형', { highlights: -32, shadows: 34 })],
+  },
+  {
+    category: 'correction',
+    name: '탁한 색 살리기',
+    description: 'Color Boost: 채도가 낮은 색만 올려 진한 색은 넘치지 않게',
+    bold: true,
+    nodes: [node('Color Boost', { colorBoost: 40 })],
+  },
+  {
+    category: 'correction',
+    name: '진한 색 누르기',
+    description: '이미 진한 색만 채도를 낮춘다 (Sat vs Sat). 꽃색 클리핑 방지',
+    nodes: [node('진한 색', {}, { satSat: [{ x: 0, y: 0.5 }, { x: 0.45, y: 0.5 }, { x: 1, y: 0.32 }] })],
+  },
+  {
+    category: 'correction',
+    name: '회색 순화',
+    description: '회색·흰색에 낀 옅은 색 기운만 걷는다 (Sat vs Sat 아래쪽)',
+    nodes: [node('회색 순화', {}, { satSat: [{ x: 0, y: 0.15 }, { x: 0.1, y: 0.5 }, { x: 1, y: 0.5 }] })],
+  },
+  {
+    category: 'correction',
+    name: '그늘 색 따뜻하게',
+    description: '그림자 영역만 푸른 기운을 덜어 낸다 (Log 휠 Shadow)',
+    nodes: [node('그늘 색', { shadow: toward(AMBER, 0.2, 0) })],
+  },
+  {
+    category: 'correction',
+    name: '하늘만 내리기',
+    description: '밝은 영역만 밝기를 낮춰 하늘의 구름결을 살린다',
+    nodes: [node('하늘', { highlights: -40 })],
+  },
+];
+
+// ── 흑백 확장 (9) ──
+
+const BW_MORE: BuiltinPreset[] = [
+  { category: 'bw', name: '흑백 · 파랑 필터', description: '하늘은 밝게, 붉은 꽃·흙은 어둡게', nodes: [node('파랑 필터', { mixer: filterMono(0.1, 0.3, 0.6) })] },
+  { category: 'bw', name: '흑백 · 노랑 필터', description: '하늘을 조금 짙게, 잎은 자연스럽게 (풍경 기본)', nodes: [node('노랑 필터', { mixer: filterMono(0.42, 0.5, 0.08) })] },
+  { category: 'bw', name: '흑백 · 주황 필터', description: '하늘을 짙게, 피부·나무를 밝게', nodes: [node('주황 필터', { mixer: filterMono(0.6, 0.36, 0.04) })] },
+  { category: 'bw', name: '흑백 · 부드러운', description: '낮은 대비와 들린 블랙의 은은한 흑백', nodes: [monoNode({ contrast: 0.88, lift: master(0.03) })] },
+  { category: 'bw', name: '흑백 · 하이키', description: '밝고 가벼운 흑백, 흰색은 잘리지 않게', nodes: [monoNode({ gamma: master(0.25), highlights: -10 })] },
+  { category: 'bw', name: '흑백 · 로우키', description: '짙은 중간톤과 깊은 그림자', nodes: [monoNode({ gamma: master(-0.22), contrast: 1.06 })] },
+  {
+    category: 'bw',
+    name: '시아노타입',
+    description: '청사진 인화처럼 푸른 단색',
+    nodes: [monoNode({}), node('시안 톤', { lift: toward(NAVY, 0.3, 0.01), gain: toward(CYAN, 0.12, 0.98) })],
+  },
+  {
+    category: 'bw',
+    name: '흑백 · 스플릿 톤',
+    description: '그림자는 차갑게, 밝은 곳은 따뜻하게 물들인 흑백',
+    nodes: [monoNode({}), node('스플릿', { shadow: toward(BLUE, 0.2, 0), highlight: toward(AMBER, 0.2, 0) })],
+  },
+  {
+    category: 'bw',
+    name: '흑백 필름 그레인',
+    description: '노랑 필터 흑백에 굵은 필름 입자',
+    nodes: [node('필름 흑백', { mixer: filterMono(0.42, 0.5, 0.08), contrast: 1.08 })],
+    detail: fx({ grain: 45, grainSize: 140 }),
+  },
+];
+
+// ── 필름 확장 (9, 효과 포함) ──
+
+const FILM_MORE: BuiltinPreset[] = [
+  {
+    category: 'film',
+    name: '컬러 네거티브 · 인물',
+    description: '부드러운 대비, 따뜻한 하이라이트, 고운 입자',
+    nodes: [node('네거티브', { contrast: 0.94, lift: master(0.02), highlight: toward(AMBER, 0.1, 0), colorBoost: -8 })],
+    detail: fx({ grain: 18, halation: 8 }),
+  },
+  {
+    category: 'film',
+    name: '컬러 네거티브 · 풍경',
+    description: '맑은 채도와 단단한 대비, 고운 입자',
+    nodes: [
+      node('네거티브', { contrast: 1.04, saturation: 1.03, shadow: toward(TEAL, 0.08, 0) }, {
+        satSat: [{ x: 0, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 1, y: 0.4 }],
+      }),
+    ],
+    detail: fx({ grain: 15 }),
+  },
+  {
+    category: 'film',
+    name: '고채도 슬라이드',
+    description: '진한 색, 깊은 그림자, 차가운 하이라이트',
+    bold: true,
+    mayClip: true,
+    nodes: [node('슬라이드', { contrast: 1.12, colorBoost: 25, temperature: -5, gamma: master(-0.04) })],
+    detail: fx({ grain: 10 }),
+  },
+  {
+    category: 'film',
+    name: '시네마 네거티브',
+    description: '청록 그림자, 따뜻한 하이라이트, 붉게 번지는 빛',
+    bold: true,
+    nodes: [node('시네마', { shadow: toward(TEAL, 0.25, 0), highlight: toward(AMBER, 0.18, 0), contrast: 1.04 })],
+    detail: fx({ grain: 20, halation: 28 }),
+  },
+  {
+    category: 'film',
+    name: '인스턴트 필름',
+    description: '바랜 청록 그림자, 크림색 하이라이트, 옅은 비네트',
+    bold: true,
+    nodes: [node('인스턴트', { lift: toward(CYAN, 0.12, 0.06), gain: toward(CREAM, 0.1, 0.96), saturation: 0.85, contrast: 0.95 })],
+    detail: fx({ grain: 15, vignette: 25 }),
+  },
+  {
+    category: 'film',
+    name: '8mm 홈무비',
+    description: '따뜻하고 거친 입자, 짙은 비네트, 번지는 하이라이트',
+    bold: true,
+    nodes: [node('8mm', { temperature: 12, contrast: 1.08, saturation: 0.9 })],
+    detail: fx({ grain: 60, grainSize: 220, vignette: 45, vignetteMidpoint: 40, halation: 20 }),
+  },
+  {
+    category: 'film',
+    name: '70년대 빈티지',
+    description: '누렇게 바랜 색과 들린 블랙',
+    bold: true,
+    nodes: [node('70s', { temperature: 10, tint: -6, lift: toward(YELLOW, 0.1, 0.05), saturation: 0.8 })],
+    detail: fx({ grain: 25 }),
+  },
+  {
+    category: 'film',
+    name: '로모',
+    description: '강한 대비와 채도, 짙은 비네트',
+    bold: true,
+    mayClip: true,
+    nodes: [node('로모', { contrast: 1.15, colorBoost: 30, lift: toward(BLUE, 0.1, 0), gain: toward(YELLOW, 0.08, 1) })],
+    detail: fx({ vignette: 60, vignetteMidpoint: 35, grain: 15 }),
+  },
+  {
+    category: 'film',
+    name: '할레이션 필름',
+    description: '밝은 곳 둘레에 붉게 번지는 빛과 고운 입자',
+    nodes: [node('할레이션', { highlight: toward(AMBER, 0.06, 0) })],
+    detail: fx({ halation: 50, glow: 8, grain: 15 }),
+  },
+];
+
+// ── 시네마틱 확장 (10) ──
+
+const CINEMATIC_MORE: BuiltinPreset[] = [
+  {
+    category: 'cinematic',
+    name: '블록버스터',
+    description: '강한 청록 그림자와 주황 피부·하이라이트',
+    bold: true,
+    mayClip: true,
+    nodes: [node('블록버스터', { contrast: 1.08, shadow: toward(TEAL, 0.35, -0.01), highlight: toward(ORANGE, 0.22, 0), colorBoost: 10 })],
+  },
+  {
+    category: 'cinematic',
+    name: '노이르',
+    description: '거의 흑백인 짙은 대비와 비네트',
+    bold: true,
+    mayClip: true,
+    nodes: [node('노이르', { saturation: 0.12, contrast: 1.2, gamma: master(-0.12) })],
+    detail: fx({ vignette: 45, grain: 20 }),
+  },
+  {
+    category: 'cinematic',
+    name: '사막의 열기',
+    description: '바랜 주황빛과 눌린 하이라이트',
+    bold: true,
+    nodes: [node('사막', { temperature: 22, saturation: 0.88, highlights: -12, lift: toward(ORANGE, 0.08, 0.02) })],
+  },
+  {
+    category: 'cinematic',
+    name: '북유럽 미니멀',
+    description: '차갑고 절제된 색, 들린 블랙',
+    bold: true,
+    nodes: [node('미니멀', { temperature: -10, saturation: 0.72, lift: master(0.03), contrast: 0.95 })],
+  },
+  {
+    category: 'cinematic',
+    name: '네온 나이트',
+    description: '마젠타 하이라이트와 청록 그림자의 밤거리',
+    bold: true,
+    mayClip: true,
+    nodes: [node('네온', { shadow: toward(CYAN, 0.35, -0.01), highlight: toward(MAGENTA, 0.3, 0), colorBoost: 30, contrast: 1.06 })],
+    detail: fx({ glow: 25 }),
+  },
+  {
+    category: 'cinematic',
+    name: '블루 무비',
+    description: '전체를 푸르게 물들인 차가운 영화 톤',
+    bold: true,
+    nodes: [node('블루', { temperature: -24, midtone: toward(BLUE, 0.15, 0), saturation: 0.9 })],
+  },
+  {
+    category: 'cinematic',
+    name: '그린 매트릭스',
+    description: '녹색으로 기운 디지털 느낌',
+    bold: true,
+    nodes: [node('그린', { mixer: mixer([[0.85, 0.15, 0], [0.05, 1.0, 0.05], [0, 0.2, 0.75]], false, true), tint: -14, contrast: 1.05 })],
+  },
+  {
+    category: 'cinematic',
+    name: '웨스턴',
+    description: '먼지 낀 갈색 톤과 단단한 대비',
+    bold: true,
+    mayClip: true,
+    nodes: [node('웨스턴', { temperature: 16, saturation: 0.8, contrast: 1.1, shadow: toward(SEPIA_DARK, 0.2, 0) })],
+    detail: fx({ grain: 20, vignette: 25 }),
+  },
+  {
+    category: 'cinematic',
+    name: '파스텔 무비',
+    description: '들린 블랙, 옅은 색, 분홍빛 하이라이트',
+    bold: true,
+    nodes: [node('파스텔', { lift: master(0.06), saturation: 0.8, highlight: toward(ROSE, 0.15, 0), contrast: 0.92 })],
+  },
+  {
+    category: 'cinematic',
+    name: '매직아워 글로우',
+    description: '따뜻한 빛과 하이라이트 번짐',
+    bold: true,
+    nodes: [node('매직아워', { temperature: 14, highlight: toward(AMBER, 0.25, 0), highlights: -10 })],
+    detail: fx({ glow: 30, halation: 15 }),
+  },
+];
+
+// ── 크리에이티브 (10) ──
+
+const CREATIVE: BuiltinPreset[] = [
+  {
+    category: 'creative',
+    name: '듀오톤 · 숲과 크림',
+    description: '짙은 숲색 그림자와 크림색 하이라이트의 두 색',
+    bold: true,
+    nodes: [monoNode({}), node('듀오톤', { lift: toward(FOREST, 0.45, 0.02), gain: toward(CREAM, 0.2, 0.98) })],
+  },
+  {
+    category: 'creative',
+    name: '듀오톤 · 남색과 주황',
+    description: '남색 그림자와 주황 하이라이트의 두 색',
+    bold: true,
+    nodes: [monoNode({}), node('듀오톤', { lift: toward(NAVY, 0.5, 0.02), gain: toward(ORANGE, 0.25, 0.98) })],
+  },
+  {
+    category: 'creative',
+    name: '적외선풍',
+    description: '잎이 희고 분홍빛으로 빛나는 적외선 사진 느낌 (채널 섞기)',
+    bold: true,
+    mayClip: true,
+    nodes: [node('적외선', { mixer: mixer([[0.3, 0.9, -0.2], [0.2, 0.5, 0.3], [0.1, 0.3, 0.6]], false, true), colorBoost: 15 })],
+  },
+  { category: 'creative', name: '빨강만 남기기', description: '붉은 꽃만 색을 두고 나머지는 흑백', bold: true, nodes: [colorKey('빨강만', 0.98, 0.07)] },
+  { category: 'creative', name: '초록만 남기기', description: '잎만 색을 두고 나머지는 흑백', bold: true, nodes: [colorKey('초록만', HUE_FOLIAGE, 0.09)] },
+  { category: 'creative', name: '파랑만 남기기', description: '하늘·파란 꽃만 색을 두고 나머지는 흑백', bold: true, nodes: [colorKey('파랑만', HUE_SKY, 0.08)] },
+  {
+    category: 'creative',
+    name: '팝아트',
+    description: '아주 진한 색과 강한 대비',
+    bold: true,
+    mayClip: true,
+    nodes: [node('팝아트', { saturation: 1.3, colorBoost: 50, contrast: 1.15 })],
+  },
+  {
+    category: 'creative',
+    name: '시안 & 마젠타',
+    description: '청록 그림자와 마젠타 하이라이트',
+    bold: true,
+    nodes: [node('시안 마젠타', { shadow: toward(CYAN, 0.3, 0), highlight: toward(MAGENTA, 0.25, 0) })],
+  },
+  {
+    category: 'creative',
+    name: '엽서 빈티지',
+    description: '누렇게 바랜 엽서: 낮은 채도, 들린 블랙, 비네트',
+    bold: true,
+    nodes: [node('엽서', { saturation: 0.65, lift: toward(YELLOW, 0.12, 0.05), gain: toward(CREAM, 0.1, 0.97), contrast: 0.92 })],
+    detail: fx({ vignette: 30, grain: 20 }),
+  },
+  {
+    category: 'creative',
+    name: '색상 반전 (보색)',
+    description: '색상만 정반대로 돌린다 (밝기는 그대로)',
+    bold: true,
+    mayClip: true,
+    nodes: [node('보색', { hue: 180 })],
+  },
+];
+
+export const BUILTIN_PRESETS: BuiltinPreset[] = [
+  ...GARDEN,
+  ...GARDEN_MORE,
+  ...SEASON,
+  ...CORRECTION,
+  ...CORRECTION_MORE,
+  ...BW,
+  ...BW_MORE,
+  ...FILM,
+  ...FILM_MORE,
+  ...CINEMATIC,
+  ...CINEMATIC_MORE,
+  ...CREATIVE,
+];
 
 // 내부에서 다른 라이브러리(LUT)가 쓰는 색 상수
 export const PRESET_COLORS = { AMBER, ORANGE, TEAL, BLUE, CYAN, HUE_RED };
