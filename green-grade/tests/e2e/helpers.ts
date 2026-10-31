@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { inflateRawSync } from 'node:zlib';
 import { PNG } from 'pngjs';
 import type { Vec3 } from '../../src/engine/color';
 
@@ -118,15 +119,17 @@ export function writeBatchFixtures() {
   });
 }
 
-/** STORE 방식 ZIP 읽기 */
+/** ZIP 읽기 (STORE·DEFLATE) */
 export function readZip(buf: Buffer) {
   const out: Array<{ name: string; data: Buffer }> = [];
   let i = 0;
   while (buf.readUInt32LE(i) === 0x04034b50) {
+    const method = buf.readUInt16LE(i + 8);
     const size = buf.readUInt32LE(i + 18);
     const nameLen = buf.readUInt16LE(i + 26);
     const name = buf.subarray(i + 30, i + 30 + nameLen).toString('utf8');
-    out.push({ name, data: buf.subarray(i + 30 + nameLen, i + 30 + nameLen + size) });
+    const body = buf.subarray(i + 30 + nameLen, i + 30 + nameLen + size);
+    out.push({ name, data: method === 8 ? inflateRawSync(body) : body });
     i += 30 + nameLen + size;
   }
   return out;

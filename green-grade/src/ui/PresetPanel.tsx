@@ -3,6 +3,7 @@ import { downloadBlob } from '../engine/image';
 import { parseCube, serializeCube } from '../engine/lut';
 import { bakeGradeLut, LUT_EXPORT_SIZES, windowNodeCount, type WindowHandling } from '../engine/lutExport';
 import { buildLibraryLut, LUT_CATEGORIES, LUT_LIBRARY } from '../engine/lutLibrary';
+import { buildLibraryZip, PACK_FOLDER } from '../engine/lutPack';
 import {
   loadUserPresets,
   parsePreset,
@@ -234,6 +235,7 @@ export function PresetPanel() {
             testId="lut-library"
             placeholder={`LUT ${LUT_LIBRARY.length}종 검색`}
           />
+          <LibraryPackDownload />
           <LutExport />
           <input
             ref={lutFile}
@@ -254,6 +256,28 @@ export function PresetPanel() {
         </p>
       )}
     </section>
+  );
+}
+
+/** 라이브러리 전체를 .cube ZIP으로 (DaVinci Resolve 등에서 쓰기) */
+function LibraryPackDownload() {
+  const [progress, setProgress] = useState<string | null>(null);
+  const run = async () => {
+    setProgress('0%');
+    try {
+      const zip = await buildLibraryZip((done, total) => setProgress(`${Math.round((done / total) * 100)}%`));
+      downloadBlob(zip, `${PACK_FOLDER}.zip`);
+    } finally {
+      setProgress(null);
+    }
+  };
+  return (
+    <div className="lut-export">
+      <button className="btn" onClick={run} disabled={progress !== null} data-testid="lut-pack">
+        {progress === null ? `라이브러리 ${LUT_LIBRARY.length}종 .cube 받기 (ZIP)` : `만드는 중 ${progress}`}
+      </button>
+      <span className="muted small">DaVinci Resolve의 LUT 폴더에 넣어 바로 쓸 수 있습니다.</span>
+    </div>
   );
 }
 

@@ -7,7 +7,7 @@
 > 현재 단계: **Phase 5 완료** (기획한 다섯 단계 모두)
 > - Phase 1 — 업로드, WebGL 파이프라인, Before/After 뷰어, Primary 휠, JPG 내보내기
 > - Phase 2 — Curves(Custom Y/R/G/B, Hue vs Hue/Sat/Lum, Lum vs Sat), 스코프 4종, 되돌리기/다시 실행
-> - Phase 3 — 노드 체인(Serial, 최대 8개), .cube 3D LUT, 프리셋 저장·불러오기, 정원 프리셋 5종 (이후 기본 프리셋 42종 · LUT 라이브러리 50종으로 확장)
+> - Phase 3 — 노드 체인(Serial, 최대 8개), .cube 3D LUT, 프리셋 저장·불러오기, 정원 프리셋 5종 (이후 기본 프리셋 42종 · LUT 라이브러리 98종으로 확장)
 > - Phase 4 — HSL Qualifier(스포이드), Window(원형·사각형·그라디언트·펜), 마스크 보기
 > - Phase 5 — 여러 장 작업(그레이드 복사·붙여넣기, ZIP 일괄 내보내기), 그레이드 → .cube 내보내기, 정원 프리셋 수치 검증·재조정
 > - 추가 — 형태(90° 회전·반전, 수평·기준선, 원근, 비율 크롭), 디테일(샤프닝, 노이즈 감소, 텍스처, 선명도, 디헤이즈, 그레인), 긴 변 크기로 내보내기
@@ -177,21 +177,58 @@ fp32로 유지되어 밴딩이 생기지 않고, 미리보기·타일 내보내�
 
 ## LUT 라이브러리
 
-LUT 탭의 'LUT 라이브러리'(분류 칩과 검색)에서 누르면 선택 노드에 33³ LUT로 들어갑니다. 파일로 들고 있지 않고
-쓸 때 수식으로 계산합니다(`src/engine/lutLibrary.ts`). 다른 프로그램의 LUT 파일을 옮긴 것이 아닙니다.
+LUT 탭의 'LUT 라이브러리'(분류 칩과 검색)에서 누르면 선택 노드에 들어갑니다(대부분 33³, 가파른 1차원 곡선은 65³).
+파일로 들고 있지 않고 쓸 때 수식으로 계산합니다(`src/engine/lutLibrary.ts`). 구성은 DaVinci Resolve에 딸린 LUT 폴더
+(카메라 제조사별, VFX IO, Film Looks)를 따랐지만, 그 파일을 옮긴 것이 아니라 공개된 수식으로 직접 만든 것입니다.
 
 | 분류 | LUT |
 |---|---|
 | 유틸리티 7 | 항등 · 반전 · 흑백(휘도) · 흑백(고대비) · 폴스 컬러(노출 확인) · 비디오 레벨 → 풀 레벨 · 풀 레벨 → 비디오 레벨 |
-| 카메라 로그 14 | Sony S-Log3/S-Gamut3.Cine · ARRI LogC3/AWG3(EI 800) · Canon Log 3/Cinema Gamut · Panasonic V-Log/V-Gamut · Fujifilm F-Log/F-Gamut · Nikon N-Log/Rec.2020 · HLG/Rec.2020 — 각각 '→ sRGB'(잘림)와 '부드러운 하이라이트' |
+| VFX IO 15 | Linear ↔ sRGB · Linear ↔ Rec.709 · Linear ↔ Gamma 2.2 · Linear ↔ Gamma 2.4 · Gamma 2.4 ↔ sRGB · Cineon Log ↔ Linear · Cineon Log → sRGB · Linear → ARRI LogC3 · Linear → Sony S-Log3 |
+| 카메라 로그 41 | 19종 × '→ sRGB'(잘림)·'부드러운 하이라이트'(Extended Video에 해당) + Sony 스타일 3 (아래) |
+| 필름 룩 6 | Rec.709 → 2383 프린트 스타일 D55·D60·D65 · Rec.709 → 3513DI 프린트 스타일 D55·D60·D65 |
 | 룩 16 | 필름 프린트(따뜻함·중립) · 슬라이드 필름 · 네거티브(부드러움) · 블리치 바이패스 · 크로스 프로세스 · 틸 & 오렌지 · 데이 포 나이트 · 골든아워 · 매트 블랙 · 파스텔 · 빈티지 브라운 · 세피아 · 셀레늄 흑백 · 쿨 시네마 · 하이 콘트라스트 컬러 |
 | 정원 13 | 정원 프리셋 13종을 LUT로 구운 것 (창을 쓰는 노드는 빼고 구움) |
 
-**카메라 로그 LUT.** 제조사가 공개한 로그 곡선과 색역 원색 좌표로 계산합니다: 로그 코드값 → 장면 선형 →
-카메라 색역에서 Rec.709/sRGB 원색으로(D65 → D65) → sRGB. 입력은 파일에 저장된 코드값(0–1) 그대로이며,
-Canon Log 3만 제조사 수식대로 비디오 레벨 코드값을 받습니다. 18% 회색 코드값(S-Log3 420/1023, LogC3 0.391,
-V-Log 0.423, F-Log 0.459, Canon Log 3 0.343, N-Log 약 372/1023, HLG 0.38)이 모두 무채색 sRGB 118±3이 되는지
-테스트합니다. '부드러운 하이라이트'는 선형 0.55 위를 기울기가 이어지게 눌러 1에 다가가게 합니다.
+**카메라 로그 LUT.** 제조사가 공개한 로그 곡선과 색역 원색 좌표로 계산합니다.
+- 계산: 로그 코드값 → 장면 선형 → 카메라 색역에서 Rec.709/sRGB 원색으로(D65 → D65) → sRGB.
+- 입력은 파일에 저장된 코드값(0–1) 그대로입니다. Canon Log·Log 2·Log 3과 S-Log2는 제조사 수식대로 비디오 레벨 코드값을 받습니다.
+- '부드러운 하이라이트'는 선형 0.55 위를 기울기가 이어지게 눌러 1에 다가가게 합니다.
+- 모든 카메라에서 18% 회색 코드값이 무채색 sRGB 118±3이 되는지 테스트합니다.
+
+| 제조사 | 로그 / 색역 | 18% 회색 코드값 |
+|---|---|---|
+| Blackmagic | Film Gen 5 / Wide Gamut Gen 5 | 0.384 |
+| ARRI | LogC3(EI 800) / AWG3 · LogC4 / AWG4 | 0.391 · 0.278 |
+| Sony | S-Log3 / S-Gamut3.Cine · S-Log3 / S-Gamut3 · S-Log2 / S-Gamut | 420/1023 · 420/1023 · 347/1023 |
+| Canon | Canon Log · Log 2 · Log 3 / Cinema Gamut | 0.343 · 0.404 · 0.343 |
+| Panasonic | V-Log / V-Gamut | 0.423 |
+| Fujifilm | F-Log · F-Log2 / F-Gamut | 0.459 · 0.391 |
+| Nikon | N-Log / Rec.2020 | 약 372/1023 |
+| DJI | D-Log / D-Gamut | 0.399 |
+| RED | Log3G10 / REDWideGamutRGB | 1/3 |
+| GoPro | Protune Flat / Protune Native | 0.646 |
+| Apple | Apple Log / Rec.2020 | 0.488 |
+| HDR | HLG / Rec.2020 · PQ(ST 2084) / Rec.2020 (203 nit = 흰색) | 0.38 · 약 0.411 |
+
+**Sony 스타일 3종**(S-Log3 / S-Gamut3.Cine 입력): LC-709 스타일(낮은 대비, 들린 블랙) · LC-709 Type A 스타일(조금 진한 색) ·
+Cine+709 스타일(단단한 대비). Sony가 배포하는 같은 이름 LUT의 데이터가 공개돼 있지 않아 특성을 따라 만든 근사입니다.
+
+**필름 룩**은 Rec.709/sRGB 입력에 프린트 필름의 특성을 씌웁니다.
+- 염료 간섭(채널 혼합), 채널별 S커브, 청록 섀도·따뜻한 하이라이트, 하이라이트 채도 억제, 흰색 D55·D60·D65.
+- 2383 스타일은 깊은 블랙과 단단한 대비, 3513DI 스타일은 조금 낮은 대비와 차분한 녹색입니다.
+- 필름 제조사나 Blackmagic의 측정 LUT가 아니라 스타일 근사입니다.
+
+**.cube로 받기.** LUT 탭의 '라이브러리 98종 .cube 받기 (ZIP)'는 전체를 분류별 폴더의 .cube 파일로 묶어 내려받습니다
+(압축 ZIP, 약 18MB). VFX IO는 1D LUT(4096칸), 나머지는 3D LUT(33³)입니다. 1D .cube는 이 앱에서도 불러올 수 있으며, 불러오면 65³ 3D LUT로 바뀝니다.
+DaVinci Resolve에서는 Project Settings → Color Management → Lookup Tables → Open LUT Folder에 폴더째 넣고
+Update Lists를 누르면 됩니다. 카메라·필름·룩 LUT의 출력은 sRGB 기준이므로, Rec.709 감마 2.4 타임라인에서 영상용으로
+쓸 때는 뒤 노드에 'VFX IO/sRGB to Gamma 2.4'를 이어 두세요.
+
+**DaVinci에 있지만 넣지 못한 것.**
+- Blackmagic Gen 4 이하 필름 곡선: 공개 수식이 없습니다.
+- ACES 변환: Resolve는 LUT가 아니라 색 관리로 처리합니다.
+- 제조사가 만든 크리에이티브 LUT(ARRI K1S1 등): 데이터가 공개돼 있지 않습니다.
 
 **노드 체인에서의 위치.** 카메라 로그 LUT는 첫 노드에(로그를 sRGB로 바꾼 뒤에 다른 보정을 얹도록),
 룩 LUT는 마지막 노드에 두는 것이 일반적입니다.
@@ -298,8 +335,16 @@ LUT 탭의 '그레이드를 LUT로 내보내기'는 켜진 노드 전체를 17³
 - `tests/unit/mask.test.ts` — Qualifier가 잎 녹색만 고르고 하늘·흙·회색은 빼는지, 소프트 구간, 빨강 경계 이어짐, 스포이드·더하기, 원(비율 보정)·회전 사각형·그라디언트·폴리곤·반전, 교집합, 앞 노드를 거친 색으로 판정하는지.
 - `tests/unit/gardenPresets.test.ts` — 정원 프리셋의 목표와 금지선, 42종 전체의 공통 안전선.
 - `tests/unit/presetLibrary.test.ts` — 42종 구성·왕복, 분류별 효과(흑백 무채색, 필터 효과, 노출량, 스플릿 톤 방향, 비네트 위치 등).
-- `tests/unit/lutLibrary.test.ts` — 50종 구성, 값 범위, 회색 축 단조성, .cube 왕복, 로그 곡선 18% 회색·구간 연속성, 색역 행렬의 흰색 보존, 정원 LUT ↔ 프리셋 평균 1 LSB.
-- `tests/e2e/library.spec.ts` — 프리셋·LUT 라이브러리의 분류·검색·적용, 라이브러리 LUT의 GPU 결과가 기준 수식과 1 LSB 이내.
+- `tests/unit/lutLibrary.test.ts`
+  - 98종 구성, 값 범위, 회색 축 단조성, .cube 왕복
+  - 로그 곡선 19종의 18% 회색(제조사 문서값)과 구간 연속성
+  - 카메라 LUT 38종의 18% 회색 → sRGB 118
+  - 색역 행렬의 흰색 보존
+  - VFX IO 역변환, Cineon 흰색·검정
+  - 필름 룩의 흰색 D55 > D60 > D65 순서와 대비 차이, Sony 스타일의 블랙·대비
+  - 정원 LUT ↔ 프리셋 평균 1 LSB
+  - ZIP 파일 이름
+- `tests/e2e/library.spec.ts` — 프리셋·LUT 라이브러리의 분류·검색·적용, 라이브러리 LUT(카메라·VFX·필름·룩·정원)의 GPU 결과가 기준 수식과 1 LSB 이내, 전체 .cube ZIP(99개 파일, 분류별 폴더, Blackmagic Gen 5 18% 회색 → 118).
 - `tests/unit/develop.test.ts`
   - 형태 행렬
     - 90° 회전·반전의 모서리 위치
