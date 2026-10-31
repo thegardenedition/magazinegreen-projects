@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MAX_NODES } from '../engine/constants';
+import { maskState } from '../engine/mask';
 import { selectedNode, useGrade, type GradeNode } from '../state/store';
 
 function NodeCard({ node, index, selected }: { node: GradeNode; index: number; selected: boolean }) {
@@ -66,10 +67,31 @@ function NodeCard({ node, index, selected }: { node: GradeNode; index: number; s
           {node.enabled ? 'ON' : 'OFF'}
         </button>
       </div>
+      <NodeTags node={node} />
       {node.lut && (
         <div className="node-lut mono" title={`LUT: ${node.lut.name}`}>
           LUT {node.lut.name} · {Math.round(node.lutIntensity * 100)}%
         </div>
+      )}
+    </div>
+  );
+}
+
+/** 이 노드의 보정이 화면 일부에만 걸린다는 표시 (창·Qualifier) */
+function NodeTags({ node }: { node: GradeNode }) {
+  const m = maskState(node.qualifier, node.window);
+  if (!m.window && !m.qualifier) return null;
+  return (
+    <div className="node-tags">
+      {m.window && (
+        <span className="node-tag" data-testid="node-tag-window" title="창(Window)이 켜져 있어 이 노드의 보정은 일부 영역에만 적용됩니다">
+          {m.windowInvert ? '창 바깥' : '창 안'}
+        </span>
+      )}
+      {m.qualifier && (
+        <span className="node-tag" data-testid="node-tag-qualifier" title="HSL Qualifier가 켜져 있어 고른 색에만 적용됩니다">
+          {m.qualifierInvert ? '고른 색 제외' : '고른 색만'}
+        </span>
       )}
     </div>
   );

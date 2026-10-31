@@ -100,6 +100,14 @@ button, input { font: inherit; color: inherit; }
 .node-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .node-name-input { flex: 1; min-width: 0; width: 100%; }
 .node-toggle { border: 1px solid var(--line-2); background: var(--bg-deep); border-radius: 3px; font-family: var(--mono); font-size: 10px; padding: 1px 6px; cursor: pointer; }
+.node-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 7px; }
+.node-tag { padding: 1px 6px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent); font-size: 10px; line-height: 1.4; }
+.mask-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2); font-size: 12px; flex: none; }
+.mask-notice > span { flex: 1 1 240px; min-width: 0; }
+.mask-notice b { color: var(--accent); font-weight: 600; }
+.mask-notice .btn { height: 24px; padding: 0 8px; font-size: 11px; border-color: var(--line-2); color: var(--text); }
+.app-mobile .mask-notice { font-size: 13px; }
+.app-mobile .mask-notice .btn { height: 32px; font-size: 13px; }
 .node-lut { padding: 0 10px 7px; font-size: 10px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .node-actions { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-top: 1px solid var(--line); }
 .node-actions .btn { height: 24px; padding: 0 8px; font-size: 11px; }

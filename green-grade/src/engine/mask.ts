@@ -262,6 +262,12 @@ export interface MaskUniform {
   window: { w: WindowUniform; invert: boolean } | null;
 }
 
+/** 노드의 마스크가 실제로 걸려 있는지 (폴리곤은 점이 3개 이상일 때만) — 화면 표시용 */
+export function maskState(q: Qualifier, w: WindowParams) {
+  const window = w.enabled && !(w.shape.type === 'polygon' && w.shape.points.length < 3);
+  return { window, windowInvert: window && w.invert, qualifier: q.enabled, qualifierInvert: q.enabled && q.invert };
+}
+
 export function maskUniform(q: Qualifier, w: WindowParams): MaskUniform | null {
   const win = w.enabled && !(w.shape.type === 'polygon' && w.shape.points.length < 3);
   if (!q.enabled && !win) return null;
