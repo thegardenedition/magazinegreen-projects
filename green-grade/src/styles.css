@@ -277,3 +277,96 @@ button, input { font: inherit; color: inherit; }
 .crop-e, .crop-w { cursor: ew-resize; }
 .level-catcher { fill: transparent; pointer-events: all; cursor: crosshair; }
 .level-line { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+
+/* ── 휴대폰 ──
+   위: 간단한 상단 바 / 가운데: 고정 뷰어 / 아래: 도구 한 가지 + 탭 막대.
+   패널은 모두 만들어 두고 보이는 것만 바꾼다(스코프의 GPU 컨텍스트를 다시 만들지 않도록). */
+.app-mobile {
+  height: 100vh; height: 100dvh;
+  grid-template-rows: auto auto minmax(180px, 44dvh) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'top' 'status' 'viewer' 'sheet' 'nav';
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+}
+.app-mobile .m-topbar { grid-area: top; height: calc(48px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 8px 0; gap: 4px; }
+.app-mobile .brand { margin-right: 2px; letter-spacing: .08em; font-size: 13px; }
+.app-mobile .btn { height: 36px; padding: 0 10px; font-size: 14px; }
+.app-mobile .btn-icon { width: 36px; padding: 0; font-size: 18px; }
+.m-status { grid-area: status; display: flex; gap: 8px; align-items: center; min-width: 0; padding: 2px 10px; font-size: 11px; background: var(--bg-deep); border-bottom: 1px solid var(--line); }
+.m-status .file-meta { flex: 1; min-width: 0; font-size: 11px; }
+.m-viewer { grid-area: viewer; display: grid; min-height: 0; border-bottom: 1px solid var(--line); }
+.m-viewer .viewer-hud { right: 6px; bottom: 6px; }
+.m-sheet { grid-area: sheet; position: relative; min-height: 0; overflow: hidden; background: var(--panel); }
+.m-pane { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.m-pane.m-hidden { visibility: hidden; pointer-events: none; }
+.m-pane > .panel, .m-pane > .filmstrip { flex: 1 0 auto; min-height: 100%; border: 0; }
+.m-pane > .panel-scope { min-height: 100%; }
+.m-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.m-nav { grid-area: nav; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); background: var(--bg-deep); padding-bottom: env(safe-area-inset-bottom); }
+.m-nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 54px; border: 0; background: transparent; color: var(--text-dim); font-size: 11px; cursor: pointer; }
+.m-nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.m-nav-btn.on { color: var(--accent); }
+
+/* 터치 크기: 손가락으로 누를 수 있게 키우고, 입력 칸은 16px 이상이라 iOS가 확대하지 않는다 */
+.app-mobile input, .app-mobile select { font-size: 16px; }
+.app-mobile .tabs { height: 44px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex: none; }
+.app-mobile .tabs::-webkit-scrollbar { display: none; }
+.app-mobile .tab { height: 34px; padding: 0 12px; font-size: 14px; flex: none; }
+.app-mobile .tabs .btn { height: 32px; font-size: 13px; flex: none; }
+.app-mobile .node-badge { display: none; }
+.app-mobile .chip { height: 32px; padding: 0 10px; font-size: 13px; }
+.app-mobile .library-chips .chip { height: 30px; font-size: 12px; }
+.app-mobile .scalars { grid-template-columns: 1fr; gap: 10px; }
+.app-mobile .scalar { grid-template-columns: 64px minmax(0, 1fr) 76px; gap: 10px; }
+.app-mobile .scalar-label { font-size: 13px; }
+.app-mobile .scalar .num { width: 76px; height: 34px; }
+.app-mobile .scalar-track { height: 34px; }
+.app-mobile .scalar-track input { height: 34px; }
+.app-mobile .scalar-track input::-webkit-slider-thumb { width: 22px; height: 26px; margin-top: -11px; border-radius: 4px; }
+.app-mobile .scalar-track input::-moz-range-thumb { width: 22px; height: 26px; border-radius: 4px; }
+.app-mobile .wheels { flex-wrap: wrap; justify-content: space-evenly; row-gap: 14px; }
+.app-mobile .wheel-master .num, .app-mobile .wheel-rgb .num { height: 32px; }
+.app-mobile .curves { justify-content: center; }
+.app-mobile .curve-block { max-width: 100%; }
+.app-mobile .curve-editor { max-width: 100%; height: auto; }
+.app-mobile .curve-point { r: 9px; }
+.app-mobile .qbar { height: 26px; }
+.app-mobile .qbar-handle { width: 16px; margin-left: -8px; }
+.app-mobile .preset-item { padding: 10px; }
+.app-mobile .library-search { height: 40px; }
+.app-mobile .detail-groups { grid-template-columns: 1fr; }
+.app-mobile .develop-row .btn { flex: none; }
+.app-mobile .crop-handle { width: 22px; height: 22px; transform: translate(-5px, -5px); }
+.app-mobile .win-handle { r: 11px; }
+.app-mobile .node { width: min(260px, 80vw); }
+.app-mobile .node-actions { flex-wrap: wrap; gap: 6px; padding: 8px; }
+.app-mobile .node-actions .btn { height: 36px; }
+.app-mobile .scope-body { min-height: 240px; }
+.app-mobile .film-tools { padding: 8px; gap: 6px; }
+.app-mobile .film-tools .btn { height: 34px; font-size: 13px; }
+.app-mobile .film-list { flex-wrap: wrap; overflow: visible; padding-bottom: 12px; }
+.app-mobile .film-item, .app-mobile .film-thumb { width: calc((100vw - 34px) / 3); }
+.app-mobile .film-thumb { height: auto; aspect-ratio: 4 / 3; }
+.app-mobile .film-remove { opacity: 1; width: 26px; height: 26px; font-size: 16px; }
+.app-mobile .film-check input { width: 20px; height: 20px; }
+.app-mobile .film-note { flex-basis: 100%; margin: 2px 0 0; white-space: normal; }
+.app-mobile .viewer-tool-hint { top: 6px; max-width: calc(100% - 12px); font-size: 12px; flex-wrap: wrap; justify-content: center; }
+.app-mobile .viewer-badge { top: 6px; left: 6px; }
+.app-mobile .viewer-transform .viewer-hud { display: none; }
+.app-mobile .split-line { width: 33px; margin-left: -16px; }
+.app-mobile .split-line::before { left: 16px; }
+/* 내보내기 창은 아래에서 올라오는 시트로 */
+.app-mobile .modal-back { align-items: flex-end; padding: 0; }
+.app-mobile .modal { width: 100%; border-radius: 12px 12px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+.app-mobile .modal-actions .btn { flex: 1; height: 44px; }
+
+/* 가로로 든 휴대폰: 뷰어 왼쪽, 도구 오른쪽 */
+@media (orientation: landscape) {
+  .app-mobile {
+    grid-template-columns: minmax(0, 1fr) min(360px, 46vw);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: 'top top' 'status status' 'viewer sheet' 'viewer nav';
+  }
+  .app-mobile .m-viewer { border-bottom: 0; border-right: 1px solid var(--line); }
+  .app-mobile .m-nav-btn { height: 46px; }
+}

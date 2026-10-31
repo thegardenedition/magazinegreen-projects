@@ -9,6 +9,7 @@ import { displayInfo, previewInput } from '../state/display';
 import { currentUniforms, selectedNode, useGrade } from '../state/store';
 import { CropOverlay } from './CropOverlay';
 import { pickQualifier } from './picker';
+import { MOBILE_QUERY } from './useMedia';
 import { WindowOverlay } from './WindowOverlay';
 
 const MIN_SCALE = 0.01;
@@ -84,7 +85,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   // 보이는 영역의 크기가 바뀌면(크롭·회전·형태 탭 전환) 화면에 다시 맞춘다
   const dispKey = useGrade((s) => {
     const d = displayInfo(s);
-    return d ? `${d.width.toFixed(2)}x${d.height.toFixed(2)}` : '';
+    return d ? `${d.width.toFixed(2)}x${d.height.toFixed(2)}${d.transformView ? ' 형태' : ''}` : '';
   });
   const disp = displayInfo(useGrade.getState());
 
@@ -123,8 +124,12 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     });
   }, []);
 
+  // 화면 맞춤 상태인지. 맞춤 상태에서 뷰어 크기가 바뀌면(휴대폰 회전, 패널 열고 닫기) 다시 맞춘다.
+  const autoFit = useRef(true);
+
   const setView = useCallback(
-    (v: ViewState) => {
+    (v: ViewState, fitting = false) => {
+      autoFit.current = fitting;
       viewRef.current = v;
       setViewState(v);
       draw();
@@ -136,12 +141,16 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     const c = canvasRef.current;
     const d = displayInfo(useGrade.getState());
     if (!c || !d) return;
-    const scale = Math.min(c.width / d.width, c.height / d.height) * 0.96;
-    setView({
-      scale,
-      offsetX: (c.width - d.width * scale) / 2,
-      offsetY: (c.height - d.height * scale) / 2,
-    });
+    // 형태 탭에서는 크롭 핸들이 가장자리에 걸리지 않도록 여백을 더 둔다
+    const scale = Math.min(c.width / d.width, c.height / d.height) * (d.transformView ? 0.86 : 0.96);
+    setView(
+      {
+        scale,
+        offsetX: (c.width - d.width * scale) / 2,
+        offsetY: (c.height - d.height * scale) / 2,
+      },
+      true,
+    );
   }, [setView]);
 
   const zoomAt = useCallback(
@@ -208,13 +217,17 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
       const dy = (h - canvas.height) / 2;
       canvas.width = w;
       canvas.height = h;
+      if (autoFit.current && useGrade.getState().image) {
+        fit();
+        return;
+      }
       viewRef.current = { ...v, offsetX: v.offsetX + dx, offsetY: v.offsetY + dy };
       setViewState(viewRef.current);
       draw();
     });
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [draw]);
+  }, [draw, fit]);
 
   // 새 이미지 → 프록시 텍스처 교체 후 화면 맞춤
   useEffect(() => {
@@ -292,18 +305,53 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     }
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const start = toCanvas(e);
-    const v0 = viewRef.current;
-    const move = (ev: PointerEvent) => {
-      const p = toCanvas(ev);
-      setView({ ...v0, offsetX: v0.offsetX + p[0] - start[0], offsetY: v0.offsetY + p[1] - start[1] });
-    };
-    const up = () => {
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-    };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    pointers.current.set(e.pointerId, toCanvas(e));
+    beginGesture();
+  };
+
+  // 손가락(포인터) 하나면 이동, 둘이면 핀치 확대 + 이동. 포인터 수가 바뀔 때마다 기준을 다시 잡는다.
+  const pointers = useRef(new Map<number, readonly [number, number]>());
+  const gesture = useRef<{ v0: ViewState; c0: readonly [number, number]; d0: number } | null>(null);
+  const centroid = () => {
+    const ps = [...pointers.current.values()];
+    return [ps.reduce((a, p) => a + p[0], 0) / ps.length, ps.reduce((a, p) => a + p[1], 0) / ps.length] as const;
+  };
+  const spread = () => {
+    const ps = [...pointers.current.values()];
+    return ps.length >= 2 ? Math.hypot(ps[0][0] - ps[1][0], ps[0][1] - ps[1][1]) : 0;
+  };
+  const beginGesture = () => {
+    gesture.current = pointers.current.size ? { v0: viewRef.current, c0: centroid(), d0: spread() } : null;
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId) || !gesture.current) return;
+    pointers.current.set(e.pointerId, toCanvas(e));
+    const { v0, c0, d0 } = gesture.current;
+    const c = centroid();
+    const k = d0 > 0 ? Math.min(MAX_SCALE, Math.max(MIN_SCALE, (v0.scale * spread()) / d0)) / v0.scale : 1;
+    // 시작할 때 손가락 중심 아래에 있던 이미지 점이 지금 손가락 중심 아래에 오도록
+    setView({
+      scale: v0.scale * k,
+      offsetX: c[0] - (c0[0] - v0.offsetX) * k,
+      offsetY: c[1] - (c0[1] - v0.offsetY) * k,
+    });
+  };
+  const onPointerEnd = (e: React.PointerEvent) => {
+    if (!pointers.current.delete(e.pointerId)) return;
+    beginGesture();
+  };
+
+  /** 더블클릭(휴대폰은 두 번 탭): 화면 맞춤. 휴대폰에서 이미 맞춤이면 그 자리를 확대 */
+  const onDoubleClick = (e: React.MouseEvent) => {
+    if (tool !== 'none') return;
+    const c = canvasRef.current;
+    const d = displayInfo(useGrade.getState());
+    if (!c || !d) return;
+    const fitScale = Math.min(c.width / d.width, c.height / d.height) * (d.transformView ? 0.86 : 0.96);
+    if (window.matchMedia(MOBILE_QUERY).matches && Math.abs(viewRef.current.scale - fitScale) < fitScale * 0.02) {
+      const [x, y] = toCanvas(e);
+      zoomAt(Math.min(MAX_SCALE, fitScale * 3), x, y);
+    } else fit();
   };
 
   const onSplitDown = (e: React.PointerEvent) => {
@@ -321,13 +369,16 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div className={`viewer ${tool !== 'none' ? 'viewer-tool' : ''}`} ref={wrapRef} onWheel={onWheel}>
+    <div className={`viewer ${tool !== 'none' ? 'viewer-tool' : ''} ${transformView ? 'viewer-transform' : ''}`} ref={wrapRef} onWheel={onWheel}>
       <canvas
         ref={canvasRef}
         className="viewer-canvas"
         data-testid="viewer-canvas"
         onPointerDown={onPointerDown}
-        onDoubleClick={() => tool === 'none' && fit()}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        onDoubleClick={onDoubleClick}
       />
       {image && disp && showWindow && (
         <WindowOverlay

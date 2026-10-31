@@ -8,7 +8,18 @@ import { NodePanel } from './ui/NodePanel';
 import { CorrectionPanel } from './ui/Panels';
 import { PresetPanel } from './ui/PresetPanel';
 import { ScopePanel } from './ui/ScopePanel';
+import { MOBILE_QUERY, useMediaQuery } from './ui/useMedia';
 import { Viewer } from './ui/Viewer';
+
+/** 휴대폰 아래 탭 */
+type MobileTab = 'adjust' | 'nodes' | 'library' | 'scope' | 'photos';
+const MOBILE_TABS: Array<[MobileTab, string, string]> = [
+  ['adjust', '조정', 'M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4'],
+  ['nodes', '노드', 'M12 3v4M12 17v4M7 7h10v10H7z'],
+  ['library', '프리셋', 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z'],
+  ['scope', '스코프', 'M4 19h16M6 16l3-5 3 3 3-7 3 5'],
+  ['photos', '사진', 'M4 6h16v12H4zM4 15l5-4 4 3 3-2 4 3'],
+];
 
 export function App() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -20,6 +31,9 @@ export function App() {
   const [dragging, setDragging] = useState(false);
   const error = useGallery((s) => s.error);
   const hasItems = useGallery((s) => s.items.length > 0);
+  const itemCount = useGallery((s) => s.items.length);
+  const mobile = useMediaQuery(MOBILE_QUERY);
+  const [mobileTab, setMobileTab] = useState<MobileTab>('adjust');
 
   const open = () => fileRef.current?.click();
   const load = (files: FileList | null | undefined) => {
@@ -78,22 +92,126 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept={ACCEPTED_TYPES.join(',')}
+      multiple
+      hidden
+      data-testid="file-input"
+      onChange={(e) => {
+        load(e.target.files);
+        e.target.value = '';
+      }}
+    />
+  );
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(true);
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (e.currentTarget === e.target) setDragging(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      load(e.dataTransfer.files);
+    },
+  };
+
+  if (mobile) {
+    const pane = (tab: MobileTab, node: React.ReactNode) => (
+      <div className={`m-pane ${mobileTab === tab ? '' : 'm-hidden'}`} data-testid={`m-pane-${tab}`}>
+        {node}
+      </div>
+    );
+    return (
+      <div className={`app app-mobile ${dragging ? 'is-dragging' : ''}`} {...dropProps}>
+        <header className="topbar m-topbar">
+          <div className="brand" aria-label="GREEN GRADE">
+            G<b>G</b>
+          </div>
+          <button className="btn" onClick={open} data-testid="open">
+            열기
+          </button>
+          {fileInput}
+          <span className="spacer" />
+          <button className="btn btn-ghost btn-icon" onClick={() => useGrade.getState().undo()} disabled={!canUndo} aria-label="되돌리기" data-testid="undo">
+            ↶
+          </button>
+          <button className="btn btn-ghost btn-icon" onClick={() => useGrade.getState().redo()} disabled={!canRedo} aria-label="다시 실행" data-testid="redo">
+            ↷
+          </button>
+          <button className={`btn btn-toggle ${split ? 'on' : ''}`} onClick={() => useGrade.getState().toggleSplit()} disabled={!image} aria-label="Before/After 분할">
+            분할
+          </button>
+          <button className={`btn btn-toggle ${bypass ? 'on' : ''}`} onClick={() => useGrade.getState().toggleBypass()} disabled={!image} aria-label="원본 보기">
+            원본
+          </button>
+          <button className="btn btn-primary" onClick={() => useGrade.getState().setExportOpen(true)} disabled={!image} data-testid="export-open">
+            내보내기
+          </button>
+        </header>
+        {(error || image) && (
+          <div className="m-status">
+            {image && (
+              <span className="file-meta mono" data-testid="file-meta">
+                {image.name} · {image.width}×{image.height}
+              </span>
+            )}
+            {error && <span className="error">{error}</span>}
+          </div>
+        )}
+        <main className="m-viewer">
+          <Viewer onOpen={open} />
+        </main>
+        <section className="m-sheet" data-testid="m-sheet">
+          {pane('adjust', <CorrectionPanel />)}
+          {pane('nodes', <NodePanel />)}
+          {pane('library', <PresetPanel />)}
+          {pane('scope', <ScopePanel />)}
+          {pane(
+            'photos',
+            hasItems ? (
+              <Filmstrip onOpen={open} />
+            ) : (
+              <div className="m-empty">
+                <p className="muted">열어 둔 사진이 없습니다.</p>
+                <button className="btn btn-primary" onClick={open}>
+                  사진 열기
+                </button>
+              </div>
+            ),
+          )}
+        </section>
+        <nav className="m-nav" aria-label="도구">
+          {MOBILE_TABS.map(([id, label, icon]) => (
+            <button
+              key={id}
+              className={`m-nav-btn ${mobileTab === id ? 'on' : ''}`}
+              onClick={() => setMobileTab(id)}
+              aria-current={mobileTab === id ? 'page' : undefined}
+              data-testid={`m-tab-${id}`}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d={icon} />
+              </svg>
+              <span>
+                {label}
+                {id === 'photos' && itemCount > 0 ? ` ${itemCount}` : ''}
+              </span>
+            </button>
+          ))}
+        </nav>
+        <ExportDialog />
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`app ${dragging ? 'is-dragging' : ''} ${hasItems ? 'has-film' : ''}`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={(e) => {
-        if (e.currentTarget === e.target) setDragging(false);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        load(e.dataTransfer.files);
-      }}
-    >
+    <div className={`app ${dragging ? 'is-dragging' : ''} ${hasItems ? 'has-film' : ''}`} {...dropProps}>
       <header className="topbar">
         <div className="brand">
           GREEN <b>GRADE</b>
@@ -101,18 +219,7 @@ export function App() {
         <button className="btn" onClick={open} title="사진 열기 (Ctrl+O)">
           열기
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPTED_TYPES.join(',')}
-          multiple
-          hidden
-          data-testid="file-input"
-          onChange={(e) => {
-            load(e.target.files);
-            e.target.value = '';
-          }}
-        />
+        {fileInput}
         {image && (
           <span className="file-meta mono" data-testid="file-meta">
             {image.name} · {image.width}×{image.height}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { downloadBlob } from '../engine/image';
 import { LongEdgeField } from './ExportDialog';
+import { MOBILE_QUERY, useMediaQuery } from './useMedia';
 import {
   copyGrade,
   exportBatch,
@@ -22,6 +23,7 @@ export function Filmstrip({ onOpen }: { onOpen: () => void }) {
   const error = useGallery((s) => s.error);
   const [note, setNote] = useState<string | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
+  const mobile = useMediaQuery(MOBILE_QUERY);
 
   if (!items.length) return null;
 
@@ -67,7 +69,7 @@ export function Filmstrip({ onOpen }: { onOpen: () => void }) {
           + 사진 추가
         </button>
         <span className={`small film-note ${error ? 'error' : 'muted'}`} data-testid="film-note">
-          {busy ?? error ?? note ?? (clipboard ? `클립보드: ${clipboard.from}의 그레이드` : 'Ctrl/⌘+클릭 여러 장 선택 · Shift+클릭 범위 선택')}
+          {busy ?? error ?? note ?? (clipboard ? `클립보드: ${clipboard.from}의 그레이드` : (mobile ? '체크 상자로 여러 장 선택' : 'Ctrl/⌘+클릭 여러 장 선택 · Shift+클릭 범위 선택'))}
         </span>
       </div>
       <ul className="film-list">
