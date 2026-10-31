@@ -4,10 +4,11 @@
 import { create } from 'zustand';
 import { defaultDevelop, type Detail, type Develop, type PixelSource } from '../engine/develop';
 import { ACCEPTED_TYPES, developInput, exportFileName, exportJpeg, loadImage, makeBaseSource } from '../engine/image';
-import type { PresetNode } from '../engine/presets';
+import type { Preset, PresetNode } from '../engine/presets';
 import { getActiveRenderer } from '../engine/renderer';
 import { buildZip, uniqueNames, type ZipEntry } from '../engine/zip';
 import {
+  applyPresetToGrade,
   createNode,
   currentPreset,
   currentUniforms,
@@ -218,6 +219,28 @@ export function pasteGrade(ids = useGallery.getState().selected): number {
       const it = useGallery.getState().items.find((x) => x.id === id);
       const develop = it?.develop ?? defaultDevelop();
       patchItem(id, { nodes, develop: { ...develop, detail: { ...clipboard.detail } } });
+    }
+    refreshThumb(id);
+  }
+  return ids.length;
+}
+
+// ── 프리셋 일괄 적용 ──
+
+/** 프리셋을 여러 장에 한 번에 적용한다 (지금 사진이 포함되면 되돌리기로 취소 가능). 적용한 장 수를 돌려준다. */
+export function applyPresetToItems(p: Preset, ids: string[]): number {
+  const { currentId, items } = useGallery.getState();
+  for (const id of ids) {
+    if (id === currentId) {
+      applyPresetToGrade(p);
+    } else {
+      const it = items.find((x) => x.id === id);
+      if (!it) continue;
+      const dev = it.develop ?? defaultDevelop();
+      patchItem(id, {
+        nodes: presetToNodes(p),
+        develop: p.detail ? { ...dev, detail: { ...dev.detail, ...p.detail } } : dev,
+      });
     }
     refreshThumb(id);
   }

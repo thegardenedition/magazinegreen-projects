@@ -1,5 +1,6 @@
 import { toUniforms, type GradeUniforms } from './color';
 import { bakeCurves } from './curves';
+import { resolveLutRef } from './lutRegistry';
 import { maskUniform } from './mask';
 import type { Preset } from './presets';
 
@@ -9,7 +10,7 @@ export function chainOfPreset(p: Preset): GradeUniforms[] {
     toUniforms(n.primary, {
       enabled: n.enabled,
       curves: bakeCurves(n.curves),
-      lut: n.lut ? { lut: n.lut, intensity: n.lutIntensity } : null,
+      lut: n.lut || n.lutRef ? { lut: n.lut ?? resolveLutRef(n.lutRef!), intensity: n.lutIntensity } : null,
       mask: maskUniform(n.qualifier, n.window),
     }),
   );

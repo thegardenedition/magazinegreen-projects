@@ -9,7 +9,7 @@ export const THUMB_W = 96;
 
 /**
  * 지금 사진의 작은 사본에 프리셋을 하나씩 적용한 썸네일 URL (프리셋 이름 → URL).
- * 사진이 바뀌면 다시 만든다. 화면이 멈추지 않도록 몇 개씩 나눠 렌더한다.
+ * 사진이 바뀌면 다시 만든다. 화면이 멈추지 않도록 하나씩 렌더하고 사이마다 쉰다.
  * 노드 색 보정만 반영한다 (그레인·비네트 같은 효과는 썸네일 크기에서 보이지 않아 뺀다).
  */
 export function usePresetThumbs(presets: Preset[], enabled: boolean): Map<string, string> {
@@ -21,6 +21,9 @@ export function usePresetThumbs(presets: Preset[], enabled: boolean): Map<string
     let cancelled = false;
     const urls: string[] = [];
     (async () => {
+      // 사진을 연 직후의 조작(확대·탭)이 먼저 처리되도록 잠시 기다린다
+      await new Promise((res) => setTimeout(res, 500));
+      if (cancelled) return;
       const h = Math.max(1, Math.round((THUMB_W * image.proxy.height) / image.proxy.width));
       const small = await createImageBitmap(image.proxy, { resizeWidth: THUMB_W, resizeHeight: h, resizeQuality: 'medium', premultiplyAlpha: 'none' });
       const canvas = new OffscreenCanvas(THUMB_W, h);
@@ -34,11 +37,12 @@ export function usePresetThumbs(presets: Preset[], enabled: boolean): Map<string
         const url = URL.createObjectURL(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 }));
         urls.push(url);
         out.set(presets[i].name, url);
-        // 8개마다 화면에 반영하고 한 번 쉰다
+        // 8개마다 화면에 반영하고, 매번 한 번씩 쉬어 터치·입력이 밀리지 않게 한다
+        // (프로 워크플로 프리셋은 처음 쓸 때 LUT를 계산하므로 한 개가 0.1초 넘게 걸릴 수 있다)
         if (i % 8 === 7 || i === presets.length - 1) {
           if (!cancelled) setThumbs(new Map(out));
-          await new Promise((res) => setTimeout(res, 0));
         }
+        await new Promise((res) => setTimeout(res, 0));
       }
       small.close();
     })();

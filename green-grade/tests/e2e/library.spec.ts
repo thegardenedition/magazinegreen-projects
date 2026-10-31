@@ -15,10 +15,10 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => !!window.__GG__);
 });
 
-test('프리셋 라이브러리: 112종, 분류·검색, 흑백 적용', async ({ page }) => {
+test('프리셋 라이브러리: 135종, 분류·검색, 흑백 적용', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles(GARDEN);
   const items = page.getByTestId('builtin-presets-item');
-  await expect(items).toHaveCount(112);
+  await expect(items).toHaveCount(135);
   await page.getByTestId('builtin-presets-cat-bw').click();
   await expect(items).toHaveCount(15);
   await page.getByTestId('builtin-presets-cat-all').click();
@@ -35,17 +35,17 @@ test('프리셋 라이브러리: 112종, 분류·검색, 흑백 적용', async (
   await page.screenshot({ path: join('test-results', 'library-presets.png') });
 });
 
-test('LUT 라이브러리: 110종, 분류·검색, 적용과 강조 표시', async ({ page }) => {
+test('LUT 라이브러리: 145종, 분류·검색, 적용과 강조 표시', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles(GARDEN);
   await page.getByTestId('tab-lut').click();
   const items = page.getByTestId('lut-library-item');
-  await expect(items).toHaveCount(110);
+  await expect(items).toHaveCount(145);
   await page.getByTestId('lut-library-cat-camera').click();
   await expect(items).toHaveCount(41);
   await page.getByTestId('lut-library-cat-all').click();
   await page.getByTestId('lut-library-search').fill('S-Log3');
-  // S-Gamut3.Cine·S-Gamut3 × 2, Sony 스타일 3, Linear → S-Log3
-  await expect(items).toHaveCount(8);
+  // S-Gamut3.Cine·S-Gamut3 × 2, Sony 스타일 3, Linear → S-Log3, sRGB → S-Log3 × 2
+  await expect(items).toHaveCount(10);
   await page.getByTestId('lut-library-cat-vfx').click();
   await expect(items).toHaveCount(1);
   await page.getByTestId('lut-library-cat-all').click();
@@ -79,6 +79,9 @@ test('라이브러리 LUT의 GPU 결과가 기준 수식과 1 LSB 이내로 일�
     'look-cross',
     'garden-신록',
     'util-legal-to-full',
+    'tolog-dji',
+    'pro-teal-orange',
+    'pro-silver-bw',
   ]) {
     const lut = buildLibraryLut(id);
     const cube = serializeCube(lut);
@@ -102,10 +105,10 @@ test('라이브러리 전체를 .cube ZIP으로 받는다 (분류별 폴더)', a
   expect(download.suggestedFilename()).toBe('GREEN GRADE LUT.zip');
   const { readFileSync } = await import('node:fs');
   const files = readZip(readFileSync((await download.path())!));
-  expect(files).toHaveLength(111);
+  expect(files).toHaveLength(146);
   expect(files[0].name).toBe('GREEN GRADE LUT/읽어보기.txt');
   const folders = new Set(files.slice(1).map((f) => f.name.split('/')[1]));
-  expect([...folders]).toEqual(['01 유틸리티', '02 VFX IO', '03 카메라 로그', '04 필름 룩', '05 룩', '06 정원']);
+  expect([...folders]).toEqual(['01 유틸리티', '02 VFX IO', '03 로그로 변환', '04 카메라 로그', '05 프로 룩', '06 필름 룩', '07 룩', '08 정원']);
   const bmd = files.find((f) => f.name.endsWith('Blackmagic Film Gen 5 - Wide Gamut to sRGB.cube'))!;
   const lut = parseCube(bmd.data.toString('utf8'));
   expect(lut.size).toBe(33);
@@ -117,7 +120,7 @@ test('라이브러리 전체를 .cube ZIP으로 받는다 (분류별 폴더)', a
 test('사진을 열면 프리셋마다 지금 사진으로 만든 미리보기가 붙는다', async ({ page }) => {
   await page.getByTestId('file-input').setInputFiles(GARDEN);
   const thumbs = page.getByTestId('builtin-presets-thumb');
-  await expect(thumbs).toHaveCount(112, { timeout: 60_000 });
+  await expect(thumbs).toHaveCount(135, { timeout: 90_000 });
   // 흑백 프리셋의 썸네일은 무채색, 원본과는 다르다
   const isGrey = await page.evaluate(async () => {
     const item = [...document.querySelectorAll('[data-testid=builtin-presets-item]')].find((e) => e.textContent?.includes('흑백 · 노랑 필터'))!;

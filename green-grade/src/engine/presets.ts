@@ -25,6 +25,8 @@ export interface PresetNode {
   primary: PrimaryParams;
   curves: CurvesParams;
   lut: CubeLut | null;
+  /** 기본 프리셋이 라이브러리 LUT를 id로 가리킬 때 (적용할 때 만든다). lut이 있으면 lut이 우선. */
+  lutRef?: string;
   lutIntensity: number;
   qualifier: Qualifier;
   window: WindowParams;
@@ -39,7 +41,7 @@ export interface Preset {
 }
 
 /** 기본 제공 프리셋의 분류 */
-export type PresetCategory = 'garden' | 'season' | 'correction' | 'bw' | 'film' | 'cinematic' | 'creative';
+export type PresetCategory = 'garden' | 'season' | 'correction' | 'bw' | 'film' | 'cinematic' | 'creative' | 'pro';
 
 export const PRESET_CATEGORIES: Array<[PresetCategory, string]> = [
   ['garden', '정원'],
@@ -49,6 +51,7 @@ export const PRESET_CATEGORIES: Array<[PresetCategory, string]> = [
   ['film', '필름'],
   ['cinematic', '시네마틱'],
   ['creative', '크리에이티브'],
+  ['pro', '프로 워크플로'],
 ];
 
 export interface BuiltinPreset extends Preset {
@@ -272,6 +275,7 @@ export function parsePreset(text: string): Preset {
       primary: readPrimary(n?.primary),
       curves: readCurves(n?.curves),
       lut: readLut(n?.lut),
+      ...(typeof (n as { lutRef?: unknown })?.lutRef === 'string' ? { lutRef: (n as { lutRef: string }).lutRef } : {}),
       lutIntensity: num(n?.lutIntensity, 1, 0, 1),
       qualifier: readQualifier(n?.qualifier),
       window: readWindow(n?.window),

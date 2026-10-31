@@ -1,5 +1,5 @@
-// 기본 프리셋 112종이 이름대로의 효과를 내는지 확인한다.
-// (계조 반전·새 클리핑·피부 색상 같은 공통 안전선은 gardenPresets.test.ts가 112종 모두에 적용한다)
+// 기본 프리셋 135종이 이름대로의 효과를 내는지 확인한다.
+// (계조 반전·새 클리핑·피부 색상 같은 공통 안전선은 gardenPresets.test.ts가 135종 모두에 적용한다)
 
 import { describe, expect, it } from 'vitest';
 import { gradePixel8, srgbToLinear, type Vec3 } from '../../src/engine/color';
@@ -24,10 +24,10 @@ const colored = GARDEN_SWATCHES.filter((s) => before(s.key).chroma > 0.05).map((
 const avgChroma = (p: Preset) => colored.reduce((a, k) => a + chromaRatio(p, k), 0) / colored.length;
 
 describe('라이브러리 구성', () => {
-  it('112종, 분류별 정원 25 · 계절·날씨 10 · 보정 22 · 흑백 15 · 필름 15 · 시네마틱 15 · 크리에이티브 10', () => {
-    expect(BUILTIN_PRESETS).toHaveLength(112);
+  it('135종, 분류별 정원 25 · 계절·날씨 10 · 보정 22 · 흑백 15 · 필름 15 · 시네마틱 15 · 크리에이티브 10 · 프로 워크플로 23', () => {
+    expect(BUILTIN_PRESETS).toHaveLength(135);
     const count = (c: string) => BUILTIN_PRESETS.filter((p) => p.category === c).length;
-    expect(PRESET_CATEGORIES.map(([c]) => count(c))).toEqual([25, 10, 22, 15, 15, 15, 10]);
+    expect(PRESET_CATEGORIES.map(([c]) => count(c))).toEqual([25, 10, 22, 15, 15, 15, 10, 23]);
   });
 
   it('효과를 담은 프리셋은 효과 값이 저장 형식으로 왕복한다', () => {
@@ -274,5 +274,35 @@ describe('확장 프리셋', () => {
     expect(Object.keys(preset('할레이션 필름').detail!)).toEqual(
       expect.arrayContaining(['grain', 'vignette', 'glow', 'halation']),
     );
+  });
+});
+
+describe('프로 워크플로', () => {
+  it('프로 프리셋은 로그 변환 → 1차 보정 → 룩 LUT 세 노드이고, LUT는 이름으로 가리킨다', () => {
+    for (const p of BUILTIN_PRESETS.filter((x) => x.category === 'pro')) {
+      expect(p.nodes.map((n) => n.lutRef ?? null), p.name).toEqual([expect.stringMatching(/^tolog-/), null, expect.stringMatching(/^(pro|camera)-/)]);
+    }
+  });
+  it('로그 베이스는 로그로 갔다가 되돌아오므로 중간톤은 원본과 거의 같다', () => {
+    for (const p of BUILTIN_PRESETS.filter((x) => x.name.startsWith('로그 베이스'))) {
+      for (const c of [[118, 118, 118], [90, 140, 70], [200, 150, 120], [60, 90, 160]] as Vec3[]) {
+        const o = apply(p, c);
+        // 출력 LUT(33³) 보간 오차까지 6 LSB. 65³로 계산하면 2 LSB 이내다 (lutLibrary.test.ts '로그로 변환')
+        for (let k = 0; k < 3; k++) expect(Math.abs(o[k] - c[k]), `${p.name} ${c}`).toBeLessThanOrEqual(6);
+      }
+    }
+  });
+  it('프로 룩은 흰색을 자르지 않고 부드럽게 누른다', () => {
+    for (const p of BUILTIN_PRESETS.filter((x) => x.name.startsWith('프로 ·'))) {
+      const w = grey(p, 255);
+      expect(Math.max(...w), p.name).toBeLessThan(252);
+      expect(Math.max(...w), p.name).toBeGreaterThan(220);
+    }
+  });
+  it('프로 룩: 실버 흑백은 무채색, 틸 & 오렌지는 잎을 청록으로', () => {
+    const bw = after(preset('프로 · 실버 흑백'), 'leaf').rgb;
+    expect(Math.max(...bw) - Math.min(...bw)).toBeLessThanOrEqual(1);
+    const leaf = after(preset('프로 · 틸 & 오렌지 프로'), 'leaf').rgb;
+    expect(leaf[2] - leaf[0]).toBeGreaterThan(before('leaf').rgb[2] - before('leaf').rgb[0] + 10);
   });
 });

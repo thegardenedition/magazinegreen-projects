@@ -1,3 +1,5 @@
+// 프로 워크플로 프리셋이 라이브러리 LUT를 id로 가리키므로 LUT 라이브러리를 먼저 불러 둔다
+import '../../src/engine/lutLibrary';
 // 정원 프리셋 검증용 측정 도구 (테스트와 조정 스크립트가 함께 쓴다)
 
 import { gradePixel8, srgbToLinear, type Vec3 } from '../../src/engine/color';

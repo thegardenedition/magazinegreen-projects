@@ -400,3 +400,5 @@ button, input { font: inherit; color: inherit; }
 .preset-thumb { flex: none; width: 64px; height: 42px; object-fit: cover; border-radius: 3px; background: #111; }
 .preset-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
 .app-mobile .preset-thumb { width: 84px; height: 56px; }
+
+.batch-apply { margin: 6px 0 8px; padding: 6px 8px; border: 1px dashed var(--line-2); border-radius: 4px; }
