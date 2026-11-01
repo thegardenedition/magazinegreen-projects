@@ -61,10 +61,10 @@ export interface GradeNode {
   window: WindowParams;
 }
 
-export type CorrectionTab = 'primary' | 'curves' | 'mixer' | 'qualifier' | 'window' | 'transform' | 'detail';
+export type CorrectionTab = 'primary' | 'curves' | 'mixer' | 'qualifier' | 'window' | 'transform' | 'detail' | 'heal';
 export type MaskView = 'off' | 'highlight' | 'bw';
 /** 뷰어 클릭 동작: 스포이드(새로/더하기), 펜(폴리곤 점 추가), 수평 기준선 */
-export type ViewerTool = 'none' | 'pick' | 'pick-add' | 'pen' | 'level';
+export type ViewerTool = 'none' | 'pick' | 'pick-add' | 'pen' | 'level' | 'heal';
 
 /** 되돌리기 대상이 되는 보정 상태 */
 interface Grade {
@@ -235,7 +235,8 @@ export const useGrade = create<GradeState>((set, get) => {
         viewerTool:
           (correctionTab !== 'qualifier' && s.viewerTool.startsWith('pick')) ||
           (correctionTab !== 'window' && s.viewerTool === 'pen') ||
-          (correctionTab !== 'transform' && s.viewerTool === 'level')
+          (correctionTab !== 'transform' && s.viewerTool === 'level') ||
+          (correctionTab !== 'heal' && s.viewerTool === 'heal')
             ? 'none'
             : s.viewerTool,
       })),

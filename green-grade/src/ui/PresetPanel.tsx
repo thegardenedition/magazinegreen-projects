@@ -46,7 +46,8 @@ function applyPreset(p: Preset, batch = false): number {
 
 const safeFileName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'preset';
 
-export function PresetPanel() {
+/** visible: 휴대폰에서 이 패널이 보이는 탭인지 (안 보이면 썸네일을 만들지 않는다) */
+export function PresetPanel({ visible = true }: { visible?: boolean }) {
   const [tab, setTab] = useState<'presets' | 'lut'>('presets');
   const [user, setUser] = useState<Preset[]>(loadUserPresets);
   const [naming, setNaming] = useState(false);
@@ -62,7 +63,7 @@ export function PresetPanel() {
   const setLutIntensity = useGrade((s) => s.setLutIntensity);
 
   // 프리셋 탭이 열려 있을 때 지금 사진으로 미리보기 썸네일을 만든다
-  const thumbs = usePresetThumbs(BUILTIN_PRESETS, tab === 'presets');
+  const thumbs = usePresetThumbs(BUILTIN_PRESETS, visible && tab === 'presets');
   const presetItems = thumbs.size ? PRESET_ITEMS.map((it) => ({ ...it, thumb: thumbs.get(it.key) })) : PRESET_ITEMS;
 
   const storeUser = (list: Preset[]) => {

@@ -8,6 +8,7 @@ import { IDENTITY_MATRIX, Renderer, setActiveRenderer, type ViewState } from '..
 import { displayInfo, previewInput } from '../state/display';
 import { currentUniforms, selectedNode, useGrade } from '../state/store';
 import { CropOverlay } from './CropOverlay';
+import { HealOverlay } from './HealOverlay';
 import { pickQualifier } from './picker';
 import { MOBILE_QUERY } from './useMedia';
 import { WindowOverlay } from './WindowOverlay';
@@ -67,6 +68,9 @@ declare global {
         nodes: TestNode[],
         dither: boolean,
       ): { pixels: number[]; width: number; height: number };
+      /** 테스트용: 그래픽 컨텍스트를 잃은 것처럼 / 되돌린 것처럼 */
+      loseContext(): void;
+      restoreContext(): void;
     };
   }
 }
@@ -79,6 +83,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const frameRef = useRef(0);
   const [view, setViewState] = useState<ViewState>(viewRef.current);
   const [error, setError] = useState<string | null>(null);
+  const [lost, setLost] = useState(false);
 
   const image = useGrade((s) => s.image);
   const split = useGrade((s) => s.split);
@@ -170,22 +175,37 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     [setView],
   );
 
-  // WebGL 초기화
+  // WebGL 초기화. 휴대폰 브라우저는 그래픽 메모리가 모자라면 컨텍스트를 버리므로(화면이 비는 원인),
+  // 잃으면 복구를 요청하고, 돌아오면 자원을 다시 만들어 지금 사진·보정을 다시 그린다.
   useEffect(() => {
     const canvas = canvasRef.current!;
-    try {
+    const create = () => {
       const r = new Renderer(canvas);
       rendererRef.current = r;
       setActiveRenderer(r);
+      const img = useGrade.getState().image;
+      if (img) r.setPreview(img.proxy);
+      devDirty.current = true;
+      draw();
+    };
+    const R = () => {
+      const r = rendererRef.current;
+      if (!r) throw new Error('렌더러가 준비되지 않았습니다.');
+      return r;
+    };
+    let loseExt: WEBGL_lose_context | null = null;
+    try {
+      create();
+      loseExt = rendererRef.current!.gl.getExtension('WEBGL_lose_context');
       window.__GG__ = {
         gradePixels(data, width, height, primary, dither, curves) {
           const u = toUniforms(fullPrimary(primary), { curves: curves ? bakeCurves(curves) : undefined });
-          const out = r.renderFull({ data: new Uint8Array(data), width, height }, [u], { dither });
+          const out = R().renderFull({ data: new Uint8Array(data), width, height }, [u], { dither });
           draw();
           return Array.from(out.pixels);
         },
         gradeNodes(data, width, height, nodes, dither) {
-          const out = r.renderFull({ data: new Uint8Array(data), width, height }, testChain(nodes), { dither });
+          const out = R().renderFull({ data: new Uint8Array(data), width, height }, testChain(nodes), { dither });
           draw();
           return Array.from(out.pixels);
         },
@@ -193,15 +213,40 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
           const src = { data: new Uint8Array(data), width, height };
           const plan = planDevelop(develop, width, height, 1);
           const base = plan.needsBase ? computeBase(src, develop.geometry, width, height) : null;
-          const out = r.renderFull(src, testChain(nodes), { dither, develop: { plan, base } });
+          const out = R().renderFull(src, testChain(nodes), { dither, develop: { plan, base } });
           draw();
           return { pixels: Array.from(out.pixels), width: out.width, height: out.height };
+        },
+        // 잃은 뒤에는 확장을 다시 얻을 수 없으므로 미리 잡아 둔 것을 쓴다
+        loseContext() {
+          loseExt?.loseContext();
+        },
+        restoreContext() {
+          loseExt?.restoreContext();
         },
       };
     } catch (e) {
       setError((e as Error).message);
     }
+    const onLost = (e: Event) => {
+      e.preventDefault(); // 복구를 요청한다
+      rendererRef.current = null;
+      setActiveRenderer(null);
+      setLost(true);
+    };
+    const onRestored = () => {
+      try {
+        create();
+        setLost(false);
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
     return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
       setActiveRenderer(null);
       rendererRef.current = null;
       delete window.__GG__;
@@ -235,13 +280,18 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     return () => ro.disconnect();
   }, [draw, fit]);
 
-  // 새 이미지 → 프록시 텍스처 교체 후 화면 맞춤
+  // 축소본이 바뀌면(새 사진, 지우개) 텍스처를 바꾼다
+  const proxy = image?.proxy ?? null;
+  const file = image?.file ?? null;
   useEffect(() => {
-    rendererRef.current?.setPreview(image?.proxy ?? null);
+    rendererRef.current?.setPreview(proxy);
     devDirty.current = true;
-    if (image) fit();
-    else draw();
-  }, [image, fit, draw]);
+    draw();
+  }, [proxy, draw]);
+  // 사진 자체가 바뀔 때만 화면에 맞춘다 (지우개로 축소본만 바뀌면 보던 확대 상태를 지킨다)
+  useEffect(() => {
+    if (file) fit();
+  }, [file, fit]);
 
   useEffect(() => {
     if (dispKey) fit();
@@ -297,7 +347,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (!image || e.button !== 0) return;
     const s = useGrade.getState();
-    if (s.viewerTool !== 'none' && s.viewerTool !== 'level') {
+    if (s.viewerTool !== 'none' && s.viewerTool !== 'level' && s.viewerTool !== 'heal') {
       const p = toImage(e.clientX, e.clientY);
       if (p.x < 0 || p.y < 0 || p.x > 1 || p.y > 1) return;
       if (s.viewerTool === 'pen') {
@@ -395,10 +445,17 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
           toImage={toImage}
         />
       )}
+      {image && disp && tool === 'heal' && <HealOverlay view={view} dpr={window.devicePixelRatio || 1} toImage={toImage} />}
       {image && disp && transformView && (
         <CropOverlay view={view} dpr={window.devicePixelRatio || 1} frameWidth={disp.width} frameHeight={disp.height} toImage={toImage} />
       )}
       {error && <div className="viewer-empty">{error}</div>}
+      {lost && (
+        <div className="viewer-empty" data-testid="context-lost">
+          <p>그래픽 메모리가 부족해 화면을 다시 준비하는 중입니다.</p>
+          <p className="muted small">보정은 그대로 남아 있습니다. 오래 걸리면 다른 앱·탭을 닫아 주세요.</p>
+        </div>
+      )}
       {!image && !error && (
         <div className="viewer-empty">
           <p>사진을 끌어다 놓거나</p>
@@ -426,6 +483,8 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
             ? '클릭해 점 추가 · 점 더블클릭으로 삭제'
             : tool === 'level'
               ? '수평(또는 수직)이어야 할 선을 따라 끌기'
+              : tool === 'heal'
+                ? '지울 곳을 덮어 칠하기 · 손을 떼면 메웁니다'
               : tool === 'pick'
                 ? '고를 색을 클릭'
                 : '더할 색을 클릭'}

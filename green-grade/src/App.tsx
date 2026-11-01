@@ -182,7 +182,7 @@ export function App() {
         <section className="m-sheet" data-testid="m-sheet">
           {pane('adjust', <CorrectionPanel />)}
           {pane('nodes', <NodePanel />)}
-          {pane('library', <PresetPanel />)}
+          {pane('library', <PresetPanel visible={mobileTab === 'library'} />)}
           {pane('scope', <ScopePanel />)}
           {pane(
             'photos',

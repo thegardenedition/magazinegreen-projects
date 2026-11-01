@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { outputSize } from '../engine/develop';
-import { downloadBlob, exportFileName, exportJpeg, resizedSize } from '../engine/image';
+import { decodeFull, downloadBlob, exportFileName, exportJpeg, resizedSize } from '../engine/image';
 import { getActiveRenderer } from '../engine/renderer';
+import { composeHeal } from '../state/heal';
 import { currentUniforms, useGrade } from '../state/store';
 
 /** 긴 변 제한 선택지 (null = 원본 크기) */
@@ -59,12 +60,22 @@ export function ExportDialog() {
     // 진행률 표시가 먼저 그려지도록 한 프레임 양보
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     try {
-      const blob = await exportJpeg(renderer, image, currentUniforms(), {
-        quality: quality / 100,
-        develop: useGrade.getState().develop,
-        longEdge,
-        onProgress: setProgress,
-      });
+      // 원본 해상도는 내보낼 때만 디코딩하고 바로 놓아 준다
+      const decoded = await decodeFull(image.file);
+      // 지우개 조각을 원본 해상도에 덮는다
+      const full = await composeHeal(decoded, useGrade.getState().develop.heal, image.width, image.height);
+      let blob: Blob;
+      try {
+        blob = await exportJpeg(renderer, { ...image, full }, currentUniforms(), {
+          quality: quality / 100,
+          develop: useGrade.getState().develop,
+          longEdge,
+          onProgress: setProgress,
+        });
+      } finally {
+        if (full !== decoded) full.close();
+        decoded.close();
+      }
       downloadBlob(blob, exportFileName(image.name, 'jpg'));
       setOpen(false);
     } catch (e) {

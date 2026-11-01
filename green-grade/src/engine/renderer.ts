@@ -331,11 +331,14 @@ export class Renderer extends GLBase {
 
     const tileTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, tileTex);
-    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, tileSize, tileSize);
+    // 작은 렌더(썸네일 등)에 큰 타일을 잡지 않는다 — 휴대폰 GPU 메모리를 아낀다
+    const tileW = Math.min(tileSize, width);
+    const tileH = Math.min(tileSize, height);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, tileW, tileH);
     const fbo = gl.createFramebuffer();
 
     const prog = this.exportProg;
-    const tilePixels = new Uint8Array(tileSize * tileSize * 4);
+    const tilePixels = new Uint8Array(tileW * tileH * 4);
     const tilesX = Math.ceil(width / tileSize);
     const tilesY = Math.ceil(height / tileSize);
     let done = 0;

@@ -3,14 +3,14 @@
 
 import type { CubeLut } from './lut';
 
-let resolver: ((id: string) => CubeLut) | null = null;
+let resolver: ((id: string, size?: number) => CubeLut) | null = null;
 
-export function setLutResolver(f: (id: string) => CubeLut) {
+export function setLutResolver(f: (id: string, size?: number) => CubeLut) {
   resolver = f;
 }
 
-/** 라이브러리 LUT id → CubeLut. LUT 라이브러리 모듈을 먼저 불러와야 한다. */
-export function resolveLutRef(id: string): CubeLut {
+/** 라이브러리 LUT id → CubeLut. size를 주면 그 격자 크기로 (썸네일은 작게). LUT 라이브러리 모듈을 먼저 불러와야 한다. */
+export function resolveLutRef(id: string, size?: number): CubeLut {
   if (!resolver) throw new Error('LUT 라이브러리가 아직 준비되지 않았습니다.');
-  return resolver(id);
+  return resolver(id, size);
 }

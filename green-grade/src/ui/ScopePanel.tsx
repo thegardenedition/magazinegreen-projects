@@ -153,14 +153,40 @@ export function ScopePanel() {
   }, []);
 
   useEffect(() => {
+    const canvas = canvasRef.current!;
+    const create = () => {
+      rendererRef.current = new ScopeRenderer(canvas);
+      const img = useGrade.getState().image;
+      rendererRef.current.setImage(img?.proxy ?? null);
+    };
     try {
-      rendererRef.current = new ScopeRenderer(canvasRef.current!);
+      create();
     } catch (e) {
       setError((e as Error).message);
     }
-    return () => {
+    // 그래픽 메모리 부족으로 컨텍스트를 잃으면 복구를 요청하고, 돌아오면 다시 만든다
+    const onLost = (e: Event) => {
+      e.preventDefault();
       rendererRef.current = null;
     };
+    const onRestored = () => {
+      try {
+        create();
+        develop();
+        draw();
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+    return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+      rendererRef.current = null;
+    };
+    // develop·draw는 아래에서 정의되는 useCallback이라 첫 실행 뒤에만 쓰인다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

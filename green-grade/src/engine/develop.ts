@@ -70,9 +70,25 @@ export type DetailName =
 
 export type Detail = Record<DetailName, number>;
 
+/**
+ * 지우개로 메운 조각. 좌표는 원본 사진 픽셀(EXIF 회전 반영) 기준이라 크롭·회전을 바꿔도 따라간다.
+ * data는 pw×ph RGBA이고, 알파가 칠한 영역(가장자리 부드럽게)이다.
+ */
+export interface HealPatch {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  pw: number;
+  ph: number;
+  data: Uint8ClampedArray;
+}
+
 export interface Develop {
   geometry: Geometry;
   detail: Detail;
+  /** 지우개로 메운 조각들 (칠한 순서대로 덮는다) */
+  heal?: HealPatch[];
 }
 
 export interface DetailSpec {
