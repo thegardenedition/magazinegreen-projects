@@ -6,6 +6,7 @@ import { useGrade } from '../state/store';
 
 /** 미리보기 썸네일의 가로 크기 (px) */
 export const THUMB_W = 96;
+const THUMB_LUT_SIZE = 17;
 
 /**
  * 지금 사진의 작은 사본에 프리셋을 하나씩 적용한 썸네일 URL (프리셋 이름 → URL).
@@ -32,7 +33,8 @@ export function usePresetThumbs(presets: Preset[], enabled: boolean): Map<string
       for (let i = 0; i < presets.length && !cancelled; i++) {
         const r = getActiveRenderer();
         if (!r) break;
-        const px = r.renderFull(small, chainOfPreset(presets[i]), { dither: true });
+        // 썸네일은 96px이라 LUT도 17³이면 충분하다 (계산·GPU 업로드가 훨씬 가볍다)
+        const px = r.renderFull(small, chainOfPreset(presets[i], THUMB_LUT_SIZE), { dither: true });
         ctx.putImageData(new ImageData(px.pixels, px.width, px.height), 0, 0);
         const url = URL.createObjectURL(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 }));
         urls.push(url);

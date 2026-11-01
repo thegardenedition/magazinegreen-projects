@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { outputSize } from '../engine/develop';
-import { downloadBlob, exportFileName, exportJpeg, resizedSize } from '../engine/image';
+import { decodeFull, downloadBlob, exportFileName, exportJpeg, resizedSize } from '../engine/image';
 import { getActiveRenderer } from '../engine/renderer';
 import { currentUniforms, useGrade } from '../state/store';
 
@@ -59,12 +59,19 @@ export function ExportDialog() {
     // 진행률 표시가 먼저 그려지도록 한 프레임 양보
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     try {
-      const blob = await exportJpeg(renderer, image, currentUniforms(), {
-        quality: quality / 100,
-        develop: useGrade.getState().develop,
-        longEdge,
-        onProgress: setProgress,
-      });
+      // 원본 해상도는 내보낼 때만 디코딩하고 바로 놓아 준다
+      const full = await decodeFull(image.file);
+      let blob: Blob;
+      try {
+        blob = await exportJpeg(renderer, { ...image, full }, currentUniforms(), {
+          quality: quality / 100,
+          develop: useGrade.getState().develop,
+          longEdge,
+          onProgress: setProgress,
+        });
+      } finally {
+        full.close();
+      }
       downloadBlob(blob, exportFileName(image.name, 'jpg'));
       setOpen(false);
     } catch (e) {

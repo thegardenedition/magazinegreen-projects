@@ -6,6 +6,21 @@ export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** 화면 미리보기용 프록시의 긴 변 최대 길이 */
 export const PROXY_LONG_EDGE = 3072;
+/** 휴대폰·메모리가 작은 기기의 프록시 긴 변 (GPU 메모리가 약 2.3배 덜 든다) */
+export const PROXY_LONG_EDGE_SMALL = 2048;
+
+/** 이 기기에서 쓸 프록시 크기 */
+export function proxyLongEdge(): number {
+  if (typeof window === 'undefined') return PROXY_LONG_EDGE;
+  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches;
+  return coarse || (mem !== undefined && mem <= 4) ? PROXY_LONG_EDGE_SMALL : PROXY_LONG_EDGE;
+}
+
+/** 원본 해상도로 디코딩 (내보낼 때만, 쓰고 나면 close) */
+export function decodeFull(file: Blob): Promise<ImageBitmap> {
+  return createImageBitmap(file, { imageOrientation: 'from-image', premultiplyAlpha: 'none', colorSpaceConversion: 'default' });
+}
 /** 선명도·디헤이즈 기준을 만들 작은 사본의 긴 변 */
 export const BASE_SOURCE_LONG = 512;
 
@@ -13,8 +28,8 @@ export interface LoadedImage {
   name: string;
   width: number;
   height: number;
-  /** 원본 해상도. 내보낼 때만 GPU에 올린다. */
-  full: ImageBitmap;
+  /** 원본 파일. 원본 해상도 픽셀은 메모리에 들고 있지 않고 내보낼 때 다시 디코딩한다 (휴대폰 메모리). */
+  file: Blob;
   /** 미리보기용 축소본 */
   proxy: ImageBitmap;
   /** 선명도·디헤이즈 기준용 작은 사본 (CPU 픽셀) */
@@ -60,7 +75,7 @@ export async function loadImage(file: File): Promise<LoadedImage> {
     colorSpaceConversion: 'default',
   });
   const { width, height } = full;
-  const k = Math.min(1, PROXY_LONG_EDGE / Math.max(width, height));
+  const k = Math.min(1, proxyLongEdge() / Math.max(width, height));
   const proxy =
     k < 1
       ? await createImageBitmap(full, {
@@ -70,7 +85,8 @@ export async function loadImage(file: File): Promise<LoadedImage> {
           premultiplyAlpha: 'none',
         })
       : full;
-  return { name: file.name, width, height, full, proxy, baseSource: await makeBaseSource(proxy) };
+  if (proxy !== full) full.close();
+  return { name: file.name, width, height, file, proxy, baseSource: await makeBaseSource(proxy) };
 }
 
 export function exportFileName(original: string, ext: string) {
@@ -95,7 +111,7 @@ export function resizedSize(w: number, h: number, longEdge?: number | null): [nu
 
 export async function exportJpeg(
   renderer: Renderer,
-  image: Pick<LoadedImage, 'full' | 'width' | 'height' | 'baseSource'>,
+  image: Pick<LoadedImage, 'width' | 'height' | 'baseSource'> & { full: ImageBitmap },
   uniforms: GradeUniforms[],
   opts: ExportOptions,
 ): Promise<Blob> {

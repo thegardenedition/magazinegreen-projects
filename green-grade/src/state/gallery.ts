@@ -150,8 +150,7 @@ export async function openItem(id: string) {
     patchItem(id, { fullSize: [img.width, img.height] });
     useGallery.setState({ currentId: id });
     if (prev) {
-      prev.full.close();
-      if (prev.proxy !== prev.full) prev.proxy.close();
+      prev.proxy.close();
     }
     if (prevId) refreshThumb(prevId);
   } catch (e) {

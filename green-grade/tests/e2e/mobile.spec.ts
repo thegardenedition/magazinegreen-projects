@@ -104,3 +104,33 @@ test('가로로 돌리면 뷰어 왼쪽, 도구 오른쪽', async ({ page }) => 
   // 회전 뒤에도 사진이 화면에 맞춰진다
   await expect.poll(() => zoomPct(page)).toBeGreaterThan(30);
 });
+
+test('그래픽 메모리 부족으로 화면을 잃어도 복구되면 사진과 보정이 다시 보인다', async ({ page }) => {
+  await page.getByTestId('file-input').setInputFiles(GARDEN);
+  await expect.poll(() => zoomPct(page)).toBeGreaterThan(30);
+  const centerColor = async () => {
+    const box = (await page.getByTestId('viewer-canvas').boundingBox())!;
+    const shot = await page.screenshot({ clip: { x: box.x + box.width / 2 - 5, y: box.y + box.height * 0.3, width: 10, height: 10 } });
+    return page.evaluate(async (b64) => {
+      const bmp = await createImageBitmap(new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))]));
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0);
+      const d = ctx.getImageData(0, 0, bmp.width, bmp.height).data;
+      return [d[0], d[1], d[2]];
+    }, shot.toString('base64'));
+  };
+  const before = await centerColor();
+  // 하늘(파랑)이 보인다
+  expect(before[2]).toBeGreaterThan(before[0] + 30);
+
+  await page.evaluate(() => window.__GG__!.loseContext());
+  await expect(page.getByTestId('context-lost')).toBeVisible();
+  await page.evaluate(() => window.__GG__!.restoreContext());
+  await expect(page.getByTestId('context-lost')).toHaveCount(0);
+  await expect.poll(async () => (await centerColor())[2]).toBeGreaterThan(before[0] + 30);
+  // 복구 뒤에도 내보내기가 된다 (원본은 그때 다시 디코딩)
+  await page.getByTestId('export-open').tap();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-confirm').tap()]);
+  expect(await download.path()).toBeTruthy();
+});

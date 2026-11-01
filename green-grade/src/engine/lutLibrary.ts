@@ -862,4 +862,4 @@ export function buildLibraryLut(id: string, size?: number): CubeLut {
 }
 
 // 프리셋이 라이브러리 LUT를 id로 가리킬 수 있게 등록
-setLutResolver((id) => buildLibraryLut(id));
+setLutResolver((id, size) => buildLibraryLut(id, size));
