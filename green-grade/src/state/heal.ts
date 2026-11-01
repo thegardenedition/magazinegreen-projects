@@ -47,9 +47,18 @@ function runInpaint(rgba: Uint8ClampedArray, w: number, h: number, mask: Uint8Ar
     return Promise.resolve(inpaint(rgba, w, h, mask));
   }
   const wk = worker;
-  return new Promise((resolve, reject) => {
+  // 작업 스레드가 실패하면(모듈 워커 미지원·메모리 부족 등) 버리고 이 스레드에서 계산한다.
+  // 넘기기 전에 복사해 둬야 실패해도 다시 쓸 수 있다.
+  const rgbaCopy = new Uint8ClampedArray(rgba);
+  const maskCopy = new Uint8Array(mask);
+  return new Promise((resolve) => {
     wk.onmessage = (e) => resolve(e.data as Uint8ClampedArray);
-    wk.onerror = (e) => reject(new Error(e.message || '지우개 계산에 실패했습니다.'));
+    wk.onerror = (e) => {
+      e.preventDefault();
+      wk.terminate();
+      if (worker === wk) worker = null;
+      resolve(inpaint(rgbaCopy, w, h, maskCopy));
+    };
     wk.postMessage({ rgba, w, h, mask }, [rgba.buffer, mask.buffer]);
   });
 }
@@ -156,8 +165,16 @@ export function clearHeal() {
 let seq = 0;
 async function recompose(img: LoadedImage, patches: HealPatch[] | undefined) {
   const my = ++seq;
-  const proxy = await composeHeal(img.originalProxy, patches, img.width, img.height);
-  const baseSource = proxy === img.proxy ? img.baseSource : await makeBaseSource(proxy);
+  let proxy: ImageBitmap;
+  let baseSource: LoadedImage['baseSource'];
+  try {
+    proxy = await composeHeal(img.originalProxy, patches, img.width, img.height);
+    baseSource = proxy === img.proxy ? img.baseSource : await makeBaseSource(proxy);
+  } catch {
+    // 계산 도중 사진을 바꿔 축소본이 닫힌 경우 등: 지금 사진이 그대로면 다음 변경 때 다시 합성된다
+    if (my === seq && useGrade.getState().image?.file === img.file) useHeal.setState({ error: '지운 결과를 미리보기에 반영하지 못했습니다.' });
+    return;
+  }
   const cur = useGrade.getState().image;
   if (my !== seq || !cur || cur.file !== img.file) {
     if (proxy !== img.originalProxy) proxy.close();

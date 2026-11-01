@@ -27,7 +27,8 @@ export function HealOverlay({ view, dpr, toImage }: Props) {
   };
 
   const onDown = (e: React.PointerEvent) => {
-    if (busy) return;
+    // 두 번째 손가락은 무시한다 (한 획만 칠한다)
+    if (busy || !e.isPrimary) return;
     e.preventDefault();
     e.stopPropagation();
     const el = e.currentTarget as Element;
