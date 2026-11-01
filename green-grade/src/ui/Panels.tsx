@@ -2,6 +2,7 @@ import { maskState } from '../engine/mask';
 import { selectedNode, useGrade, type CorrectionTab } from '../state/store';
 import { CurvesPanel } from './CurvesPanel';
 import { DetailPanel } from './DetailPanel';
+import { HealPanel } from './HealPanel';
 import { MixerPanel } from './MixerPanel';
 import { QualifierPanel, WindowPanel } from './MaskPanels';
 import { PrimaryPanel } from './PrimaryPanel';
@@ -15,6 +16,7 @@ const CORRECTION_TABS: Array<{ id: CorrectionTab; label: string; phase: number }
   { id: 'window', label: 'Window', phase: 4 },
   { id: 'transform', label: '형태', phase: 4 },
   { id: 'detail', label: '디테일', phase: 4 },
+  { id: 'heal', label: '지우개', phase: 4 },
 ];
 
 /**
@@ -55,7 +57,7 @@ function MaskNotice() {
 }
 
 /** 노드가 아니라 사진 전체에 적용되는 탭 */
-const PHOTO_TABS: CorrectionTab[] = ['transform', 'detail'];
+const PHOTO_TABS: CorrectionTab[] = ['transform', 'detail', 'heal'];
 
 /** 지금 단계까지 구현된 탭 */
 const AVAILABLE_PHASE = 4;
@@ -116,6 +118,7 @@ export function CorrectionPanel() {
       {tab === 'window' && <WindowPanel />}
       {tab === 'transform' && <TransformPanel />}
       {tab === 'detail' && <DetailPanel />}
+      {tab === 'heal' && <HealPanel />}
     </section>
   );
 }

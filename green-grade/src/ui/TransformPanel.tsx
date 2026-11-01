@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { autoStraighten, MIN_CONFIDENCE } from '../engine/autoLevel';
 import { ASPECTS, outputSize, type Rotation } from '../engine/develop';
 import { useGrade } from '../state/store';
 import { RangeControl } from './RangeControl';
@@ -11,6 +13,7 @@ export function TransformPanel() {
   const setTool = useGrade((s) => s.setViewerTool);
   const rotate = (deg: 90 | 270) => setGeometry({ rotate: ((g.rotate + deg) % 360) as Rotation });
   const size = image ? outputSize(g, image.width, image.height) : null;
+  const [note, setNote] = useState<string | null>(null);
 
   return (
     <div className="primary develop-panel">
@@ -74,7 +77,29 @@ export function TransformPanel() {
         >
           기준선 긋기
         </button>
-        <span className="muted small">지평선·처마선·기둥을 따라 끌면 자동으로 수평을 맞춥니다.</span>
+        <button
+          className="btn"
+          onClick={() => {
+            const s = useGrade.getState();
+            const img = s.image;
+            if (!img) return;
+            const r = autoStraighten(img.baseSource, s.develop.geometry, img.width, img.height);
+            if (r.confidence < MIN_CONFIDENCE) {
+              setNote('뚜렷한 수평·수직선을 찾지 못했습니다. 기준선 긋기로 맞춰 주세요.');
+              return;
+            }
+            setGeometry({ straighten: r.straighten });
+            setNote(`수평 ${r.straighten > 0 ? '+' : ''}${r.straighten.toFixed(1)}° 맞춤`);
+          }}
+          disabled={!image}
+          title="사진 속 지평선·처마선·기둥을 찾아 수평을 맞춥니다"
+          data-testid="auto-level"
+        >
+          자동 수평
+        </button>
+        <span className="muted small" data-testid="level-note">
+          {note ?? '지평선·처마선·기둥을 따라 끌면(기준선 긋기) 그 선이 수평이 됩니다.'}
+        </span>
       </div>
       <div className="develop-row">
         <span className="scalar-label">크롭 비율</span>

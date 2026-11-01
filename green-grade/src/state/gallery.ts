@@ -6,6 +6,7 @@ import { defaultDevelop, type Detail, type Develop, type PixelSource } from '../
 import { ACCEPTED_TYPES, developInput, exportFileName, exportJpeg, loadImage, makeBaseSource } from '../engine/image';
 import type { Preset, PresetNode } from '../engine/presets';
 import { getActiveRenderer } from '../engine/renderer';
+import { composeHeal } from './heal';
 import { buildZip, uniqueNames, type ZipEntry } from '../engine/zip';
 import {
   applyPresetToGrade,
@@ -79,8 +80,12 @@ export async function refreshThumb(id: string) {
   const r = getActiveRenderer();
   if (!it || !r) return;
   const [fw, fh] = it.fullSize;
-  const develop = developInput(developOf(it), it.thumbSource, fw, fh, it.thumb.width);
-  const px = r.renderFull(it.thumb, currentUniforms({ nodes: nodesOf(it) }), { dither: true, develop });
+  const dev = developOf(it);
+  const develop = developInput(dev, it.thumbSource, fw, fh, it.thumb.width);
+  // 지우개 조각도 썸네일에 덮는다
+  const src = await composeHeal(it.thumb, dev.heal, fw, fh);
+  const px = r.renderFull(src, currentUniforms({ nodes: nodesOf(it) }), { dither: true, develop });
+  if (src !== it.thumb) src.close();
   const c = new OffscreenCanvas(px.width, px.height);
   c.getContext('2d')!.putImageData(new ImageData(px.pixels, px.width, px.height), 0, 0);
   const url = URL.createObjectURL(await c.convertToBlob({ type: 'image/jpeg', quality: 0.85 }));
@@ -150,7 +155,8 @@ export async function openItem(id: string) {
     patchItem(id, { fullSize: [img.width, img.height] });
     useGallery.setState({ currentId: id });
     if (prev) {
-      prev.proxy.close();
+      if (prev.proxy !== prev.originalProxy) prev.proxy.close();
+      prev.originalProxy.close();
     }
     if (prevId) refreshThumb(prevId);
   } catch (e) {
@@ -263,11 +269,13 @@ export async function exportBatch(
     const it = items[i];
     onProgress(i, items.length, it.name);
     await new Promise((res) => setTimeout(res, 0));
-    const full = await createImageBitmap(it.file, {
+    const decoded = await createImageBitmap(it.file, {
       imageOrientation: 'from-image',
       premultiplyAlpha: 'none',
       colorSpaceConversion: 'default',
     });
+    // 지우개 조각을 덮는다
+    const full = await composeHeal(decoded, developOf(it).heal, decoded.width, decoded.height);
     try {
       const baseSource = await makeBaseSource(full);
       const blob = await exportJpeg(r, { full, width: full.width, height: full.height, baseSource }, currentUniforms({ nodes: nodesOf(it) }), {
@@ -277,7 +285,8 @@ export async function exportBatch(
       });
       entries.push({ name: names[i], data: new Uint8Array(await blob.arrayBuffer()) });
     } finally {
-      full.close();
+      if (full !== decoded) full.close();
+      decoded.close();
     }
   }
   onProgress(items.length, items.length, '');

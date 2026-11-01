@@ -8,6 +8,7 @@ import { IDENTITY_MATRIX, Renderer, setActiveRenderer, type ViewState } from '..
 import { displayInfo, previewInput } from '../state/display';
 import { currentUniforms, selectedNode, useGrade } from '../state/store';
 import { CropOverlay } from './CropOverlay';
+import { HealOverlay } from './HealOverlay';
 import { pickQualifier } from './picker';
 import { MOBILE_QUERY } from './useMedia';
 import { WindowOverlay } from './WindowOverlay';
@@ -279,13 +280,18 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
     return () => ro.disconnect();
   }, [draw, fit]);
 
-  // 새 이미지 → 프록시 텍스처 교체 후 화면 맞춤
+  // 축소본이 바뀌면(새 사진, 지우개) 텍스처를 바꾼다
+  const proxy = image?.proxy ?? null;
+  const file = image?.file ?? null;
   useEffect(() => {
-    rendererRef.current?.setPreview(image?.proxy ?? null);
+    rendererRef.current?.setPreview(proxy);
     devDirty.current = true;
-    if (image) fit();
-    else draw();
-  }, [image, fit, draw]);
+    draw();
+  }, [proxy, draw]);
+  // 사진 자체가 바뀔 때만 화면에 맞춘다 (지우개로 축소본만 바뀌면 보던 확대 상태를 지킨다)
+  useEffect(() => {
+    if (file) fit();
+  }, [file, fit]);
 
   useEffect(() => {
     if (dispKey) fit();
@@ -341,7 +347,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (!image || e.button !== 0) return;
     const s = useGrade.getState();
-    if (s.viewerTool !== 'none' && s.viewerTool !== 'level') {
+    if (s.viewerTool !== 'none' && s.viewerTool !== 'level' && s.viewerTool !== 'heal') {
       const p = toImage(e.clientX, e.clientY);
       if (p.x < 0 || p.y < 0 || p.x > 1 || p.y > 1) return;
       if (s.viewerTool === 'pen') {
@@ -439,6 +445,7 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
           toImage={toImage}
         />
       )}
+      {image && disp && tool === 'heal' && <HealOverlay view={view} dpr={window.devicePixelRatio || 1} toImage={toImage} />}
       {image && disp && transformView && (
         <CropOverlay view={view} dpr={window.devicePixelRatio || 1} frameWidth={disp.width} frameHeight={disp.height} toImage={toImage} />
       )}
@@ -476,6 +483,8 @@ export function Viewer({ onOpen }: { onOpen: () => void }) {
             ? '클릭해 점 추가 · 점 더블클릭으로 삭제'
             : tool === 'level'
               ? '수평(또는 수직)이어야 할 선을 따라 끌기'
+              : tool === 'heal'
+                ? '지울 곳을 덮어 칠하기 · 손을 떼면 메웁니다'
               : tool === 'pick'
                 ? '고를 색을 클릭'
                 : '더할 색을 클릭'}

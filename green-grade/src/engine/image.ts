@@ -32,6 +32,8 @@ export interface LoadedImage {
   file: Blob;
   /** 미리보기용 축소본 */
   proxy: ImageBitmap;
+  /** 지우개를 덮기 전 원래 축소본 (지우개 조각이 바뀔 때마다 여기서 다시 합성한다) */
+  originalProxy: ImageBitmap;
   /** 선명도·디헤이즈 기준용 작은 사본 (CPU 픽셀) */
   baseSource: PixelSource;
 }
@@ -86,7 +88,7 @@ export async function loadImage(file: File): Promise<LoadedImage> {
         })
       : full;
   if (proxy !== full) full.close();
-  return { name: file.name, width, height, file, proxy, baseSource: await makeBaseSource(proxy) };
+  return { name: file.name, width, height, file, proxy, originalProxy: proxy, baseSource: await makeBaseSource(proxy) };
 }
 
 export function exportFileName(original: string, ext: string) {

@@ -53,7 +53,9 @@ export function usePresetThumbs(presets: Preset[], enabled: boolean): Map<string
       // 다음 썸네일이 그려진 뒤 이전 URL을 정리한다
       setTimeout(() => urls.forEach((u) => URL.revokeObjectURL(u)), 2000);
     };
-  }, [image, enabled, presets]);
+    // 사진이 바뀔 때만 (지우개로 축소본이 바뀔 때마다 135개를 다시 만들지 않는다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image?.file, enabled, presets]);
 
   return image ? thumbs : new Map();
 }
