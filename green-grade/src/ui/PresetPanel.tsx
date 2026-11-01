@@ -14,6 +14,7 @@ import {
   type Preset,
 } from '../engine/presets';
 import { BUILTIN_PRESETS } from '../engine/presetLibrary';
+import { applyPresetToItems, useGallery } from '../state/gallery';
 import { applyPresetToGrade, currentPreset, currentUniforms, selectedNode, useGrade } from '../state/store';
 import { LibraryList, type LibraryItem } from './LibraryList';
 import { usePresetThumbs } from './usePresetThumbs';
@@ -32,7 +33,16 @@ const LUT_ITEMS: LibraryItem[] = LUT_LIBRARY.map((l) => ({
   category: l.category,
 }));
 
-const applyPreset = applyPresetToGrade;
+/** 프리셋 적용. 일괄 모드면 지금 사진과 필름스트립에서 고른 사진 모두에 */
+function applyPreset(p: Preset, batch = false): number {
+  const { selected, currentId } = useGallery.getState();
+  if (batch && selected.length) {
+    const ids = [...new Set([...(currentId ? [currentId] : []), ...selected])];
+    return applyPresetToItems(p, ids);
+  }
+  applyPresetToGrade(p);
+  return 1;
+}
 
 const safeFileName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'preset';
 
@@ -45,6 +55,9 @@ export function PresetPanel() {
   const presetFile = useRef<HTMLInputElement>(null);
   const lutFile = useRef<HTMLInputElement>(null);
   const node = useGrade((s) => selectedNode(s));
+  const [batch, setBatch] = useState(false);
+  const galleryCount = useGallery((s) => s.items.length);
+  const selectedCount = useGallery((s) => s.selected.length);
   const setLut = useGrade((s) => s.setLut);
   const setLutIntensity = useGrade((s) => s.setLutIntensity);
 
@@ -106,13 +119,21 @@ export function PresetPanel() {
 
       {tab === 'presets' ? (
         <div className="preset-body">
+          {galleryCount > 1 && (
+            <label className="check batch-apply" title="필름스트립에서 체크한 사진들에도 같은 프리셋을 한 번에 적용">
+              <input type="checkbox" checked={batch} onChange={(e) => setBatch(e.target.checked)} data-testid="preset-batch" />
+              선택한 사진에도 적용 {selectedCount ? `(${selectedCount}장)` : '(필름스트립에서 사진을 체크하세요)'}
+            </label>
+          )}
           <LibraryList
             items={presetItems}
             categories={PRESET_CATEGORIES}
             onPick={(key) => {
               const p = BUILTIN_PRESETS.find((x) => x.name === key)!;
-              applyPreset(p);
-              setMessage({ text: `'${p.name}' 적용 (노드 ${p.nodes.length}개) — 되돌리기로 취소` });
+              const n = applyPreset(p, batch);
+              setMessage({
+                text: n > 1 ? `'${p.name}' → ${n}장에 적용` : `'${p.name}' 적용 (노드 ${p.nodes.length}개) — 되돌리기로 취소`,
+              });
             }}
             testId="builtin-presets"
             placeholder={`프리셋 ${BUILTIN_PRESETS.length}종 검색`}
@@ -122,7 +143,7 @@ export function PresetPanel() {
           <ul className="preset-list" data-testid="user-presets">
             {user.map((p) => (
               <li key={p.name} className="preset-user">
-                <button className="preset-item" onClick={() => applyPreset(p)}>
+                <button className="preset-item" onClick={() => applyPreset(p, batch)}>
                   <span>{p.name}</span>
                   <span className="muted small">노드 {p.nodes.length}개</span>
                 </button>

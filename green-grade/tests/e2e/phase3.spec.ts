@@ -199,7 +199,8 @@ test('내 프리셋 저장은 새로고침 후에도 남고, JSON 내보내기·
   expect(await nodeNames(page)).toEqual(['Primary']);
 
   await page.getByTestId('preset-file').setInputFiles(saved);
-  expect(await nodeNames(page)).toEqual(['Primary', '노드 1']);
+  // 파일을 비동기로 읽어 적용하므로 노드가 바뀔 때까지 기다린다
+  await expect.poll(() => nodeNames(page)).toEqual(['Primary', '노드 1']);
   await expect(page.getByTestId('node').nth(1)).toContainText('LUT Invert · 30%');
   await page.getByTestId('node').first().click();
   await expect(page.getByLabel('Gain master')).toHaveValue('1.250');

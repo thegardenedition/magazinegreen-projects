@@ -36,6 +36,7 @@ import {
   type Rect,
 } from '../engine/develop';
 import type { LoadedImage } from '../engine/image';
+import { resolveLutRef } from '../engine/lutRegistry';
 import type { CubeLut } from '../engine/lut';
 import type { Preset } from '../engine/presets';
 import {
@@ -370,7 +371,8 @@ export function currentUniforms(s: Pick<Grade, 'nodes'> = useGrade.getState()): 
 // ── 프리셋 ↔ 노드 ──
 
 export function presetToNodes(p: Preset): GradeNode[] {
-  return p.nodes.map((n) => ({ ...n, id: newNodeId() }));
+  // 라이브러리 LUT를 이름으로 가리키는 노드는 여기서 LUT를 만든다
+  return p.nodes.map(({ lutRef, ...n }) => ({ ...n, lut: n.lut ?? (lutRef ? resolveLutRef(lutRef) : null), id: newNodeId() }));
 }
 
 export function currentPreset(name: string, s: Pick<Grade, 'nodes'> & Partial<Pick<Grade, 'develop'>> = useGrade.getState()): Preset {

@@ -1,25 +1,30 @@
-// 기본 제공 LUT 라이브러리 (6개 분류, 110종). 파일로 들고 있지 않고 쓸 때 함수로 계산해 만든다.
+// 기본 제공 LUT 라이브러리 (8개 분류, 145종). 파일로 들고 있지 않고 쓸 때 함수로 계산해 만든다.
 // 구성은 DaVinci Resolve에 딸린 LUT 폴더(카메라 제조사별, VFX IO, Film Looks)를 따랐지만,
 // 그 파일을 옮긴 것이 아니라 공개된 수식(제조사 백서·표준 문서)으로 직접 만든다.
 // - 유틸리티 7: 항등, 반전, 흑백, 폴스 컬러, 비디오↔풀 레벨
 // - VFX IO 15: 선형·sRGB·Rec.709·감마·Cineon·로그 사이의 1차원 변환
+// - 로그로 변환 19: sRGB 사진 → 카메라 로그·색역 (카메라 로그 LUT의 역변환, 평탄화)
 // - 카메라 로그 41: 19개 로그 곡선 + 색역 원색 → sRGB (클리핑 / 부드러운 하이라이트) + Sony 스타일 3
+// - 프로 룩 16: ARRI LogC3 입력의 크리에이티브 룩 (필름 곡선, 색상별 조정, 스플릿 톤)
 // - 필름 룩 6: 프린트 필름 2종 × 흰색 D55·D60·D65 (스타일 근사)
 // - 룩 16: 필름·시네마 룩 (sRGB 코드값 → sRGB 코드값)
 // - 정원 25: 정원 프리셋을 LUT로 구운 것
 
 import { linearToSrgb, LUMA, srgbToLinear, type Vec3 } from './color';
 import { buildLut, type CubeLut } from './lut';
+import { setLutResolver } from './lutRegistry';
 import { bakeGradeLutSync } from './lutExport';
 import { BUILTIN_PRESETS } from './presetLibrary';
 import { chainOfPreset } from './presetChain';
 
-export type LutCategory = 'utility' | 'vfx' | 'camera' | 'film' | 'look' | 'garden';
+export type LutCategory = 'utility' | 'vfx' | 'tolog' | 'camera' | 'pro' | 'film' | 'look' | 'garden';
 
 export const LUT_CATEGORIES: Array<[LutCategory, string]> = [
   ['utility', '유틸리티'],
   ['vfx', 'VFX IO'],
+  ['tolog', '로그로 변환'],
   ['camera', '카메라 로그'],
+  ['pro', '프로 룩'],
   ['film', '필름 룩'],
   ['look', '룩'],
   ['garden', '정원'],
@@ -499,6 +504,259 @@ function filmLut(stock: PrintStock, [wName, w]: [string, XY]): LibraryLut {
 
 const FILM_LOOKS: LibraryLut[] = STOCKS.flatMap((st) => WHITES.map((w) => filmLut(st, w)));
 
+// ── 로그로 변환 (sRGB 사진 → 카메라 로그·색역) ──
+// D-Log·S-Log3처럼 대비와 채도를 뺀 평탄한 상태로 만든다. 카메라 로그 LUT의 정확한 역변환이므로,
+// 그 로그용으로 만든 상용 LUT(예: D-Log → Rec.709 룩)를 사진에 그대로 쓸 수 있다.
+
+/**
+ * 단조 증가하는 로그 복원식의 역: 장면 선형 → 코드값.
+ * 코드값 8192칸에서 복원식을 미리 계산해 두고, 표에서 이분 탐색 + 선형 보간으로 찾는다 (65³ LUT도 빠르게).
+ */
+export function logEncoder(decode: (x: number) => number): (lin: number) => number {
+  const N = 8192;
+  const table = new Float64Array(N + 1);
+  for (let i = 0; i <= N; i++) table[i] = decode(i / N);
+  return (lin: number) => {
+    if (lin <= table[0]) return 0;
+    if (lin >= table[N]) return 1;
+    let lo = 0;
+    let hi = N;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (table[mid] < lin) lo = mid;
+      else hi = mid;
+    }
+    const t = (lin - table[lo]) / (table[hi] - table[lo] || 1);
+    return (lo + t) / N;
+  };
+}
+
+function toLogLut(cam: CameraSpec): LibraryLut {
+  const m = inverse(gamutToRec709(...cam.primaries));
+  const encode = logEncoder(LOG_CURVES[cam.curve]);
+  return {
+    id: `tolog-${cam.id}`,
+    name: `sRGB → ${cam.name}`,
+    category: 'tolog',
+    size: 65,
+    description: `사진을 ${cam.name}로 바꿔 대비·채도를 뺀 평탄한 상태로 만든다. 다음 노드에 이 로그용 LUT(라이브러리의 '${cam.name} → sRGB'나 갖고 있는 상용 LUT)를 둔다.`,
+    build: (size) =>
+      buildLut(size, `sRGB to ${cam.name}`, (r, g, b) => {
+        const lin = apply3(m, [srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)]);
+        return lin.map((v) => encode(Math.max(0, v))) as Vec3;
+      }),
+  };
+}
+
+// ── 프로 룩 (ARRI LogC3 / AWG3 입력 → sRGB) ──
+// 로그 상태에서 색을 입히는 크리에이티브 LUT. 장면 선형에서 색을 만들고, 필름처럼 하이라이트를 부드럽게 눌러
+// 흰색이 잘리지 않게 표시한다. 'sRGB → ARRI LogC3' 다음 노드에 둔다 (프리셋 '프로 워크플로'가 그렇게 묶는다).
+
+interface ProLook {
+  id: string;
+  name: string;
+  description: string;
+  /** 노출(스톱), 18% 회색 기준 대비 */
+  exposure?: number;
+  contrast?: number;
+  /** 화이트밸런스 채널 곱 (선형) */
+  wb?: Vec3;
+  /** 선형 채도, 하이라이트로 갈수록 빠지는 채도 */
+  sat?: number;
+  highDesat?: number;
+  /** 염료 간섭 같은 채널 혼합 (행 합 1) */
+  crosstalk?: number[][];
+  /** 색상별 조정: 색상축 위치, 회전(도), 채도 배율 */
+  hues?: Array<{ h: number; shift: number; sat: number; width?: number }>;
+  /** 그림자·하이라이트 색 (표시 공간), 양 */
+  shadow?: Vec3;
+  high?: Vec3;
+  split?: number;
+  /** 블랙 레벨 (표시 공간) */
+  black?: number;
+  /** 흑백 (채널 비율) */
+  mono?: Vec3;
+}
+
+/** 18% 회색은 그대로 두고, 그 위를 필름처럼 부드럽게 1로 수렴시키는 표시 곡선 */
+const filmic = (x: number, contrast: number) => {
+  const t = Math.max(x, 1e-6) / 0.18;
+  const y = 0.18 * Math.pow(t, contrast);
+  return softShoulder(y);
+};
+
+/** Y'CbCr 색상축(0–1, 빨강 0) 기준의 색상 위치 */
+function hueAxis(c: Vec3): { h: number; y: number; cb: number; cr: number } {
+  const y = luma(c);
+  const cb = (c[2] - y) / 1.8556;
+  const cr = (c[0] - y) / 1.5748;
+  const RED = Math.atan2((1 - LUMA[0]) / 1.5748, -LUMA[0] / 1.8556);
+  let h = (Math.atan2(cr, cb) - RED) / (2 * Math.PI);
+  h -= Math.floor(h);
+  return { h, y, cb, cr };
+}
+
+function applyHues(c: Vec3, hues: NonNullable<ProLook['hues']>): Vec3 {
+  const { h, y, cb, cr } = hueAxis(c);
+  let ang = 0;
+  let k = 1;
+  for (const q of hues) {
+    let d = Math.abs(h - q.h);
+    d = Math.min(d, 1 - d);
+    const w = Math.exp(-(d * d) / (2 * (q.width ?? 0.06) ** 2));
+    ang += ((q.shift * Math.PI) / 180) * w;
+    k *= 1 + (q.sat - 1) * w;
+  }
+  const ca = Math.cos(ang);
+  const sa = Math.sin(ang);
+  const cb2 = (cb * ca - cr * sa) * k;
+  const cr2 = (cb * sa + cr * ca) * k;
+  const r = y + 1.5748 * cr2;
+  const b = y + 1.8556 * cb2;
+  return [r, (y - LUMA[0] * r - LUMA[2] * b) / LUMA[1], b];
+}
+
+const AWG3: [XY, XY, XY] = [[0.684, 0.313], [0.221, 0.848], [0.0861, -0.102]];
+
+function proLut(look: ProLook): LibraryLut {
+  const m = gamutToRec709(...AWG3);
+  return {
+    id: `pro-${look.id}`,
+    name: `${look.name} (LogC3)`,
+    category: 'pro',
+    description: `${look.description}. ARRI LogC3 입력 → sRGB. 'sRGB → ARRI LogC3' 다음 노드에 둔다 (프리셋 '프로 워크플로').`,
+    build: (size) =>
+      buildLut(size, `${look.name} LogC3 to sRGB`, (r, g, b) => {
+        // 1) 로그 → 장면 선형 (Rec.709 원색)
+        let c = apply3(m, [LOG_CURVES.logc3(r), LOG_CURVES.logc3(g), LOG_CURVES.logc3(b)]).map((v) => Math.max(0, v)) as Vec3;
+        // 2) 노출·화이트밸런스·채널 간섭·채도 (선형)
+        const ex = 2 ** (look.exposure ?? 0);
+        c = per(c, (v, i) => v * ex * (look.wb?.[i] ?? 1));
+        if (look.crosstalk) c = apply3(look.crosstalk, c).map((v) => Math.max(0, v)) as Vec3;
+        if (look.mono) {
+          const y = look.mono[0] * c[0] + look.mono[1] * c[1] + look.mono[2] * c[2];
+          c = [y, y, y];
+        } else {
+          c = sat(c, look.sat ?? 1);
+          if (look.hues) c = applyHues(c, look.hues).map((v) => Math.max(0, v)) as Vec3;
+        }
+        // 3) 채널마다 필름 곡선 (하이라이트가 자연스럽게 채도를 잃는다)
+        let d = per(c, (v) => filmic(v, look.contrast ?? 1));
+        // 4) 표시 공간: 하이라이트 채도 억제, 스플릿 톤, 블랙 레벨
+        let s = per(d, (v) => linearToSrgb(clamp01(v)));
+        if (look.highDesat) s = sat(s, 1 - look.highDesat * luma(s));
+        if (look.split) s = splitTone(s, look.shadow ?? [0.5, 0.5, 0.5], look.high ?? [0.5, 0.5, 0.5], look.split);
+        const k = look.black ?? 0;
+        d = per(s, (v) => k + (1 - k) * v);
+        return clampRgb(d);
+      }),
+  };
+}
+
+const HUE_SKIN = 0.07;
+const HUE_GREEN = 0.3;
+const HUE_SKYBLUE = 0.61;
+const HUE_RED_AXIS = 0;
+
+const PRO_LOOKS: ProLook[] = [
+  { id: 'cine-standard', name: '시네마 표준', description: '부드러운 하이라이트와 자연스러운 피부의 기본 영화 톤', contrast: 1.05, sat: 1.0, highDesat: 0.12 },
+  {
+    id: 'portrait-neg',
+    name: '인물 네거티브',
+    description: '고운 피부, 따뜻한 하이라이트, 낮은 대비의 인물용 컬러 네거티브 톤',
+    contrast: 0.92,
+    wb: [1.03, 1, 0.96],
+    sat: 0.92,
+    hues: [{ h: HUE_SKIN, shift: -2, sat: 0.92 }, { h: HUE_GREEN, shift: -6, sat: 0.85 }],
+    shadow: [0.4, 0.55, 0.55],
+    high: [1, 0.85, 0.7],
+    split: 0.04,
+    black: 0.02,
+  },
+  {
+    id: 'landscape-neg',
+    name: '풍경 네거티브',
+    description: '깊은 녹색과 맑은 하늘, 단단한 중간톤의 풍경용 톤',
+    contrast: 1.08,
+    sat: 1.08,
+    hues: [{ h: HUE_GREEN, shift: 4, sat: 1.05 }, { h: HUE_SKYBLUE, shift: 3, sat: 1.1 }],
+    highDesat: 0.1,
+  },
+  {
+    id: 'doc-chrome',
+    name: '다큐 크롬',
+    description: '가라앉은 채도, 단단한 그림자, 청록빛 파랑, 차분한 빨강의 다큐멘터리 톤',
+    contrast: 1.12,
+    sat: 0.78,
+    hues: [{ h: HUE_RED_AXIS, shift: 4, sat: 0.85 }, { h: HUE_SKYBLUE, shift: -6, sat: 0.9 }, { h: HUE_GREEN, shift: -4, sat: 0.85 }],
+    shadow: [0.35, 0.5, 0.55],
+    split: 0.03,
+  },
+  { id: 'reversal', name: '리버설 슬라이드', description: '깊은 대비와 맑고 진한 색, 차가운 하이라이트', contrast: 1.2, sat: 1.15, high: [0.85, 0.95, 1], shadow: [0.5, 0.5, 0.5], split: 0.03, highDesat: 0.05 },
+  {
+    id: 'tungsten-night',
+    name: '텅스텐 나이트',
+    description: '푸른 밤공기와 따뜻한 조명, 필름 같은 그림자 (텅스텐 필름 느낌)',
+    contrast: 1.06,
+    wb: [0.92, 0.98, 1.1],
+    sat: 0.95,
+    hues: [{ h: 0.1, shift: -4, sat: 1.1 }],
+    shadow: [0.2, 0.45, 0.6],
+    high: [1, 0.75, 0.5],
+    split: 0.06,
+  },
+  { id: 'bleach', name: '블리치 시네마', description: '은을 남긴 듯 낮은 채도와 강한 대비, 금속성 하이라이트', contrast: 1.25, sat: 0.55, highDesat: 0.2, black: 0.005 },
+  {
+    id: 'teal-orange',
+    name: '틸 & 오렌지 프로',
+    description: '피부는 주황, 나머지 색과 그림자는 청록으로 가르는 보색 대비',
+    contrast: 1.1,
+    hues: [{ h: HUE_SKIN, shift: 4, sat: 1.1, width: 0.05 }, { h: HUE_GREEN, shift: 22, sat: 0.85, width: 0.1 }, { h: HUE_SKYBLUE, shift: -10, sat: 1.05 }],
+    shadow: [0.1, 0.55, 0.62],
+    high: [1, 0.62, 0.3],
+    split: 0.08,
+  },
+  { id: 'wedding-airy', name: '웨딩 에어리', description: '밝고 가벼운 공기, 들린 그림자, 파스텔 하이라이트', exposure: 0.35, contrast: 0.85, sat: 0.85, high: [1, 0.92, 0.88], shadow: [0.55, 0.5, 0.48], split: 0.04, black: 0.04, highDesat: 0.15 },
+  {
+    id: 'drama-soft',
+    name: '드라마 소프트',
+    description: '깨끗한 피부와 부드러운 대비, 살짝 차가운 그림자의 드라마 톤',
+    contrast: 0.95,
+    sat: 0.95,
+    hues: [{ h: HUE_SKIN, shift: -1, sat: 0.95 }],
+    shadow: [0.4, 0.5, 0.6],
+    high: [1, 0.95, 0.9],
+    split: 0.03,
+    black: 0.015,
+  },
+  { id: 'editorial', name: '매거진 에디토리얼', description: '중립적이고 풍부한 색, 살짝 따뜻한 깔끔한 지면용 톤', contrast: 1.04, wb: [1.02, 1, 0.98], sat: 1.02, highDesat: 0.08 },
+  {
+    id: 'moody-forest',
+    name: '무디 포레스트',
+    description: '녹색을 올리브로 가라앉히고 그림자를 깊게 (어두운 숲·정원)',
+    exposure: -0.25,
+    contrast: 1.1,
+    sat: 0.85,
+    hues: [{ h: HUE_GREEN, shift: -14, sat: 0.7, width: 0.09 }, { h: 0.2, shift: -6, sat: 0.8 }],
+    shadow: [0.3, 0.45, 0.42],
+    split: 0.04,
+  },
+  {
+    id: 'garden-golden',
+    name: '가든 골든',
+    description: '햇빛 머금은 노란 녹색과 따뜻하게 번지는 하이라이트',
+    contrast: 1.0,
+    wb: [1.05, 1, 0.92],
+    hues: [{ h: HUE_GREEN, shift: -8, sat: 1.05 }, { h: 0.12, shift: 0, sat: 1.1 }],
+    high: [1, 0.8, 0.5],
+    shadow: [0.5, 0.5, 0.5],
+    split: 0.05,
+  },
+  { id: 'nordic-matte', name: '노르딕 매트', description: '차갑고 절제된 색과 들린 블랙의 무광 톤', contrast: 0.95, wb: [0.97, 1, 1.04], sat: 0.7, black: 0.05, highDesat: 0.1 },
+  { id: 'vintage-print', name: '빈티지 프린트', description: '바랜 블랙과 따뜻한 크림색, 낮은 채도', contrast: 0.9, wb: [1.05, 1, 0.9], sat: 0.75, high: [1, 0.9, 0.7], shadow: [0.55, 0.45, 0.35], split: 0.05, black: 0.06 },
+  { id: 'silver-bw', name: '실버 흑백', description: '녹색 필터 흑백에 필름 곡선의 깊은 계조', contrast: 1.12, mono: [0.25, 0.65, 0.1] },
+];
+
 // ── 유틸리티 ──
 
 const UTILITIES: LibraryLut[] = [
@@ -575,7 +833,9 @@ const GARDEN_LUTS: LibraryLut[] = BUILTIN_PRESETS.filter((p) => p.category === '
 export const LUT_LIBRARY: LibraryLut[] = [
   ...UTILITIES,
   ...VFX,
+  ...CAMERAS.map(toLogLut),
   ...CAMERAS.flatMap((c) => [cameraLut(c, false), cameraLut(c, true)]),
+  ...PRO_LOOKS.map(proLut),
   ...SONY_STYLES,
   ...FILM_LOOKS,
   ...LOOKS,
@@ -600,3 +860,6 @@ export function buildLibraryLut(id: string, size?: number): CubeLut {
   }
   return l;
 }
+
+// 프리셋이 라이브러리 LUT를 id로 가리킬 수 있게 등록
+setLutResolver((id) => buildLibraryLut(id));

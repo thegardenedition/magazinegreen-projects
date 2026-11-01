@@ -28,15 +28,15 @@ const lum01 = (c: Vec3) => LUMA[0] * srgbToLinear(c[0]) + LUMA[1] * srgbToLinear
 const lumOf = (c: Vec3) => lum01(c.map((v) => v / 255) as Vec3);
 
 describe('라이브러리 구성', () => {
-  it('110종: 유틸리티 7 · VFX IO 15 · 카메라 로그 41 · 필름 룩 6 · 룩 16 · 정원 25', () => {
-    expect(LUT_LIBRARY).toHaveLength(110);
+  it('145종: 유틸리티 7 · VFX IO 15 · 로그로 변환 19 · 카메라 로그 41 · 프로 룩 16 · 필름 룩 6 · 룩 16 · 정원 25', () => {
+    expect(LUT_LIBRARY).toHaveLength(145);
     const count = (c: string) => LUT_LIBRARY.filter((l) => l.category === c).length;
-    expect(LUT_CATEGORIES.map(([c]) => count(c))).toEqual([7, 15, 41, 6, 16, 25]);
+    expect(LUT_CATEGORIES.map(([c]) => count(c))).toEqual([7, 15, 19, 41, 16, 6, 16, 25]);
   });
 
   it('id·이름이 겹치지 않고 설명이 있다', () => {
-    expect(new Set(LUT_LIBRARY.map((l) => l.id)).size).toBe(110);
-    expect(new Set(LUT_LIBRARY.map((l) => l.name)).size).toBe(110);
+    expect(new Set(LUT_LIBRARY.map((l) => l.id)).size).toBe(145);
+    expect(new Set(LUT_LIBRARY.map((l) => l.name)).size).toBe(145);
     for (const l of LUT_LIBRARY) expect(l.description, l.id).toBeTruthy();
   });
 });
@@ -161,6 +161,25 @@ describe('카메라 로그', () => {
       expect(Math.max(...o) - Math.min(...o)).toBeLessThanOrEqual(1);
     },
   );
+});
+
+describe('로그로 변환', () => {
+  it.each(['dji', 'sony', 'arri', 'panasonic', 'apple', 'canon', 'fujifilm-flog2', 'red', 'bmd-gen5'])(
+    '%s: sRGB → 로그 → (같은 카메라의 로그 → sRGB) 는 원본과 2 LSB 이내',
+    (cam) => {
+      for (const c of [[118, 118, 118], [30, 30, 30], [220, 220, 220], [90, 140, 70], [200, 150, 120], [60, 90, 160]] as Vec3[]) {
+        const log = sampleLut(buildLibraryLut(`tolog-${cam}`), c.map((v) => v / 255) as Vec3);
+        const back = sampleLut(buildLibraryLut(`camera-${cam}-clip`, 65), log).map((v) => Math.round(v * 255));
+        for (let k = 0; k < 3; k++) expect(Math.abs(back[k] - c[k]), `${c}`).toBeLessThanOrEqual(2);
+      }
+    },
+  );
+  it('로그 상태는 평탄하다: 검정은 들리고 흰색은 내려와 대비가 크게 줄어든다', () => {
+    const lo = sample8('tolog-dji', [0, 0, 0])[1];
+    const hi = sample8('tolog-dji', [255, 255, 255])[1];
+    expect(lo).toBeGreaterThan(15);
+    expect(hi).toBeLessThan(170);
+  });
 });
 
 describe('VFX IO', () => {

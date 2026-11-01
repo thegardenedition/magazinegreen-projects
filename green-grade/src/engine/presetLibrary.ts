@@ -1,4 +1,4 @@
-// 기본 제공 프리셋 라이브러리 (7개 분류, 112종).
+// 기본 제공 프리셋 라이브러리 (8개 분류, 135종).
 // 값은 이 앱의 노드 기능(Primary·Log 휠·RGB Mixer·Curves·Qualifier·Window)으로 만들고,
 // 필름 룩 일부는 디테일 효과(그레인·할레이션·글로우·비네트)를 함께 담는다.
 // 공통 안전선(계조 반전·새 클리핑·피부 색상)과 정원 프리셋의 목표는 tests/unit/gardenPresets.test.ts,
@@ -1081,6 +1081,59 @@ const CREATIVE: BuiltinPreset[] = [
   },
 ];
 
+// ── 프로 워크플로 (23): 로그로 평탄하게 만든 뒤 색을 입힌다 ──
+// 노드 1 '로그 변환'(sRGB → 로그) → 노드 2 '1차 보정 (Log)'(노출은 Offset, 색은 휠로; 로그 상태라 넓은 범위가 고르게 움직인다)
+// → 노드 3 '룩'(로그 입력 LUT). 질감(그레인·할레이션 등)은 디테일 효과로 함께 건다.
+
+const lutNode = (name: string, lutRef: string) => node(name, {}, {}, { lutRef });
+const primaryLogNode = () => node('1차 보정 (Log)', {});
+
+const proWorkflow = (look: string, lookName: string, description: string, detail?: Partial<Detail>): BuiltinPreset => ({
+  category: 'pro',
+  name: `프로 · ${lookName}`,
+  description: `${description}. 로그 변환 → 1차 보정 → 룩 LUT`,
+  bold: true,
+  nodes: [lutNode('로그 변환', 'tolog-arri'), primaryLogNode(), lutNode(lookName, `pro-${look}`)],
+  ...(detail ? { detail: fx(detail) } : { detail: fx({}) }),
+});
+
+const PRO_WORKFLOW: BuiltinPreset[] = [
+  proWorkflow('cine-standard', '시네마 표준', '부드러운 하이라이트의 기본 영화 톤'),
+  proWorkflow('portrait-neg', '인물 네거티브', '고운 피부와 따뜻한 하이라이트, 고운 입자', { grain: 12 }),
+  proWorkflow('landscape-neg', '풍경 네거티브', '깊은 녹색과 맑은 하늘', { grain: 8 }),
+  proWorkflow('doc-chrome', '다큐 크롬', '가라앉은 채도와 단단한 그림자', { grain: 14 }),
+  proWorkflow('reversal', '리버설 슬라이드', '깊은 대비와 진한 색', { grain: 8 }),
+  proWorkflow('tungsten-night', '텅스텐 나이트', '푸른 밤과 따뜻한 조명, 붉게 번지는 빛', { grain: 22, halation: 35 }),
+  proWorkflow('bleach', '블리치 시네마', '낮은 채도와 강한 대비, 거친 입자', { grain: 20 }),
+  { ...proWorkflow('teal-orange', '틸 & 오렌지 프로', '피부는 주황, 나머지는 청록', { grain: 10 }), mayClip: true },
+  proWorkflow('wedding-airy', '웨딩 에어리', '밝고 가벼운 파스텔, 옅은 빛 번짐', { glow: 12 }),
+  proWorkflow('drama-soft', '드라마 소프트', '깨끗한 피부와 부드러운 대비'),
+  proWorkflow('editorial', '매거진 에디토리얼', '중립적이고 풍부한 지면용 톤', { clarity: 10 }),
+  proWorkflow('moody-forest', '무디 포레스트', '올리브빛 녹색과 깊은 그림자, 가장자리 어둡게', { vignette: 25, grain: 10 }),
+  proWorkflow('garden-golden', '가든 골든', '햇빛 머금은 녹색과 번지는 하이라이트', { glow: 18, halation: 10 }),
+  proWorkflow('nordic-matte', '노르딕 매트', '차갑고 절제된 무광 톤'),
+  proWorkflow('vintage-print', '빈티지 프린트', '바랜 블랙과 크림색, 굵은 입자와 비네트', { grain: 28, grainSize: 150, vignette: 22 }),
+  proWorkflow('silver-bw', '실버 흑백', '깊은 계조의 흑백과 필름 입자', { grain: 30 }),
+];
+
+/** 로그 베이스: 사진을 그 카메라 로그로 바꿔 두고, 마지막 노드의 LUT를 갖고 있는 상용 LUT로 바꿔 쓰는 틀 */
+const logBase = (cam: string, camName: string): BuiltinPreset => ({
+  category: 'pro',
+  name: `로그 베이스 · ${camName}`,
+  description: `사진을 ${camName}로 평탄하게 바꾼다. 마지막 노드의 LUT를 ${camName}용 LUT(갖고 있는 상용 LUT 등)로 '바꾸기' 하면 그 색감이 그대로 입혀진다`,
+  nodes: [lutNode('로그 변환', `tolog-${cam}`), primaryLogNode(), lutNode('룩 LUT (바꿔 쓰기)', `camera-${cam}-soft`)],
+});
+
+const LOG_BASES: BuiltinPreset[] = [
+  logBase('dji', 'DJI D-Log'),
+  logBase('sony', 'Sony S-Log3'),
+  logBase('arri', 'ARRI LogC3'),
+  logBase('panasonic', 'Panasonic V-Log'),
+  logBase('fujifilm-flog2', 'Fujifilm F-Log2'),
+  logBase('canon', 'Canon Log 3'),
+  logBase('apple', 'Apple Log'),
+];
+
 export const BUILTIN_PRESETS: BuiltinPreset[] = [
   ...GARDEN,
   ...GARDEN_MORE,
@@ -1094,6 +1147,8 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
   ...CINEMATIC,
   ...CINEMATIC_MORE,
   ...CREATIVE,
+  ...PRO_WORKFLOW,
+  ...LOG_BASES,
 ];
 
 // 내부에서 다른 라이브러리(LUT)가 쓰는 색 상수
