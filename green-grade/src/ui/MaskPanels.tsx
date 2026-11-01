@@ -1,3 +1,4 @@
+import { HistoryIcon } from './HistoryBar';
 import { useRef } from 'react';
 import { hueSwatch } from '../engine/curves';
 import { defaultQualifier, defaultShape, type LinearRange, type WindowShape, type WindowType } from '../engine/mask';
@@ -184,8 +185,9 @@ export function QualifierPanel() {
           + 더하기
         </button>
         <Toggle on={q.invert} onChange={(invert) => setQ((x) => ({ ...x, invert }))} label="반전" testId="q-invert" />
-        <button className="btn btn-ghost" onClick={() => setQ(() => defaultQualifier())}>
-          리셋
+        <button className="btn btn-reset" onClick={() => setQ(() => defaultQualifier())}>
+          <HistoryIcon name="reset" />
+          초기화
         </button>
         <span className="spacer" />
         <MaskViewSwitch />
@@ -299,8 +301,9 @@ export function WindowPanel() {
                 />
               </label>
             ))}
-            <button className="btn btn-ghost" onClick={() => setW((x) => ({ ...x, shape: defaultShape(shape.type) }))}>
-              모양 리셋
+            <button className="btn btn-reset" onClick={() => setW((x) => ({ ...x, shape: defaultShape(shape.type) }))}>
+              <HistoryIcon name="reset" />
+              모양 초기화
             </button>
           </div>
         )}

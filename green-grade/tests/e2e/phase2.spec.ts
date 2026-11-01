@@ -162,3 +162,40 @@ test('되돌리기·다시 실행: 단축키와 버튼', async ({ page }) => {
   await expect(page.getByLabel('Sat value')).toHaveValue('1.40');
   await expect(page.getByTestId('redo')).toBeDisabled();
 });
+
+test('초기화: 노드·형태·디테일을 한 번에 처음 상태로, 알림의 취소나 되돌리기로 되살린다', async ({ page }) => {
+  await page.getByTestId('file-input').setInputFiles(GARDEN);
+  await expect(page.getByTestId('reset-all')).toBeEnabled();
+  // 상단 버튼은 글자와 아이콘을 함께 보여 준다
+  await expect(page.getByTestId('undo')).toContainText('되돌리기');
+  await expect(page.getByTestId('reset-all')).toContainText('초기화');
+
+  const gain = page.getByLabel('Gain master');
+  await gain.fill('1.5');
+  await gain.press('Enter');
+  await page.getByTestId('node-add').click();
+  await expect(page.getByTestId('node')).toHaveCount(2);
+  await page.getByTestId('tab-detail').click();
+  const sharpen = page.getByRole('textbox', { name: '양 value' }).first();
+  await sharpen.fill('60');
+  await sharpen.press('Enter');
+  await expect(sharpen).toHaveValue('60');
+
+  await page.getByTestId('reset-all').click();
+  await expect(page.getByTestId('reset-toast')).toBeVisible();
+  await expect(page.getByTestId('node')).toHaveCount(1);
+  await expect(sharpen).not.toHaveValue('60');
+
+  // 알림의 취소: 한 번에 모두 돌아온다
+  await page.getByTestId('reset-undo').click();
+  await expect(page.getByTestId('reset-toast')).toHaveCount(0);
+  await expect(page.getByTestId('node')).toHaveCount(2);
+  await expect(sharpen).toHaveValue('60');
+
+  // 다시 초기화 → 상단 되돌리기 버튼으로도 되살린다
+  await page.getByTestId('reset-all').click();
+  await expect(page.getByTestId('node')).toHaveCount(1);
+  await page.getByTestId('undo').click();
+  await expect(page.getByTestId('node')).toHaveCount(2);
+  await expect(sharpen).toHaveValue('60');
+});

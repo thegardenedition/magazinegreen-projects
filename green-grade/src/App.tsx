@@ -7,6 +7,7 @@ import { isLutFile } from './engine/lut';
 import { ExportDialog } from './ui/ExportDialog';
 import { Filmstrip } from './ui/Filmstrip';
 import { NodePanel } from './ui/NodePanel';
+import { HistoryBar } from './ui/HistoryBar';
 import { CorrectionPanel } from './ui/Panels';
 import { PresetPanel } from './ui/PresetPanel';
 import { ScopePanel } from './ui/ScopePanel';
@@ -28,8 +29,6 @@ export function App() {
   const image = useGrade((s) => s.image);
   const split = useGrade((s) => s.split);
   const bypass = useGrade((s) => s.bypass);
-  const canUndo = useGrade((s) => s.past.length > 0);
-  const canRedo = useGrade((s) => s.future.length > 0);
   const [dragging, setDragging] = useState(false);
   const error = useGallery((s) => s.error);
   const hasItems = useGallery((s) => s.items.length > 0);
@@ -150,12 +149,6 @@ export function App() {
           </button>
           {fileInput}
           <span className="spacer" />
-          <button className="btn btn-ghost btn-icon" onClick={() => useGrade.getState().undo()} disabled={!canUndo} aria-label="되돌리기" data-testid="undo">
-            ↶
-          </button>
-          <button className="btn btn-ghost btn-icon" onClick={() => useGrade.getState().redo()} disabled={!canRedo} aria-label="다시 실행" data-testid="redo">
-            ↷
-          </button>
           <button className={`btn btn-toggle ${split ? 'on' : ''}`} onClick={() => useGrade.getState().toggleSplit()} disabled={!image} aria-label="Before/After 분할">
             분할
           </button>
@@ -174,6 +167,7 @@ export function App() {
               </span>
             )}
             {error && <span className="error">{error}</span>}
+            {image && <HistoryBar compact />}
           </div>
         )}
         <main className="m-viewer">
@@ -239,24 +233,8 @@ export function App() {
         )}
         {error && <span className="error">{error}</span>}
         <span className="spacer" />
-        <button
-          className="btn btn-ghost"
-          onClick={() => useGrade.getState().undo()}
-          disabled={!canUndo}
-          title="되돌리기 (Ctrl+Z)"
-          data-testid="undo"
-        >
-          ↶ 되돌리기
-        </button>
-        <button
-          className="btn btn-ghost"
-          onClick={() => useGrade.getState().redo()}
-          disabled={!canRedo}
-          title="다시 실행 (Ctrl+Shift+Z)"
-          data-testid="redo"
-        >
-          ↷ 다시 실행
-        </button>
+        <HistoryBar />
+        <span className="topbar-sep" />
         <button
           className={`btn btn-toggle ${split ? 'on' : ''}`}
           onClick={() => useGrade.getState().toggleSplit()}

@@ -45,6 +45,24 @@ button, input { font: inherit; color: inherit; }
 .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); }
 .btn-toggle.on { border-color: var(--accent); color: var(--accent); }
 
+/* 작업 기록: 되돌리기 · 다시 실행 · 초기화 — 상단에서 늘 눈에 띄게 */
+.history { display: flex; align-items: center; gap: 4px; }
+.history-icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.btn-history { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; color: var(--text); background: var(--panel-2); border-color: var(--line-2); font-weight: 500; }
+.btn-history:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.btn-history:disabled { opacity: .35; }
+.btn-history-reset { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line-2)); }
+.btn-history-reset:hover:not(:disabled) { color: var(--bg-deep); background: var(--danger); border-color: var(--danger); }
+.history-count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--bg-deep); color: var(--text-dim); font-size: 10px; line-height: 16px; text-align: center; }
+.topbar-sep { width: 1px; height: 20px; background: var(--line-2); margin: 0 4px; }
+.history-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg-deep); color: var(--text); box-shadow: 0 6px 24px rgba(0,0,0,.45); white-space: nowrap; }
+/* 패널 안의 초기화 버튼: 테두리와 아이콘으로 버튼임이 드러나게 */
+.btn-reset { display: inline-flex; align-items: center; gap: 5px; color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
+.btn-reset .history-icon { width: 14px; height: 14px; }
+.btn-reset-icon { width: 28px; padding: 0; justify-content: center; }
+.curve-head .btn.btn-reset-icon { width: 24px; height: 22px; padding: 0; }
+.btn-reset:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+
 /* 작업 영역 */
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 240px; min-height: 0; }
 .viewer { position: relative; min-width: 0; min-height: 0; background: var(--bg-deep); overflow: hidden; }
@@ -302,6 +320,12 @@ button, input { font: inherit; color: inherit; }
 .app-mobile .btn-icon { width: 36px; padding: 0; font-size: 18px; }
 .m-status { grid-area: status; display: flex; gap: 8px; align-items: center; min-width: 0; padding: 2px 10px; font-size: 11px; background: var(--bg-deep); border-bottom: 1px solid var(--line); }
 .m-status .file-meta { flex: 1; min-width: 0; font-size: 11px; }
+.m-status { min-height: 44px; }
+.app-mobile .history { flex: none; gap: 4px; }
+.app-mobile .btn-history { height: 34px; padding: 0 9px; gap: 4px; font-size: 13px; }
+.app-mobile .btn-history .history-icon { width: 17px; height: 17px; }
+.app-mobile .history-toast { bottom: calc(66px + env(safe-area-inset-bottom)); }
+.app-mobile .tabs .btn-reset { gap: 4px; }
 .m-viewer { grid-area: viewer; display: grid; min-height: 0; border-bottom: 1px solid var(--line); }
 .m-viewer .viewer-hud { right: 6px; bottom: 6px; }
 .m-sheet { grid-area: sheet; position: relative; min-height: 0; overflow: hidden; background: var(--panel); }

@@ -120,6 +120,8 @@ interface GradeState extends Grade {
   toggleNode(id?: string): void;
   setNodes(nodes: GradeNode[]): void;
   resetAll(): void;
+  /** 이 사진의 노드·형태·디테일·지우개를 모두 처음 상태로 (되돌리기로 취소 가능) */
+  resetPhoto(): void;
   // 보기
   toggleBypass(): void;
   toggleSplit(): void;
@@ -286,6 +288,10 @@ export const useGrade = create<GradeState>((set, get) => {
     resetAll: () => {
       const node = createNode('Primary');
       set({ nodes: [node], selectedId: node.id });
+    },
+    resetPhoto: () => {
+      const node = createNode('Primary');
+      set({ nodes: [node], selectedId: node.id, develop: defaultDevelop() });
     },
 
     toggleBypass: () => set((s) => ({ bypass: !s.bypass })),

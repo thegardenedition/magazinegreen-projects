@@ -1,3 +1,4 @@
+import { HistoryIcon } from './HistoryBar';
 import { defaultMixer, type Vec3 } from '../engine/color';
 import { selectedNode, useGrade } from '../state/store';
 import { RangeControl } from './RangeControl';
@@ -36,8 +37,9 @@ export function MixerPanel() {
           휘도 유지
         </label>
         <span className="spacer" />
-        <button className="btn btn-ghost" onClick={() => setMixer(() => defaultMixer())} data-testid="mixer-reset">
-          Mixer 리셋
+        <button className="btn btn-reset" onClick={() => setMixer(() => defaultMixer())} data-testid="mixer-reset">
+          <HistoryIcon name="reset" />
+          Mixer 초기화
         </button>
       </div>
       <div className="mixer-rows">

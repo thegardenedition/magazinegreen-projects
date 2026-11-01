@@ -1,3 +1,4 @@
+import { HistoryIcon } from './HistoryBar';
 import { useMemo, useRef, useState } from 'react';
 import {
   CUSTOM_CURVES,
@@ -237,8 +238,8 @@ export function CurvesPanel() {
             </button>
           ))}
           <span className="spacer" />
-          <button className="btn btn-ghost" onClick={() => resetCurve(channel)}>
-            리셋
+          <button className="btn btn-reset btn-reset-icon" onClick={() => resetCurve(channel)} title="이 커브 초기화" aria-label="이 커브 초기화">
+            <HistoryIcon name="reset" />
           </button>
         </div>
         <CurveEditor
@@ -268,8 +269,8 @@ export function CurvesPanel() {
               6점
             </button>
           )}
-          <button className="btn btn-ghost" onClick={() => resetCurve(hueCurve)}>
-            리셋
+          <button className="btn btn-reset btn-reset-icon" onClick={() => resetCurve(hueCurve)} title="이 커브 초기화" aria-label="이 커브 초기화">
+            <HistoryIcon name="reset" />
           </button>
         </div>
         <CurveEditor

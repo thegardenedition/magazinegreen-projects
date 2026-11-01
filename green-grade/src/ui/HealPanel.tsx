@@ -1,3 +1,4 @@
+import { HistoryIcon } from './HistoryBar';
 import { useSyncExternalStore } from 'react';
 import { clearHeal, undoLastHeal, useHeal } from '../state/heal';
 import { useGrade } from '../state/store';
@@ -46,10 +47,12 @@ export function HealPanel() {
           {busy ? '지우는 중…' : error ? error : count ? `지운 곳 ${count}개` : '아직 지운 곳이 없습니다'}
         </span>
         <span className="spacer" />
-        <button className="btn btn-ghost" onClick={undoLastHeal} disabled={!count || busy} data-testid="heal-undo">
+        <button className="btn btn-reset" onClick={undoLastHeal} disabled={!count || busy} data-testid="heal-undo">
+          <HistoryIcon name="undo" />
           마지막 것 되돌리기
         </button>
-        <button className="btn btn-ghost" onClick={clearHeal} disabled={!count || busy} data-testid="heal-clear">
+        <button className="btn btn-reset" onClick={clearHeal} disabled={!count || busy} data-testid="heal-clear">
+          <HistoryIcon name="reset" />
           모두 되돌리기
         </button>
       </div>

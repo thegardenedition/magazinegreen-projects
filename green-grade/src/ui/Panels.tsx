@@ -1,3 +1,4 @@
+import { HistoryIcon } from './HistoryBar';
 import { maskState } from '../engine/mask';
 import { selectedNode, useGrade, type CorrectionTab } from '../state/store';
 import { CurvesPanel } from './CurvesPanel';
@@ -90,23 +91,27 @@ export function CorrectionPanel() {
           {PHOTO_TABS.includes(tab) ? '사진 전체' : nodeName}
         </span>
         {tab === 'primary' && (
-          <button className="btn btn-ghost" onClick={resetPrimary} data-testid="reset-primary">
-            Primary 리셋
+          <button className="btn btn-reset" onClick={resetPrimary} data-testid="reset-primary">
+            <HistoryIcon name="reset" />
+            Primary 초기화
           </button>
         )}
         {tab === 'curves' && (
-          <button className="btn btn-ghost" onClick={resetCurves} data-testid="reset-curves">
-            커브 전체 리셋
+          <button className="btn btn-reset" onClick={resetCurves} data-testid="reset-curves">
+            <HistoryIcon name="reset" />
+            커브 초기화
           </button>
         )}
         {tab === 'transform' && (
-          <button className="btn btn-ghost" onClick={resetGeometry} data-testid="reset-geometry">
-            형태 리셋
+          <button className="btn btn-reset" onClick={resetGeometry} data-testid="reset-geometry">
+            <HistoryIcon name="reset" />
+            형태 초기화
           </button>
         )}
         {tab === 'detail' && (
-          <button className="btn btn-ghost" onClick={resetDetail} data-testid="reset-detail">
-            디테일 리셋
+          <button className="btn btn-reset" onClick={resetDetail} data-testid="reset-detail">
+            <HistoryIcon name="reset" />
+            디테일 초기화
           </button>
         )}
       </header>
