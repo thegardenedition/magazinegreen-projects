@@ -65,6 +65,33 @@ button, input { font: inherit; color: inherit; }
 
 /* 작업 영역 */
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 240px; min-height: 0; }
+
+/* 사진 크게 보기 (F): 보정 패널·필름스트립을 숨긴다 */
+.app.is-focus, .app.is-focus.has-film { grid-template-rows: 44px minmax(0, 1fr); }
+.app.is-focus .dock, .app.is-focus .filmstrip, .app.is-focus .panel-nodes, .app.is-focus .easy-side { display: none; }
+.app.is-focus .workspace, .app.is-focus .easy-workspace { grid-template-columns: minmax(0, 1fr); }
+
+/* 화면 모드 전환 */
+.mode-switch { display: inline-flex; padding: 2px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg); flex: none; }
+.mode-switch button { height: 24px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 12px; }
+.mode-switch button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* 쉬운 모드: 큰 뷰어 + 오른쪽 한 칸 */
+.app-easy { grid-template-rows: 44px minmax(0, 1fr); }
+.app-easy.has-film { grid-template-rows: 44px minmax(0, 1fr) auto; }
+.easy-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
+.easy-side { border-left: 1px solid var(--line); }
+.easy-tabs .tab { flex: 1; justify-content: center; padding: 0 4px; font-size: 13px; white-space: nowrap; }
+.easy-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+.easy-body > .panel { flex: 1; min-height: 0; border: 0; }
+.easy-pane { padding: 4px 0; }
+.easy-adjust { display: flex; flex-direction: column; gap: 14px; padding: 12px; }
+.easy-group { display: flex; flex-direction: column; gap: 8px; }
+.easy-group h3 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--text-dim); }
+.easy-adjust .scalar { grid-template-columns: 68px minmax(0, 1fr) 64px; }
+.easy-adjust .scalar-label { font-size: 13px; color: var(--text); }
+.easy-hint { line-height: 1.6; }
+.link { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
 .viewer { position: relative; min-width: 0; min-height: 0; background: var(--bg-deep); overflow: hidden; }
 .viewer-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
 .viewer-canvas:active { cursor: grabbing; }
@@ -325,6 +352,14 @@ button, input { font: inherit; color: inherit; }
 .app-mobile .btn-history { height: 34px; padding: 0 9px; gap: 4px; font-size: 13px; }
 .app-mobile .btn-history .history-icon { width: 17px; height: 17px; }
 .app-mobile .history-toast { bottom: calc(66px + env(safe-area-inset-bottom)); }
+.app-mobile .mode-switch button { height: 30px; padding: 0 9px; font-size: 13px; }
+/* 쉬운 모드는 사진 칸을 더 크게 */
+.app-mobile.app-easy { grid-template-rows: auto auto minmax(200px, 54dvh) minmax(0, 1fr) auto; }
+/* 지금 탭을 다시 누르면 도구 칸을 접어 사진만 크게 */
+.app-mobile.m-closed { grid-template-rows: auto auto minmax(0, 1fr) 0 auto; }
+.app-mobile.m-closed .m-sheet { visibility: hidden; }
+.app-mobile .easy-adjust { padding: 12px 14px 20px; gap: 18px; }
+.app-mobile .easy-adjust .scalar { grid-template-columns: 72px minmax(0, 1fr) 76px; }
 .app-mobile .tabs .btn-reset { gap: 4px; }
 .m-viewer { grid-area: viewer; display: grid; min-height: 0; border-bottom: 1px solid var(--line); }
 .m-viewer .viewer-hud { right: 6px; bottom: 6px; }
@@ -399,6 +434,8 @@ button, input { font: inherit; color: inherit; }
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas: 'top top' 'status status' 'viewer sheet' 'viewer nav';
   }
+  .app-mobile.app-easy { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .app-mobile.m-closed { grid-template-columns: minmax(0, 1fr) 0; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'top top' 'status status' 'viewer sheet' 'nav nav'; }
   .app-mobile .m-viewer { border-bottom: 0; border-right: 1px solid var(--line); }
   .app-mobile .m-nav-btn { height: 46px; }
 }

@@ -87,6 +87,8 @@ const withDetail = (patch: Partial<Detail>): Develop => {
 };
 
 test('형태·디테일·그레인: GPU 결과가 기준 수식과 1 LSB 이내로 일치', async ({ page }) => {
+  // CPU 기준 구현을 여러 번 돌려 혼자서도 50초쯤 걸린다 (병렬 실행 중에는 더 걸림)
+  test.setTimeout(180_000);
   const W = 320;
   const H = 200;
   const src = testImage(W, H);

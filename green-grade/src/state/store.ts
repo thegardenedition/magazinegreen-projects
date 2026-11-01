@@ -390,10 +390,33 @@ export function currentPreset(name: string, s: Pick<Grade, 'nodes'> & Partial<Pi
   return Object.keys(detail).length ? { name, nodes, detail } : { name, nodes };
 }
 
-/** 프리셋 적용: 노드를 바꾸고, 프리셋이 정한 디테일 값만 바꾼다 */
+/** 쉬운 모드의 기본 슬라이더가 고치는 노드 이름. 프리셋을 바꿔도 맨 뒤에 남는다. */
+export const BASIC_NODE_NAME = '기본 보정';
+
+export const basicNodeOf = (s: Pick<Grade, 'nodes'>) => s.nodes.find((n) => n.name === BASIC_NODE_NAME);
+
+/** 기본 보정 노드의 Primary 값을 바꾼다. 없으면 맨 뒤에 만든다(노드가 가득 차면 마지막 노드를 쓴다). */
+export function updateBasicPrimary(fn: (p: GradeNode['primary']) => Partial<GradeNode['primary']>) {
+  useGrade.setState((s) => {
+    let nodes = s.nodes;
+    let node = basicNodeOf(s);
+    if (!node) {
+      if (nodes.length < MAX_NODES) {
+        node = createNode(BASIC_NODE_NAME);
+        nodes = [...nodes, node];
+      } else node = nodes[nodes.length - 1];
+    }
+    const target = node;
+    return { nodes: nodes.map((n) => (n.id === target.id ? { ...n, primary: { ...n.primary, ...fn(n.primary) } } : n)) };
+  });
+}
+
+/** 프리셋 적용: 노드를 바꾸고, 프리셋이 정한 디테일 값만 바꾼다. 쉬운 모드의 기본 보정은 맨 뒤에 그대로 둔다. */
 export function applyPresetToGrade(p: Preset) {
   const g = useGrade.getState();
-  g.setNodes(presetToNodes(p));
+  const basic = basicNodeOf(g);
+  const nodes = presetToNodes(p);
+  g.setNodes(basic && nodes.length < MAX_NODES ? [...nodes, basic] : nodes);
   if (p.detail) useGrade.setState((s) => ({ develop: { ...s.develop, detail: { ...s.develop.detail, ...p.detail } } }));
 }
 
