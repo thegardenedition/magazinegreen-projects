@@ -45,7 +45,7 @@ def sec(ox, kind):
         g(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="0.7"/>' if i % 2 else f'<rect x="{x:.1f}" y="{y:.1f}" width="3.5" height="0.8" transform="rotate({rnd.uniform(-20,20):.0f} {x:.1f} {y:.1f})"/>')
     g('</g>')
     g('<g filter="url(#rough)" stroke="#5A4D3E" stroke-width="0.7" fill="none" opacity="0.8">')
-    for x in (246, 257, 268):      # 기초 콘크리트 삼각
+    for x in (246, 257, 268):      # 기초콘크리트 삼각
         g(f'<polyline points="{x},232 {x+3},224 {x+6},232"/>')
     g('</g>')
     # --- 윤곽선(잉크 펜, 두 번 그은 느낌) ---
@@ -78,16 +78,16 @@ def sec(ox, kind):
     # --- 손글씨 주석 ---
     T = lambda x, y, s, size=15, fill=INK, anchor="start", rot=0, w=400, fam="Nanum Pen Script": g(f'<text x="{x}" y="{y}" font-family="{fam}" font-size="{size}" font-weight="{w}" fill="{fill}" text-anchor="{anchor}" transform="rotate({rot} {x} {y})">{s}</text>')
     if a:
-        T(58, 150, "염화칼슘 뿌림 → 염분 섞인 융설수", 21, RED, rot=-1.2)
-        T(352, 288, "근권 염류 집적!", 23, RED, "middle", -2)
+        T(58, 132, "염화칼슘 살포", 21, RED, rot=-1.2); T(66, 153, "→ 염분 섞인 융설수 침투", 21, RED, rot=-1.2)
+        T(352, 288, "근권부 염류집적", 23, RED, "middle", -2)
         # 치수
-        g(f'<g filter="url(#rough)" stroke="{INK}" stroke-width="0.9" fill="none"><line x1="126" y1="114" x2="246" y2="114"/><line x1="126" y1="106" x2="126" y2="134"/><line x1="246" y1="106" x2="246" y2="134"/><line x1="122" y1="118" x2="130" y2="110"/><line x1="242" y1="118" x2="250" y2="110"/></g>')
-        T(186, 108, "1,000", 19, INK, "middle")
+        g(f'<g filter="url(#rough)" stroke="{INK}" stroke-width="0.9" fill="none"><line x1="126" y1="104" x2="246" y2="104"/><line x1="126" y1="96" x2="126" y2="114"/><line x1="246" y1="96" x2="246" y2="150"/><line x1="122" y1="108" x2="130" y2="100"/><line x1="242" y1="108" x2="250" y2="100"/></g>')
+        T(186, 98, "1,000", 19, INK, "middle")
     else:
-        T(58, 150, "모래 뿌림 → 물은 맑다", 21, INK, rot=-1.2)
-        T(352, 288, "근권 그대로", 23, GRN, "middle", -2)
-    g('<rect x="128" y="236" width="118" height="22" rx="4" fill="#F7F2E7" opacity="0.92"/>')
-    T(186, 252, "포장 구배 i=2% →", 19, INK, "middle", -1)
+        T(58, 132, "모래 살포(미끄럼 방지)", 21, INK, rot=-1.2); T(66, 153, "→ 융설수 침투, 염분 없음", 21, INK, rot=-1.2)
+        T(352, 288, "근권부 정상", 23, GRN, "middle", -2)
+    g('<rect x="150" y="236" width="76" height="22" rx="4" fill="#F7F2E7" opacity="0.92"/>')
+    T(186, 252, "구배 2% →", 19, INK, "middle", -1)
     T(34, 164, "▽ FL", 17); T(400, 178, "▽ GL", 17)
     # --- 콜아웃 ---
     calls = [(70,179,70,318,"1"),(98,191,98,318,"2"),(126,208,126,318,"3"),(158,262,158,318,"4"),(262,166,290,110,"5"),(272,231,259,318,"6"),(410,268,410,318,"7"),(392,140,440,112,"8")]
@@ -99,30 +99,30 @@ def sec(ox, kind):
     # --- 단면 제목 ---
     g(f'<ellipse cx="40" cy="364" rx="15" ry="14" fill="none" stroke="{INK}" stroke-width="1.4" filter="url(#rough)"/>')
     T(40, 372, kind, 22, INK, "middle", 0, 400, "Nanum Pen Script")
-    T(64, 368, "단면 " + kind + (" — 염화칼슘 뿌린 구간" if a else " — 모래 뿌린 구간"), 26, INK, "start", -0.6, 400, "Nanum Pen Script")
-    g(f'<path d="M64,375 C140,373 220,377 {300 if a else 270},374" stroke="{INK}" stroke-width="1.6" fill="none" filter="url(#rough)"/>')
-    T(64, 394, "S = N.S." + ("" if a else "   (구조는 단면 A와 같음)"), 17, "#6B6055")
+    T(64, 368, kind + "-" + kind + "' 단면도" + (" — 염화칼슘 살포 구간" if a else " — 모래 살포 구간"), 26, INK, "start", -0.6, 400, "Nanum Pen Script")
+    g(f'<path d="M64,375 C140,373 220,377 {330 if a else 300},374" stroke="{INK}" stroke-width="1.6" fill="none" filter="url(#rough)"/>')
+    T(64, 394, "SCALE : NONE" + ("" if a else "   (구조는 A-A' 단면도와 동일)"), 17, "#6B6055")
     g('</g>')
     return "\n".join(o)
 
-svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 85 900 400" role="img" aria-label="손스케치 단면상세도: 화단 1m 이내 진입로에 뿌린 염화칼슘은 융설수에 실려 포장 기층과 경계석 기초 아래를 지나 근권에 염류로 쌓이고, 모래 구간은 같은 경로로 염분 없는 물만 들어간다">
+svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 72 900 413" role="img" aria-label="손스케치 단면상세도: 화단 1m 이내 진입로에 뿌린 염화칼슘은 융설수에 실려 포장 기층과 경계석 기초 아래를 지나 근권에 염류로 쌓이고, 모래 구간은 같은 경로로 염분 없는 물만 들어간다">
   <defs>
     <filter id="rough" filterUnits="userSpaceOnUse" x="-20" y="0" width="960" height="600"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
     <filter id="rough2" filterUnits="userSpaceOnUse" x="-20" y="0" width="960" height="600"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="11"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
     <filter id="wash" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="5"/><feDisplacementMap in="SourceGraphic" scale="9"/><feGaussianBlur stdDeviation="0.9"/></filter>
     <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="2"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.38  0 0 0 0 0.28  0 0 0 0.07 0"/></filter>
   </defs>
-  <rect x="0" y="85" width="900" height="400" fill="#F7F2E7"/>
-  <rect x="0" y="85" width="900" height="400" filter="url(#paper)"/>
+  <rect x="0" y="72" width="900" height="413" fill="#F7F2E7"/>
+  <rect x="0" y="72" width="900" height="413" filter="url(#paper)"/>
   {sec(0, "A")}
   <path d="M450,100 C449,180 451,260 450,400" stroke="{INK}" stroke-width="0.7" stroke-dasharray="3 6" fill="none" opacity="0.5"/>
   {sec(450, "B")}
   <path d="M22,408 C300,406 600,410 878,407" stroke="{INK}" stroke-width="1" fill="none" filter="url(#rough)"/>
   <g font-family="Nanum Pen Script" font-size="20" fill="{INK}">
-    <text x="24" y="430"><tspan font-size="15">①</tspan> 보도블록 T60</text><text x="214" y="430"><tspan font-size="15">②</tspan> 모래깔기 T30</text><text x="404" y="430"><tspan font-size="15">③</tspan> 잡석다짐 T150</text><text x="594" y="430"><tspan font-size="15">④</tspan> 원지반 다짐</text>
-    <text x="24" y="452"><tspan font-size="15">⑤</tspan> 화강석 경계석 150×150</text><text x="214" y="452"><tspan font-size="15">⑥</tspan> 기초 콘크리트</text><text x="404" y="452"><tspan font-size="15">⑦</tspan> 식재토(양질토)</text><text x="594" y="452"><tspan font-size="15">⑧</tspan> 회양목 H0.6×W0.6 · 점선 뿌리분</text>
+    <text x="24" y="430"><tspan font-size="15">①</tspan> 보도블럭 200×100×60</text><text x="240" y="430"><tspan font-size="15">②</tspan> 모래깔기 T=30</text><text x="440" y="430"><tspan font-size="15">③</tspan> 잡석다짐 T=150</text><text x="630" y="430"><tspan font-size="15">④</tspan> 원지반다짐</text>
+    <text x="24" y="452"><tspan font-size="15">⑤</tspan> 화강경계석 150×150×1,000</text><text x="240" y="452"><tspan font-size="15">⑥</tspan> 기초콘크리트</text><text x="440" y="452"><tspan font-size="15">⑦</tspan> 식재토(양질토)</text><text x="630" y="452"><tspan font-size="15">⑧</tspan> 회양목 H0.6×W0.6 (점선: 뿌리분)</text>
   </g>
-  <text x="24" y="476" font-family="Nanum Pen Script" font-size="17" fill="#6B6055">포장 층위·경계석 규격은 주택 진입로 예시 · 치수 mm · FL 포장면 / GL 화단 지반면</text>
+  <text x="24" y="476" font-family="Nanum Pen Script" font-size="17" fill="#6B6055">※ 포장 구성·경계석 규격은 주택 진입로 예시  ※ 단위 : mm  ※ FL 포장마감면 / GL 화단 지반면</text>
   <text x="876" y="475" font-family="Nanum Pen Script" font-size="18" fill="#6B6055" text-anchor="end">매거진그린 · 기획 AU</text>
 </svg>'''
 open(__import__("sys").argv[1], "w").write(svg)
