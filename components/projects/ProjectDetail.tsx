@@ -822,7 +822,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
           {typeof meta.lat === 'number' && typeof meta.lng === 'number' && (
             <LocationBlock location={meta.location} lat={meta.lat} lng={meta.lng} />
           )}
-          <LeadEntry slug={data.slug} />
+          {/* [11-03] 견적은 채널그린에서만 받는 방침이라 입구를 내렸다. LeadEntry·LeadModal 은 보관 — 되살릴 때 이 자리에 <LeadEntry slug={data.slug} /> */}
 
           {/* 이전/다음 프로젝트 프리뷰 카드 */}
           <nav className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2">
