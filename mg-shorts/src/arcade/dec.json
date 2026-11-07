@@ -1,0 +1,22 @@
+{
+  "fps": 30,
+  "bpm": 120,
+  "total": 1320,
+  "startScore": 5090,
+  "scenes": { "intro": [0, 180], "heave": [180, 420], "knights": [420, 720], "boss": [720, 1020], "guests": [1020, 1200], "mission": [1200, 1320] },
+  "warning": [120, 135, 150, 165],
+  "heave": [210, 255, 300, 345],
+  "launch": 430,
+  "blocks": [465, 480, 495, 510, 525, 540, 555, 570, 585, 600, 615, 630, 645, 660],
+  "layers": [540, 630, 700],
+  "bossIn": 735,
+  "volleys": [780, 810, 840, 870, 900, 930, 960],
+  "rage": 870,
+  "retreat": 990,
+  "clear": 1005,
+  "reveal": [1035, 1065],
+  "decay": [1110, 1125, 1140, 1155, 1170],
+  "mission": 1200,
+  "chords": ["Am", "Am", "E", "Dm", "Am", "E", "Am", "C", "G", "Am", "F", "G", "Am", "F", "G", "E", "Am", "F", "C", "G", "C", "C"],
+  "styles": ["calm", "calm", "warn", "tense", "tense", "tense", "tense", "hero", "hero", "hero", "hero", "hero", "boss", "boss", "boss", "boss", "boss", "calm2", "calm2", "calm2", "end", "end"]
+}
