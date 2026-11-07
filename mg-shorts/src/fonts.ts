@@ -16,6 +16,9 @@ const FACES: [family: string, file: string, weight: string][] = [
   ['Story Serif', 'gowun-batang-korean-700-normal.woff2', '700'],
   ['Story Hand', 'gaegu-korean-400-normal.woff2', '400'],
   ['Story Hand', 'gaegu-korean-700-normal.woff2', '700'],
+  ['Pixel KR', 'Galmuri11.woff2', '400'],
+  ['Pixel KR', 'Galmuri11-Bold.woff2', '700'],
+  ['Pixel EN', 'press-start-2p-latin-400-normal.woff2', '400'],
 ];
 
 let started = false;
@@ -42,3 +45,5 @@ export const SANS = '"MG Sans", Pretendard, "Apple SD Gothic Neo", sans-serif';
 
 export const STORY_SERIF = '"Story Serif", "Gowun Batang", "MG Serif", serif';
 export const STORY_HAND = '"Story Hand", Gaegu, "Story Serif", cursive';
+export const PIXEL_KR = '"Pixel KR", Galmuri11, monospace';
+export const PIXEL_EN = '"Pixel EN", "Press Start 2P", "Pixel KR", monospace';
