@@ -12,6 +12,10 @@ const FACES: [family: string, file: string, weight: string][] = [
   ['MG Sans', 'Pretendard-Medium.woff2', '500'],
   ['MG Sans', 'Pretendard-SemiBold.woff2', '600'],
   ['MG Sans', 'Pretendard-Bold.woff2', '700'],
+  ['Story Serif', 'gowun-batang-korean-400-normal.woff2', '400'],
+  ['Story Serif', 'gowun-batang-korean-700-normal.woff2', '700'],
+  ['Story Hand', 'gaegu-korean-400-normal.woff2', '400'],
+  ['Story Hand', 'gaegu-korean-700-normal.woff2', '700'],
 ];
 
 let started = false;
@@ -35,3 +39,6 @@ export function loadFonts() {
 
 export const SERIF = '"MG Serif", "Noto Serif KR", serif';
 export const SANS = '"MG Sans", Pretendard, "Apple SD Gothic Neo", sans-serif';
+
+export const STORY_SERIF = '"Story Serif", "Gowun Batang", "MG Serif", serif';
+export const STORY_HAND = '"Story Hand", Gaegu, "Story Serif", cursive';
