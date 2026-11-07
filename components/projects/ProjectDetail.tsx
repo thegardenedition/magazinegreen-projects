@@ -41,6 +41,10 @@ import { buildMapLink } from '@/lib/mapLink';
 import { openSavedView, toggleScrap, useScrapped } from '@/lib/scraps';
 import { showToast } from '@/components/ui/Toast';
 import LeadModal from './LeadModal';
+import CinematicHero from '@/components/motion/CinematicHero';
+import MaskReveal from '@/components/motion/MaskReveal';
+import CountUp from '@/components/motion/CountUp';
+import BeforeAfter, { type CompareImage } from '@/components/motion/BeforeAfter';
 
 /* ------------------------------------------------------------------------ */
 /* Types — CMS 데이터 스키마                                                  */
@@ -103,6 +107,16 @@ export type ContentBlock =
       pins?: Pin[];
     }
   | { type: 'quote'; id: string; heading?: string; text: string; author?: string }
+  | {
+      /** 시공 전·후 비교 슬라이더. 같은 자리·같은 화각에서 찍은 실제 전후 사진만 쓴다. */
+      type: 'compare';
+      id: string;
+      heading?: string;
+      before: CompareImage;
+      after: CompareImage;
+      caption?: string;
+      aspectRatio?: string;
+    }
   | {
       type: 'video';
       id: string;
@@ -324,7 +338,7 @@ function SpecGrid({ specs }: { specs: ProjectSpec[] }) {
                 NUMERIC_SPEC_VALUE.test(spec.value) ? 'font-mono' : ''
               }`}
             >
-              {spec.value}
+              {spec.icon === 'area' || spec.icon === 'duration' ? <CountUp value={spec.value} /> : spec.value}
               {spec.unit && <span className="ml-0.5 font-sans text-[13px] text-[#8a8a84]">{spec.unit}</span>}
             </span>
           </div>
@@ -623,6 +637,25 @@ function ContentBlockRenderer({
         </motion.section>
       );
 
+    case 'compare':
+      return (
+        <motion.section
+          id={block.id}
+          className="scroll-mt-28 py-6"
+          initial={initial}
+          whileInView={inView}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={transition}
+        >
+          {block.heading && (
+            <h2 className="mb-5 text-balance break-keep font-semibold tracking-[-0.02em] text-[22px] leading-snug text-[#1c1c1a] sm:text-[26px]">
+              {block.heading}
+            </h2>
+          )}
+          <BeforeAfter before={block.before} after={block.after} caption={block.caption} aspectRatio={block.aspectRatio} />
+        </motion.section>
+      );
+
     case 'video':
       return (
         <motion.section
@@ -725,10 +758,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
 
       {/* Hero */}
       <header className="relative">
-        <div className="relative h-[52vh] min-h-[380px] w-full sm:h-[64vh]">
-          <SafeImage src={meta.heroImage} alt={meta.title} fill priority className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-        </div>
+        <CinematicHero src={meta.heroImage} alt={meta.title} />
 
         <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
           <div className="max-w-[880px]">
@@ -748,7 +778,7 @@ export default function ProjectDetail({ data, onPinNavigate }: ProjectDetailProp
                 </span>
                 <span className="ml-2 text-[13px] text-[#8a8a84]">{meta.location}</span>
                 <h1 className="mt-3 text-balance break-keep font-semibold tracking-[-0.02em] text-[30px] leading-[1.35] text-[#1c1c1a] sm:text-[38px]">
-                  {meta.title}
+                  <MaskReveal text={meta.title} delay={0.35} />
                 </h1>
                 <p className="mt-3 break-keep text-[15px] leading-relaxed text-[#5a5a55] sm:text-[17px]">
                   {meta.subtitle}

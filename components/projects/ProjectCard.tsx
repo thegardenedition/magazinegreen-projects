@@ -9,6 +9,7 @@ import type { ProjectData } from './ProjectDetail';
 import { buildMapLink } from '@/lib/mapLink';
 import { openSavedView, toggleScrap, useScrapped } from '@/lib/scraps';
 import { showToast } from '@/components/ui/Toast';
+import DepthPhoto from '@/components/motion/DepthPhoto';
 
 /**
  * ProjectCard.tsx
@@ -84,7 +85,17 @@ export default function ProjectCard({
       className="group relative h-full"
     >
       <Link href={`/projects/${project.slug}`} className="block h-full">
-        <div className="relative aspect-[4/3] overflow-hidden bg-[#F3F2EE]">
+        {/* 사진만 액자 안에서 시차로 움직이고, 「편집부 선정」 띠는 액자에 고정(overlay). */}
+        <DepthPhoto
+          className="aspect-[4/3] bg-[#F3F2EE]"
+          overlay={
+            project.meta.pick && (
+              <span className="absolute left-0 top-0 bg-brand-green px-2.5 py-1.5 text-[11px] font-semibold tracking-[0.08em] text-white">
+                편집부 선정
+              </span>
+            )
+          }
+        >
           <SafeImage
             src={project.meta.thumbnail}
             alt={project.meta.title}
@@ -92,12 +103,7 @@ export default function ProjectCard({
             sizes="(min-width: 1024px) 32vw, (min-width: 640px) 46vw, 100vw"
             className="object-cover transition-transform duration-[1000ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
           />
-          {project.meta.pick && (
-            <span className="absolute left-0 top-0 bg-brand-green px-2.5 py-1.5 text-[11px] font-semibold tracking-[0.08em] text-white">
-              편집부 선정
-            </span>
-          )}
-        </div>
+        </DepthPhoto>
         <div className={`mt-4 text-[14px] leading-relaxed text-brand-green ${hasCoords ? 'pr-[104px] [@media(hover:hover)_and_(pointer:fine)]:pr-0' : ''}`}>
           {project.meta.location}
           <span className="px-1.5 text-[#ABABAB]">&mdash;</span>
