@@ -307,7 +307,7 @@ const CAPTIONS: { a: number; b: number; lines: [string, string] }[] = [
   { a: 26, b: 116, lines: ['12월, 땅이 얼기 시작해요', '구근이는 땅속에서 자요'] },
   { a: 192, b: 414, lines: ['얼었다 녹았다 하면', '서릿발이 구근을 밀어 올려요'] },
   { a: 450, b: 714, lines: ['낙엽을 덮어 주면', '흙이 덜 얼고 덜 말라요'] },
-  { a: 790, b: 986, lines: ['이불이 두꺼울수록', '찬 기운이 닿지 않아요'] },
+  { a: 790, b: 986, lines: ['낙엽 이불을 덮으면', '찬 기운이 덜 닿아요'] },
   { a: 1030, b: 1104, lines: ['이불 아래는', '벌레들의 겨울 집'] },
   { a: 1110, b: 1196, lines: ['낙엽은 천천히', '흙이 돼요'] },
 ];
@@ -320,7 +320,8 @@ const BUBBLES: { a: number; b: number; who: () => [number, number]; text: string
   { a: TL.reveal[0] + 8, b: TL.reveal[0] + 60, who: () => [52, SURF - 16], text: '쉿, 겨울잠 중', color: C.rose },
   { a: TL.reveal[1] + 6, b: TL.reveal[1] + 60, who: () => [134, SURF + 20], text: '이 잎은 내가 흙으로!', color: C.pink },
 ];
-const MONTHS = ['1월', '2월', '3월', '4월', '5월'];
+// 낙엽이 흙이 되기까지는 1년 안팎이 걸린다(감수: 몇 달 만에 흙이 되는 것처럼 보이지 않게)
+const MONTHS = ['봄', '여름', '가을', '겨울', '1년 뒤'];
 
 const Overlay: React.FC<{ f: number }> = ({ f }) => {
   const els: React.ReactNode[] = [];

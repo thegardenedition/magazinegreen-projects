@@ -135,7 +135,7 @@ export const BulbDex: React.FC = () => {
                 <div style={{ position: 'absolute', left: 84, right: 84, top: 920 }}>
                   {row(0, '시작', '작은 양분', '저장한 양분')}
                   {row(1, '꽃눈', '자라며 만든다', '이미 들어 있다')}
-                  {row(2, '늘어나기', '씨앗', '새끼 구근')}
+                  {row(2, '늘어나기', '씨앗', '새끼 구근도')}
                 </div>
                 {f >= TL.onion && (
                   <Box y={1236}>
