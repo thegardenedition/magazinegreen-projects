@@ -16,9 +16,16 @@ loadFonts();
 
 export type ReelProps = { ep: 1 | 2 };
 
+// 대상은 아이(꼬마 정원사). 미션을 클리어하면 꼬마 정원사 레벨이 오른다.
 const EP = {
-  1: { stage: 'STAGE 01', month: '11월', title: '구근의 모험', kicker: '땅속에서 시작하는 한 해', sprites: ['bulb'], next: '다음 화 · 12월 「낙엽 이불」' },
-  2: { stage: 'STAGE 02', month: '12월', title: '낙엽 이불', kicker: '치우지 않고 덮어 두는 이유', sprites: ['maple', 'ginkgo', 'oak'], next: '다음 화 · 1월 「분신술」' },
+  1: {
+    stage: 'STAGE 01', month: '11월', title: '구근의 모험', kicker: '땅속에서 시작하는 한 해', sprites: ['bulb'],
+    mission: '구근이를 땅속에 재워 주세요', level: 'LV.1', next: '다음 미션 · 12월 「낙엽 이불」',
+  },
+  2: {
+    stage: 'STAGE 02', month: '12월', title: '낙엽 이불', kicker: '낙엽으로 덮어 주는 이유', sprites: ['maple', 'ginkgo', 'oak'],
+    mission: '화분에 낙엽 이불을 덮어 주세요', level: 'LV.2', next: '다음 미션 · 1월 「분신술」',
+  },
 } as const;
 
 /** 픽셀 스프라이트를 정수 배율로(흐림 없이) */
@@ -62,7 +69,7 @@ export const ReelCover: React.FC<ReelProps> = ({ ep }) => {
       </div>
       <div style={{ position: 'absolute', left: 96, right: 96, top: 1480, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div style={{ font: `400 34px ${PIXEL_EN}`, color: MG.moss }}>{e.stage}</div>
-        <div style={{ font: `500 36px ${SANS}`, color: MG.dim }}>아이와 함께 보는 정원</div>
+        <div style={{ font: `500 36px ${SANS}`, color: MG.dim }}>꼬마 정원사를 위한 정원</div>
       </div>
     </AbsoluteFill>
   );
@@ -94,11 +101,13 @@ export const ReelOutro: React.FC<ReelProps> = ({ ep }) => {
           <div style={{ opacity: line(18), transform: `translateY(${(1 - line(18)) * 16}px)` }}>
             <Lockup />
           </div>
-          <div style={{ font: `900 132px/1.15 ${SERIF}`, letterSpacing: '-0.04em', marginTop: 40, opacity: line(22), transform: `translateY(${(1 - line(22)) * 24}px)` }}>정원 오락실</div>
-          <div style={{ font: `400 50px/1.45 ${SERIF}`, marginTop: 26, opacity: line(28) * 0.9 }}>화면에서 배우고, 마당에서 클리어</div>
-          <div style={{ height: 2, background: MG.line, marginTop: 56, transform: `scaleX(${line(32)})`, transformOrigin: '0 50%' }} />
-          <div style={{ font: `500 40px/1.5 ${SANS}`, color: MG.paper, marginTop: 36, opacity: line(38) }}>준비물과 안전 수칙은 캡션에 적어 두었어요</div>
-          <div style={{ font: `500 40px/1.5 ${SANS}`, color: MG.moss, marginTop: 10, opacity: line(44) }}>{e.next}</div>
+          <div style={{ font: `900 128px/1.15 ${SERIF}`, letterSpacing: '-0.04em', marginTop: 40, opacity: line(22), transform: `translateY(${(1 - line(22)) * 24}px)` }}>꼬마 정원사,</div>
+          <div style={{ font: `900 128px/1.15 ${SERIF}`, letterSpacing: '-0.04em', opacity: line(26), transform: `translateY(${(1 - line(26)) * 24}px)` }}>출동!</div>
+          <div style={{ height: 2, background: MG.line, marginTop: 50, transform: `scaleX(${line(30)})`, transformOrigin: '0 50%' }} />
+          <div style={{ font: `600 34px ${SANS}`, letterSpacing: '0.18em', color: MG.moss, marginTop: 40, opacity: line(34) }}>MISSION</div>
+          <div style={{ font: `700 58px/1.35 ${SERIF}`, marginTop: 12, opacity: line(36) }}>{e.mission}</div>
+          <div style={{ font: `500 40px/1.5 ${SANS}`, color: MG.paper, marginTop: 24, opacity: line(42) * 0.9 }}>어른과 함께 해요 · 클리어하면 꼬마 정원사 {e.level}</div>
+          <div style={{ font: `500 40px/1.5 ${SANS}`, color: MG.moss, marginTop: 8, opacity: line(46) }}>{e.next}</div>
         </div>
       </AbsoluteFill>
     </AbsoluteFill>
