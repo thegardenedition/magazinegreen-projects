@@ -1,13 +1,13 @@
-# 기준 이미지 (확정본 · v5 현대 단독주택 · 싱그러운 초여름)
+# 기준 이미지 (확정본 · v6 구옥 리모델링 · 실사 · 싱그러운 초여름)
 
 영상 생성 때 Higgsfield에 참고 이미지·시작/끝 프레임으로 넣는다. `job_id`를 그대로 `medias[].value`에 쓴다.
 
 | 파일 | 용도 | job_id |
 |---|---|---|
-| REF-1_마당부감_아침.jpg | S1 시작·끝 프레임 | 6c9f55df-125f-4d4a-b629-c2d586bf1091 |
-| REF-1D_마당부감_저녁.jpg | S11b 끝 프레임 | d1dd2020-911e-4462-b7e4-01c275fa86ca |
-| REF-2_유리문너머_데크.jpg | SEQ 1, SEQ 2 참고 | e0e985f6-f749-4800-89ae-da0f4de903db |
-| REF-3_청단풍_옹이.jpg | SEQ 3 참고 | e2090917-0fa4-4499-8dc6-7dc10bd7cf5f |
-| REF-4_빈데크_방석.jpg | SEQ 1, SEQ 3 참고 | a78d0375-14bb-4983-be12-0afbad38e883 |
-| REF-5_맷돌디딤돌.jpg | SEQ 2 참고 | cd1d2a19-d95e-4763-9e78-690b35ff6a47 |
-| REF-6_좌탁_저녁.jpg | S11b 시작 프레임, S11a 참고 | 657a457d-9f30-4310-a5d6-192ebcaa7aff |
+| REF-1_마당부감_아침.jpg | S1 시작·끝 프레임 | e2645a7d-9499-40b5-9a7b-f42de8756c1f |
+| REF-1D_마당부감_저녁.jpg | S11b 끝 프레임 | 3c919d08-8fd6-4d7c-bfd2-095e6ff3786d |
+| REF-2_유리문너머_데크.jpg | SEQ 1, SEQ 2 참고 | ae14654f-878e-466a-8008-bec871475e46 |
+| REF-3_청단풍_옹이.jpg | SEQ 3 참고 | 1d127fe6-8e37-4d2f-9e2d-f4b18c51012f |
+| REF-4_빈데크_방석.jpg | SEQ 1, SEQ 3 참고 | 2fa7bbe2-75d0-4298-a511-aeb12122bfbb |
+| REF-5_맷돌디딤돌.jpg | SEQ 2 참고 | f7cb556a-8699-40a7-8095-c3489922e6bc |
+| REF-6_좌탁_저녁.jpg | S11b 시작 프레임, S11a 참고 | e6ee54d9-057b-46dd-8e0a-b64da03546c8 |
