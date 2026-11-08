@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""1화 삽입 「PLANT DATA · 구근」 6초 사운드 — src/arcade/dex.json 으로.
+"""1화 삽입 「PLANT DATA · 구근」 28초 사운드 — src/arcade/dex.json 으로.
 1화 타이틀 음악(C·F·G, 120 BPM)에서 이어지고, 다음 STAGE 1 의 C 화음으로 넘어간다.
 사용: python3 scripts/chiptune_dex.py → public/dex.wav
 """
@@ -51,7 +51,7 @@ def put(t, x, buf=out):
         buf[i:j] += x[: j - i]
 
 
-CH = {"C": [60, 64, 67], "F": [53, 57, 60], "G": [55, 59, 62]}
+CH = {"C": [60, 64, 67], "F": [53, 57, 60], "G": [55, 59, 62], "Am": [57, 60, 64]}
 pat = [0, 2, 1, 3, 2, 4, 3, 5]  # 차분한 8분음표 분산화음(도감을 읽는 속도)
 for bar, ch in enumerate(TL["chords"]):
     t0 = bar * BAR

@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { AbsoluteFill, Audio, staticFile, useCurrentFrame } from 'remotion';
 import { loadFonts } from './fonts';
 import { C } from './arcade/sprites';
-import { Bubble, CRT, Dialog, EN, FB, H, KR, S, U, W, blinkOn, box, burst, center, clamp, dissolve, hash, lerp, seg, smooth, spr } from './arcade/engine';
+import { Bubble, CRT, Dialog, EN, FB, H, KR, S, U, W, blinkOn, box, burst, center, clamp, dissolve, hash, lerp, seg, smooth, spr, srcFrame, type Holds } from './arcade/engine';
 import TL from './arcade/dec.json';
 
 loadFonts();
@@ -312,10 +312,10 @@ const CAPTIONS: { a: number; b: number; lines: [string, string] }[] = [
   { a: 1110, b: 1196, lines: ['낙엽은 천천히', '흙이 돼요'] },
 ];
 const BUBBLES: { a: number; b: number; who: () => [number, number]; text: string; color?: string }[] = [
-  { a: 352, b: 408, who: () => [90, bulbY(352) - 30], text: '추워…!', color: C.ice },
-  { a: TL.launch + 14, b: TL.launch + 70, who: () => [70, 92 + OY], text: '구근이를 지켜라!', color: C.red },
-  { a: TL.bossIn + 26, b: TL.bossIn + 70, who: () => [148, 70 + OY], text: '후우우—!', color: C.ice },
-  { a: TL.rage + 2, b: TL.rage + 46, who: () => [148, 70 + OY], text: '더 차갑게!', color: C.ice },
+  { a: 352, b: 418, who: () => [90, bulbY(352) - 30], text: '추워…!', color: C.ice },
+  { a: TL.launch + 14, b: TL.launch + 104, who: () => [70, 92 + OY], text: '구근이를 지켜라!', color: C.red },
+  { a: TL.bossIn + 26, b: TL.bossIn + 98, who: () => [148, 70 + OY], text: '후우우—!', color: C.ice },
+  { a: TL.rage + 2, b: TL.rage + 74, who: () => [148, 70 + OY], text: '더 차갑게!', color: C.ice },
   { a: TL.retreat + 2, b: TL.retreat + 40, who: () => [92, 70 + OY], text: '봄에 다시 보자…', color: C.ice },
   { a: TL.reveal[0] + 8, b: TL.reveal[0] + 60, who: () => [52, SURF - 16], text: '쉿, 겨울잠 중', color: C.rose },
   { a: TL.reveal[1] + 6, b: TL.reveal[1] + 60, who: () => [134, SURF + 20], text: '이 잎은 내가 흙으로!', color: C.pink },
@@ -323,7 +323,8 @@ const BUBBLES: { a: number; b: number; who: () => [number, number]; text: string
 // 낙엽이 흙이 되기까지는 1년 안팎이 걸린다(감수: 몇 달 만에 흙이 되는 것처럼 보이지 않게)
 const MONTHS = ['봄', '여름', '가을', '겨울', '1년 뒤'];
 
-const Overlay: React.FC<{ f: number }> = ({ f }) => {
+/** f: 원본 프레임(멈춤 동안 고정), t: 출력 프레임(깜박임은 멈춤 중에도 계속) */
+const Overlay: React.FC<{ f: number; t: number }> = ({ f, t }) => {
   const els: React.ReactNode[] = [];
   const play = f < TL.mission;
   if (play) {
@@ -345,7 +346,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
     );
     // 체력 줄: 구근이 하트 + (보스전) 북풍 냉기 바
     const hearts = hp(f);
-    const danger = hearts <= 2 && blinkOn(f, 4);
+    const danger = hearts <= 2 && blinkOn(t, 4);
     els.push(
       <div key="hp" style={{ position: 'absolute', top: 400, left: 96, right: 164, display: 'flex', alignItems: 'center', gap: 18 }}>
         <div style={KR(40, C.cream)}>구근이</div>
@@ -366,7 +367,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
     );
   }
   // 이어하기 → 제목 카드
-  if (f < 22) els.push(<div key="cont" style={{ ...EN(60, C.pink), ...center(820) }}>CONTINUE? {blinkOn(f, 5) ? '▶YES' : ' YES'}</div>);
+  if (f < 22) els.push(<div key="cont" style={{ ...EN(60, C.pink), ...center(820) }}>CONTINUE? {blinkOn(t, 5) ? '▶YES' : ' YES'}</div>);
   else if (f < 104) {
     const pop = Math.min(1, (f - 22) / 6);
     els.push(
@@ -378,7 +379,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
   }
   // WARNING 띠
   if (f >= TL.warning[0] && f < SC.heave[0]) {
-    const on = blinkOn(f, 8);
+    const on = blinkOn(t, 8);
     const stripe = `repeating-linear-gradient(135deg, ${C.red} 0 36px, ${C.ink} 36px 72px)`;
     els.push(
       <div key="warn" style={{ position: 'absolute', left: 0, right: 0, top: 640, opacity: on ? 1 : 0.55 }}>
@@ -391,7 +392,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
       </div>,
     );
   }
-  if (f >= TL.bossIn + 6 && f < TL.bossIn + 44) els.push(<div key="bn" style={{ ...KR(66, C.ice), ...center(760) }}>BOSS · 북풍 장군</div>);
+  if (f >= TL.bossIn + 6 && f < TL.bossIn + 80) els.push(<div key="bn" style={{ ...KR(66, C.ice), ...center(760) }}>BOSS · 북풍 장군</div>);
   // 콤보·막기 팝업
   TL.blocks.forEach((b, i) => {
     if (f >= b && f < b + 16) {
@@ -421,7 +422,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
     const [x, y] = b.who();
     els.push(<Bubble key={`b${b.a}`} x={x * S} y={y * S} text={b.text} color={b.color} />);
   }
-  for (const c of CAPTIONS) if (f >= c.a && f < c.b) els.push(<Dialog key={`c${c.a}`} f={f} a={c.a} lines={c.lines} y={1236} size={58} />);
+  for (const c of CAPTIONS) if (f >= c.a && f < c.b) els.push(<Dialog key={`c${c.a}`} f={f} a={c.a} lines={c.lines} y={1236} size={58} t={t} />);
   // 미션 카드
   if (f >= TL.mission) {
     const pop = Math.min(1, (f - TL.mission) / 6);
@@ -441,7 +442,8 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
 };
 
 export const LeafBlanket: React.FC = () => {
-  const f = useCurrentFrame();
+  const t = useCurrentFrame();
+  const f = srcFrame(t, TL.holds as Holds);
   const main = useRef<HTMLCanvasElement>(null);
   const glow = useRef<HTMLCanvasElement>(null);
   useLayoutEffect(() => {
@@ -454,10 +456,10 @@ export const LeafBlanket: React.FC = () => {
   return (
     <>
       <Audio src={staticFile('leaf-blanket.wav')} />
-      <CRT dx={dx} dy={dy} f={f} flash={flashAt(f)} main={main} glow={glow}>
-        <Overlay f={f} />
+      <CRT dx={dx} dy={dy} f={t} flash={flashAt(f)} main={main} glow={glow}>
+        <Overlay f={f} t={t} />
       </CRT>
-      {f >= TL.warning[0] && f < SC.heave[0] && <AbsoluteFill style={{ background: C.red, opacity: blinkOn(f, 8) ? 0.12 : 0, mixBlendMode: 'screen' }} />}
+      {f >= TL.warning[0] && f < SC.heave[0] && <AbsoluteFill style={{ background: C.red, opacity: blinkOn(t, 8) ? 0.12 : 0, mixBlendMode: 'screen' }} />}
     </>
   );
 };

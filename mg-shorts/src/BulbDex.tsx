@@ -8,7 +8,8 @@ import TL from './arcade/dex.json';
 loadFonts();
 
 /* ---------------------------------------------------------------------------
- * 정원 오락실 1화 삽입 「PLANT DATA · 구근」 (6초 = 3마디 @120 BPM)
+ * 정원 오락실 1화 삽입 「PLANT DATA · 구근」 (28초 = 14마디 @120 BPM)
+ * 읽기 기준(engine.tsx): 글자가 다 나온 뒤 1.5초 + 5자당 1초. 이름표 3개+자막 6초, 비교표 3줄은 쌓이며 11초, 양파 상자 7.7초.
  * 1화의 타이틀(0~6s)과 STAGE 1 사이, 화면이 완전히 검은 마디 경계에 끼운다.
  *
  * 사실(감수 대상):
@@ -71,11 +72,14 @@ function draw(ctx: CanvasRenderingContext2D, f: number) {
     fb.flush(ctx);
     // 씨앗(갈색 알, 구근보다 훨씬 작게 — 크기 차이도 비교의 일부)
     const sd = new FB(ctx, ctx.getImageData(0, 0, W, H));
-    for (let y = -5; y <= 5; y++) for (let x = -8; x <= 8; x++) if ((x * x) / 64 + (y * y) / 25 <= 1 * p) sd.px(46 + x, 126 + y, U(y > 2 ? C.soilD : C.tanD));
-    sd.px(42, 123, U(C.tan));
-    sd.px(43, 123, U(C.tan));
+    // 오래 머무는 화면이라 둘이 번갈아 살짝 들썩인다
+    const bob = (ph: number) => Math.round(Math.sin(((f + ph) / 15) * Math.PI));
+    const sy0 = 126 + bob(0);
+    for (let y = -5; y <= 5; y++) for (let x = -8; x <= 8; x++) if ((x * x) / 64 + (y * y) / 25 <= 1 * p) sd.px(46 + x, sy0 + y, U(y > 2 ? C.soilD : C.tanD));
+    sd.px(42, sy0 - 3, U(C.tan));
+    sd.px(43, sy0 - 3, U(C.tan));
     sd.flush(ctx);
-    spr(ctx, 'bulb', 132, 134, { sx: 2 * p, sy: 2 * p });
+    spr(ctx, 'bulb', 132, 134 + bob(15), { sx: 2 * p, sy: 2 * p });
   }
   const d = f < 8 ? 1 - f / 8 : f >= TL.total - 10 ? (f - (TL.total - 10)) / 10 : 0;
   dissolve(ctx, d);

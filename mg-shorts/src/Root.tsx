@@ -10,13 +10,14 @@ import DEX from './arcade/dex.json';
 import DEC from './arcade/dec.json';
 import TL from './arcade/timeline.json';
 import { FPS } from './motion';
+import { holdFrames, type Holds } from './arcade/engine';
 
 export const RemotionRoot: React.FC = () => (
   <>
     <Composition id="Manifesto" component={Manifesto} durationInFrames={TOTAL} fps={FPS} width={1080} height={1920} />
     <Composition id="Storybook" component={Storybook} durationInFrames={T.total} fps={FPS} width={1080} height={1920} />
-    <Composition id="Arcade" component={Arcade} durationInFrames={TL.total} fps={FPS} width={1080} height={1920} />
-    <Composition id="LeafBlanket" component={LeafBlanket} durationInFrames={DEC.total} fps={FPS} width={1080} height={1920} />
+    <Composition id="Arcade" component={Arcade} durationInFrames={TL.total + holdFrames(TL.holds as Holds)} fps={FPS} width={1080} height={1920} />
+    <Composition id="LeafBlanket" component={LeafBlanket} durationInFrames={DEC.total + holdFrames(DEC.holds as Holds)} fps={FPS} width={1080} height={1920} />
     <Composition id="BulbDex" component={BulbDex} durationInFrames={DEX.total} fps={FPS} width={1080} height={1920} />
     {/* 릴스 포장: --props='{"ep":1}' 또는 2 */}
     <Still id="ReelCover" component={ReelCover} width={1080} height={1920} defaultProps={{ ep: 1 as const }} />

@@ -136,8 +136,27 @@ export const KR = (size: number, color = C.cream): React.CSSProperties => ({ fon
 export const center = (y: number): React.CSSProperties => ({ position: 'absolute', top: y, left: 0, width: 1080, textAlign: 'center' });
 export const blinkOn = (f: number, period = 15) => Math.floor(f / period) % 2 === 0;
 
+/* 읽기 멈춤(holds) ------------------------------------------------------------
+ * 대화 상자를 다 읽을 때까지 게임 화면을 멈춘다(옛 게임의 대화 정지).
+ * timeline JSON 의 "holds": [[원본 프레임, 멈출 프레임 수], ...]. 멈출 길이는 한 마디(60f)의 배수,
+ * 멈추는 자리는 박(15f)의 배수 — 그동안 음악은 직전 한 마디를 되풀이한다(scripts/holds.py).
+ * 자막 읽기 기준: 글자가 다 찍힌 뒤 1.5초 + 글자 5자당 1초(공백 제외).
+ * ------------------------------------------------------------------------- */
+export type Holds = [number, number][];
+export const holdFrames = (holds: Holds = []) => holds.reduce((s, [, n]) => s + n, 0);
+/** 출력 프레임 → 원본 프레임. 멈춤 구간에서는 원본 프레임이 그 자리에 선다. */
+export function srcFrame(fo: number, holds: Holds = []): number {
+  let acc = 0;
+  for (const [s, n] of holds) {
+    if (fo < s + acc) return fo - acc;
+    if (fo < s + acc + n) return s;
+    acc += n;
+  }
+  return fo - acc;
+}
+
 /** 대화 상자: 한 글자씩 찍힌다 */
-export const Dialog: React.FC<{ f: number; a: number; lines: [string, string]; y?: number; size?: number }> = ({ f, a, lines, y = 1170, size = 66 }) => {
+export const Dialog: React.FC<{ f: number; a: number; lines: [string, string]; y?: number; size?: number; t?: number }> = ({ f, a, lines, y = 1170, size = 66, t }) => {
   let left = Math.floor((f - a) * 1.2);
   return (
     <div style={{ position: 'absolute', left: 84, right: 84, top: y, padding: size < 66 ? '22px 32px' : '30px 36px', background: C.ink, border: `6px solid ${C.cream}`, boxShadow: `0 0 0 6px ${C.ink}, 0 18px 0 6px rgba(0,0,0,0.4)` }}>
@@ -147,7 +166,7 @@ export const Dialog: React.FC<{ f: number; a: number; lines: [string, string]; y
         return (
           <div key={i} style={{ ...KR(size, i === 1 ? C.yellow : C.cream), textShadow: 'none', minHeight: Math.round(size * 1.3) }}>
             {shown}
-            {left <= 0 && left > -ln.length - 1 && blinkOn(f, 6) ? '▌' : ''}
+            {left <= 0 && left > -ln.length - 1 && blinkOn(t ?? f, 6) ? '▌' : ''}
           </div>
         );
       })}

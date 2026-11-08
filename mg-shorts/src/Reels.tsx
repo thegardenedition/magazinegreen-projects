@@ -76,7 +76,8 @@ export const ReelCover: React.FC<ReelProps> = ({ ep }) => {
 };
 
 const easeOut = Easing.bezier(0.16, 1, 0.3, 1);
-export const OUTRO_FRAMES = 90;
+// 미션 카드는 43자 안팎 → 읽기 기준(1.5초 + 5자당 1초) 10초를 넘기게 11초
+export const OUTRO_FRAMES = 330;
 
 export const ReelOutro: React.FC<ReelProps> = ({ ep }) => {
   const f = useCurrentFrame();

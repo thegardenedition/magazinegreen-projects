@@ -3,6 +3,7 @@ import { AbsoluteFill, Audio, staticFile, useCurrentFrame } from 'remotion';
 import { PIXEL_EN, PIXEL_KR, loadFonts } from './fonts';
 import { C, sprite } from './arcade/sprites';
 import TL from './arcade/timeline.json';
+import { srcFrame, type Holds } from './arcade/engine';
 
 loadFonts();
 
@@ -606,7 +607,8 @@ const POPS: { f: number; x: number; y: number; t: string; c: string }[] = [
   ...TL.lights.map((L, i) => ({ f: L, x: i % 2 ? 112 : 66, y: 112, t: '+50', c: C.yellow })),
 ];
 
-const Overlay: React.FC<{ f: number }> = ({ f }) => {
+/** f: 원본 프레임(멈춤 동안 고정), t: 출력 프레임(깜박임은 멈춤 중에도 계속) */
+const Overlay: React.FC<{ f: number; t: number }> = ({ f, t }) => {
   const els: React.ReactNode[] = [];
   const inStage = f >= SC.s1[0] && f < SC.end[0];
   if (inStage) {
@@ -639,7 +641,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
         <div key={`card${k}`} style={{ position: 'absolute', left: 90, right: 90, top: 640, padding: '48px 0', background: 'rgba(5,3,12,0.86)', border: `6px solid ${C.cream}`, outline: `6px solid ${C.ink}`, textAlign: 'center', transform: `scaleY(${pop})` }}>
           <div style={EN(72, C.yellow)}>{STAGES[k].n}</div>
           <div style={{ ...KR(72), marginTop: 24 }}>{STAGES[k].kr}</div>
-          <div style={{ ...EN(60, f >= g ? C.pink : C.ice), marginTop: 36, visibility: f >= r && (f >= g || blinkOn(f, 4)) ? 'visible' : 'hidden' }}>{f >= g ? 'GO!' : 'READY?'}</div>
+          <div style={{ ...EN(60, f >= g ? C.pink : C.ice), marginTop: 36, visibility: f >= r && (f >= g || blinkOn(t, 4)) ? 'visible' : 'hidden' }}>{f >= g ? 'GO!' : 'READY?'}</div>
         </div>,
       );
     }
@@ -657,7 +659,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
             return (
               <div key={i} style={{ ...KR(66, i === 1 ? C.yellow : C.cream), textShadow: 'none', minHeight: 86 }}>
                 {shown}
-                {left <= 0 && left > -ln.length - 1 && blinkOn(f, 6) ? '▌' : ''}
+                {left <= 0 && left > -ln.length - 1 && blinkOn(t, 6) ? '▌' : ''}
               </div>
             );
           })}
@@ -724,9 +726,9 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
     );
     els.push(<div key="hi" style={{ ...EN(36, C.ice), ...at(0, 300, 'center') }}>HI-SCORE 050000</div>);
     if (f < TL.coin) {
-      if (blinkOn(f)) els.push(<div key="ic" style={{ ...EN(48, C.cream), ...at(0, 1060, 'center') }}>INSERT COIN</div>);
+      if (blinkOn(t)) els.push(<div key="ic" style={{ ...EN(48, C.cream), ...at(0, 1060, 'center') }}>INSERT COIN</div>);
     } else if (f < TL.start) {
-      if (blinkOn(f, 5)) els.push(<div key="ps" style={{ ...EN(48, C.yellow), ...at(0, 1060, 'center') }}>PRESS START</div>);
+      if (blinkOn(t, 5)) els.push(<div key="ps" style={{ ...EN(48, C.yellow), ...at(0, 1060, 'center') }}>PRESS START</div>);
     } else els.push(<div key="ps2" style={{ ...EN(48, f % 4 < 2 ? C.white : C.pink), ...at(0, 1060, 'center') }}>PRESS START</div>);
     els.push(<div key="cr" style={{ ...EN(36, C.cream), ...at(0, 1720, 'center') }}>CREDIT {f >= TL.coin ? '01' : '00'}</div>);
     els.push(<div key="by" style={{ ...KR(48, C.cream), ...at(0, 860, 'center') }}>튤립 구근의 한 해</div>);
@@ -745,7 +747,7 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
         </div>,
       );
       els.push(<div key="mg" style={{ ...EN(48, C.green), ...at(0, 1440, 'center'), letterSpacing: 4 }}>MAGAZINE GREEN</div>);
-      if (blinkOn(f)) els.push(<div key="ic2" style={{ ...EN(48, C.cream), ...at(0, 1560, 'center') }}>INSERT COIN</div>);
+      if (blinkOn(t)) els.push(<div key="ic2" style={{ ...EN(48, C.cream), ...at(0, 1560, 'center') }}>INSERT COIN</div>);
     }
   }
   return <>{els}</>;
@@ -753,7 +755,8 @@ const Overlay: React.FC<{ f: number }> = ({ f }) => {
 
 /* ======================= 조립 + 브라운관 ======================= */
 export const Arcade: React.FC = () => {
-  const f = useCurrentFrame();
+  const t = useCurrentFrame();
+  const f = srcFrame(t, TL.holds as Holds);
   const main = useRef<HTMLCanvasElement>(null);
   const glow = useRef<HTMLCanvasElement>(null);
   useLayoutEffect(() => {
@@ -765,7 +768,7 @@ export const Arcade: React.FC = () => {
   }, [f]);
   const [dx, dy] = shakeAt(f);
   const flash = flashAt(f);
-  const flicker = 1 + 0.025 * Math.sin(f * 1.9) + 0.015 * Math.sin(f * 0.37);
+  const flicker = 1 + 0.025 * Math.sin(t * 1.9) + 0.015 * Math.sin(t * 0.37);
   const px: React.CSSProperties = { position: 'absolute', left: 0, top: 0, width: W * S, height: H * S, imageRendering: 'pixelated' };
   return (
     <AbsoluteFill style={{ background: '#05030c', overflow: 'hidden' }}>
@@ -775,7 +778,7 @@ export const Arcade: React.FC = () => {
           <canvas ref={main} width={W} height={H} style={px} />
           <canvas ref={glow} width={W} height={H} style={{ ...px, filter: 'blur(16px) brightness(1.4)', mixBlendMode: 'screen', opacity: 0.42 }} />
         </div>
-        <Overlay f={f} />
+        <Overlay f={f} t={t} />
       </div>
       {flash > 0 && <AbsoluteFill style={{ background: '#fff', opacity: flash * 0.85 }} />}
       {/* 브라운관: 주사선(논리 픽셀 한 줄마다) · RGB 세로 마스크 · 비네팅 · 유리 반사 */}

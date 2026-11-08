@@ -13,6 +13,8 @@ from pathlib import Path
 
 import numpy as np
 
+from holds import apply_holds
+
 ROOT = Path(__file__).resolve().parent.parent
 TL = json.loads((ROOT / "src/arcade/timeline.json").read_text())
 SR = 48000
@@ -131,9 +133,6 @@ for bar, (chord, style) in enumerate(zip(TL["chords"], TL["styles"])):
         for b in range(4):
             put(music, t0 + b * BEAT + BEAT / 2, noise(0.02, 0.05, hp=True, d=0.015, s=0.0))
 
-# 엔딩 마지막 마디는 잦아든다
-fade_from = int(SR * (TOTAL - 3))
-music[fade_from:] *= np.linspace(1, 0, len(music) - fade_from)
 
 
 # ---------------- 효과음 ----------------
@@ -177,8 +176,12 @@ ev += [(l, "light") for l in TL["lights"]] + [(o, "oneup") for o in TL["oneups"]
 for fr, name in ev:
     put(sfx, f2t(fr), S[name])
 
+# 읽기 멈춤: 원본 길이로 자른 뒤 멈춤 구간을 끼워 넣고, 엔딩 페이드는 늘어난 길이 끝에 건다
+N = int(SR * TOTAL)
+music, sfx = apply_holds(music[:N], sfx[:N], TL.get("holds", []), FPS, BAR, SR)
+fade_from = len(music) - int(SR * 3)
+music[fade_from:] *= np.linspace(1, 0, len(music) - fade_from)
 mix = music * 0.55 + sfx * 0.85
-mix = mix[: int(SR * TOTAL)]
 mix /= max(1e-9, np.abs(mix).max()) / 0.89  # 피크 −1 dBFS (라우드니스는 납품 때 loudnorm 으로)
 # 아주 살짝 좌우를 벌린다: 효과음은 가운데, 음악은 미세 지연
 left = mix

@@ -1,12 +1,12 @@
 {
   "fps": 30,
   "bpm": 120,
-  "total": 180,
+  "total": 840,
   "insertAt": 180,
-  "labels": [26, 38, 50],
-  "caption": 60,
-  "vs": 92,
-  "rows": [104, 118, 132],
-  "onion": 148,
-  "chords": ["C", "F", "G"]
+  "labels": [30, 60, 90],
+  "caption": 120,
+  "vs": 300,
+  "rows": [336, 420, 504],
+  "onion": 600,
+  "chords": ["C", "F", "G", "C", "Am", "F", "G", "C", "C", "F", "G", "C", "F", "G"]
 }

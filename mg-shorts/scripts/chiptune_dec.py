@@ -11,6 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
+from holds import apply_holds
+
 ROOT = Path(__file__).resolve().parent.parent
 TL = json.loads((ROOT / "src/arcade/dec.json").read_text())
 SR = 48000
@@ -110,8 +112,6 @@ for bar, (ch, st) in enumerate(zip(TL["chords"], TL["styles"])):
         for h in range(sub):
             put(music, tb + h * BEAT / sub, noise(0.03, 0.06, hold=2, d=0.02, s=0.0))
 
-fade = int(SR * (TOTAL - 2.5))
-music[fade:] *= np.linspace(1, 0, len(music) - fade)
 
 
 def arp(ns, each, duty=0.25, vol=0.15):
@@ -145,7 +145,12 @@ ev += [(r, "reveal") for r in TL["reveal"]] + [(d, "tick") for d in TL["decay"]]
 for fr, name in ev:
     put(sfx, fr / FPS, S[name])
 
-mix = (music * 0.55 + sfx * 0.85)[: int(SR * TOTAL)]
+# 읽기 멈춤: 원본 길이로 자른 뒤 멈춤 구간을 끼워 넣고, 엔딩 페이드는 늘어난 길이 끝에 건다
+N = int(SR * TOTAL)
+music, sfx = apply_holds(music[:N], sfx[:N], TL.get("holds", []), FPS, BAR, SR)
+fade_from = len(music) - int(SR * 2.5)
+music[fade_from:] *= np.linspace(1, 0, len(music) - fade_from)
+mix = music * 0.55 + sfx * 0.85
 mix /= max(1e-9, np.abs(mix).max()) / 0.89
 right = np.concatenate([np.zeros(24), mix[:-24]]) * 0.6 + mix * 0.4
 st = (np.stack([mix, right], axis=1) * 32767).astype(np.int16)
