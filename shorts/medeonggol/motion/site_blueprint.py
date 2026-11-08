@@ -163,6 +163,7 @@ class Renderer:
         self.f_mono = ImageFont.truetype(mono, 22)
         self.f_mono_b = ImageFont.truetype(mono, 32)
         self.cam = Camera(CAM)
+        self.captions = not getattr(args, "no_captions", False)
 
         o = self.d["osm"]
         k = self.d["key"]
@@ -782,7 +783,7 @@ class Renderer:
             ((S_ERASE[0], S_ERASE[0] + 2.2), "그리고 모든 선을 지웁니다", None),
             ((S_ERASE[0] + 2.2, S_ERASE[1]), "원래 있던 자연처럼", "그것이 조경의 디테일이고, 기술입니다"),
         ]
-        for span, txt, sub in caps:
+        for span, txt, sub in (caps if self.captions else []):
             if span[0] <= t < span[1]:
                 a = min(ease(ph(t, (span[0], span[0] + 0.4))), 1 - ease(ph(t, (span[1] - 0.3, span[1]))))
                 self.caption(dr, txt, sub, alpha=a)
