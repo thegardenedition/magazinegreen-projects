@@ -20,7 +20,7 @@ export type ReelProps = { ep: 1 | 2 };
 const EP = {
   1: {
     stage: 'STAGE 01', month: '11월', title: '구근의 모험', kicker: '땅속에서 시작하는 한 해', sprites: ['bulb'],
-    mission: '튤립 구근 심기', kit: '화분 · 흙 · 구근 · 이름표', next: '다음 미션 · 12월 「낙엽 이불」',
+    mission: '튤립 구근 심기', kit: '화분 · 흙 · 구근 · 이름표 · 장갑', next: '다음 미션 · 12월 「낙엽 이불」',
   },
   2: {
     stage: 'STAGE 02', month: '12월', title: '낙엽 이불', kicker: '낙엽으로 덮어 두는 이유', sprites: ['maple', 'ginkgo', 'oak'],
