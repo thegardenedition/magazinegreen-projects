@@ -1,0 +1,12 @@
+{
+  "fps": 30,
+  "bpm": 120,
+  "total": 180,
+  "insertAt": 180,
+  "labels": [26, 38, 50],
+  "caption": 60,
+  "vs": 92,
+  "rows": [104, 118, 132],
+  "onion": 148,
+  "chords": ["C", "F", "G"]
+}

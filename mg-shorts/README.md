@@ -8,6 +8,7 @@
 |---|---|---|
 | `Storybook` | 같은 이야기의 파스텔 수채 동화책판 — 멀티플레인 카메라로 꽃밭을 밀고 들어가 땅속 세 층으로 내려갔다가, 나비가 네 지면 간판을 건드리고, 나무가 사계절을 지나 자란 뒤 책장이 넘어가 제목을 쓴다 | 39초(1170프레임) |
 | `LeafBlanket` | 정원 오락실 STAGE 2 · 12월 「낙엽 이불」 — 서릿발 위기 → 낙엽 기사단 출격(막기·콤보) → 보스 북풍 장군(탄막·분노) → 겨울 손님 → 미션. 적은 생물이 아니라 날씨 | 44초(1320프레임) |
+| `BulbDex` | 1화 삽입 「PLANT DATA · 구근」 6초 — 구근 단면(꽃눈·양분을 저장한 잎·뿌리), 씨앗 VS 구근, 양파·마늘도 구근. 1화 6초 지점(검은 디졸브·마디 경계)에 끼운다 | 6초(180프레임) |
 | `ReelCover` · `ReelOutro` | 인스타그램 릴스 포장(매거진그린 문법): 3:4 그리드 안전 영역 커버, 브라운관 꺼짐 → 편집부 카드 3초. `--props='{"ep":1}'` 또는 2. 캡션은 `reels/instagram-captions.md` | 커버 1장 · 3초 |
 | `Arcade` | 「구근의 모험」 — 튤립 구근의 한 해를 아케이드 스테이지로(심는 깊이 → 겨울 추위 → 개화 → 꽃 진 뒤 잎 → 새끼 구근). 픽셀 아트 + 브라운관 + 8비트 사운드 | 40초(1200프레임) |
 | `Manifesto` | 매거진그린 브랜드 쇼츠 「왜 거기 있는지」 — 넘쳐나는 정원 사진 → 매거진그린은 이유를 묻는다 → 정원을 읽는 세 개의 층(생태·역사·책임) → 네 개의 지면 → 엔드 카드 | 36초(1080프레임) |
@@ -28,6 +29,7 @@ npx remotion studio                       # 미리보기
 npx remotion still src/index.ts PaperTex public/paper.png   # 종이 질감 굽기(Storybook 렌더 전 한 번)
 python3 scripts/chiptune.py                                # 8비트 사운드 만들기(Arcade 렌더 전 한 번) → public/arcade.wav
 python3 scripts/chiptune_dec.py                            # 12월 회차 사운드 → public/leaf-blanket.wav
+python3 scripts/chiptune_dex.py                            # 1화 도감 삽입 사운드 → public/dex.wav
 # 릴스 엔드 카드는 회차 마지막 프레임을 쓴다: ffmpeg -sseof -0.05 -i out/<회차>.mp4 -frames:v 1 -update 1 public/reel/last-ep<N>.png
 npx remotion still src/index.ts Manifesto out/f.png --frame=300 --scale=0.5
 npx remotion render src/index.ts Manifesto out/raw.mp4
