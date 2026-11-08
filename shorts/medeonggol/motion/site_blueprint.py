@@ -804,6 +804,10 @@ def main():
     ap.add_argument("--logo")
     ap.add_argument("--font")
     ap.add_argument("--still", type=float, action="append")
+    ap.add_argument("--no-captions", action="store_true", help="장면 자막 없이(다른 영상에 끼울 때)")
+    ap.add_argument("--start", type=float, default=0.0, help="이 시각(초)부터 렌더")
+    ap.add_argument("--end", type=float, help="이 시각(초)까지 렌더")
+    ap.add_argument("--fps", type=int, default=FPS, help="출력 프레임레이트(다른 영상에 맞출 때)")
     args = ap.parse_args()
     r = Renderer(args)
     if args.still:
@@ -814,14 +818,15 @@ def main():
             print(p)
         return
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-           "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+           "-r", str(args.fps), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
            "-pix_fmt", "yuv420p", "-movflags", "+faststart", args.out]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    total = int(DURATION * FPS)
+    t0, t1 = args.start, min(args.end or DURATION, DURATION)
+    total = int((t1 - t0) * args.fps)
     for i in range(total):
-        proc.stdin.write(r.frame(i / FPS).tobytes())
-        if i % FPS == 0:
-            print(f"\r{i // FPS:>3}/{int(DURATION)}s", end="", flush=True)
+        proc.stdin.write(r.frame(t0 + i / args.fps).tobytes())
+        if i % args.fps == 0:
+            print(f"\r{i // args.fps:>3}/{int(t1 - t0)}s", end="", flush=True)
     proc.stdin.close()
     proc.wait()
     print(f"\n{args.out}")
