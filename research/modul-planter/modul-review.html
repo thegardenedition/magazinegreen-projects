@@ -1,0 +1,413 @@
+<title>MODUL 플랜터 검토서</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Nanum+Myeongjo:wght@700;800&display=swap">
+<style>
+/* Layout: 제도판 — 상단 3D 뷰포트(도면 시트) + 아래 검토 시트, 좌측 번호는 실제 지적 순번 */
+:root{
+  --paper:#eef1f0; --sheet:#f8faf9; --ink:#14201c; --muted:#5b6b65; --rule:#c9d3cf;
+  --blue:#2b3fa8; --clay:#a8583c; --sage:#7c8a5c; --brass:#b08a3e;
+  --crit:#b3261e; --warn:#a86a00; --ok:#2e7d4f;
+  --vp:#dfe5e3;
+  --f-display:"Nanum Myeongjo", "Noto Serif KR", serif;
+  --f-body:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#111715; --sheet:#171f1c; --ink:#e4ebe8; --muted:#93a39d; --rule:#2c3833;
+  --blue:#8c9cf0; --clay:#e08d6c; --sage:#a9b884; --brass:#d8b46a;
+  --crit:#ff8a80; --warn:#f0b54a; --ok:#6fcf97; --vp:#1c2522; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#111715; --sheet:#171f1c; --ink:#e4ebe8; --muted:#93a39d; --rule:#2c3833;
+  --blue:#8c9cf0; --clay:#e08d6c; --sage:#a9b884; --brass:#d8b46a;
+  --crit:#ff8a80; --warn:#f0b54a; --ok:#6fcf97; --vp:#1c2522; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.7;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:40px}
+header{display:grid;gap:10px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,5vw,46px);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:clamp(21px,3vw,27px);margin:0 0 4px;text-wrap:balance}
+h3{font-size:16px;margin:0}
+p{margin:0;max-width:68ch}
+.lede{color:var(--muted);font-size:17px}
+section{display:grid;gap:18px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* viewer */
+.viewer{background:var(--sheet);border:1px solid var(--rule);display:grid;grid-template-columns:1fr 260px}
+@media (max-width:820px){.viewer{grid-template-columns:1fr}}
+#vp{position:relative;min-height:440px;background:var(--vp);border-right:1px solid var(--rule);
+  background-image:linear-gradient(var(--rule) 1px,transparent 1px),linear-gradient(90deg,var(--rule) 1px,transparent 1px);background-size:24px 24px}
+#vp canvas{display:block;width:100%!important;height:100%!important;position:absolute;inset:0}
+#vp .stamp{position:absolute;left:12px;bottom:10px;font-family:var(--f-mono);font-size:11px;color:var(--muted);pointer-events:none}
+#vp .fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;padding:20px;text-align:center}
+.panel{padding:18px;display:grid;gap:14px;align-content:start}
+.modes{display:grid;gap:6px}
+.modes button{font:inherit;font-size:14px;text-align:left;padding:9px 12px;border:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.modes button span{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.modes button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--sheet)}
+.modes button[aria-pressed="true"] span{color:var(--sheet);opacity:.7}
+.modes button:focus-visible,.chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.note{font-size:13.5px;color:var(--muted);line-height:1.6;min-height:5.5em}
+.legend{display:grid;gap:4px;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+
+/* spec table */
+.tbl{overflow-x:auto;border:1px solid var(--rule);background:var(--sheet)}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+th{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.bad{color:var(--crit)} .good{color:var(--ok)}
+
+/* findings */
+.findings{display:grid;gap:0;border-top:2px solid var(--ink)}
+.f{display:grid;grid-template-columns:64px 1fr;gap:16px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.f .id{font-family:var(--f-mono);font-size:13px;display:grid;gap:6px;align-content:start}
+.sev{font-size:10.5px;letter-spacing:.08em;padding:2px 6px;border:1px solid currentColor;width:max-content}
+.sev.c{color:var(--crit)} .sev.w{color:var(--warn)} .sev.o{color:var(--ok)}
+.f .body{display:grid;gap:6px;min-width:0}
+.f .fix{font-size:14px;color:var(--muted)}
+.f .fix b{color:var(--ink);font-weight:600}
+@media (max-width:520px){.f{grid-template-columns:1fr;gap:6px}.f .id{grid-auto-flow:column;justify-content:start;gap:10px}}
+
+/* calc */
+.calc{background:var(--sheet);border:1px solid var(--rule);padding:20px;display:grid;gap:16px}
+.rows{display:grid;gap:12px}
+.row{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center}
+@media (max-width:520px){.row{grid-template-columns:1fr 80px}.row label{grid-column:1/-1}}
+.row select{font:inherit;font-size:14px;padding:6px 8px;background:var(--paper);color:var(--ink);border:1px solid var(--rule);width:100%}
+.out{display:flex;flex-wrap:wrap;gap:28px;align-items:end;border-top:1px solid var(--rule);padding-top:14px}
+.out .big{font-family:var(--f-display);font-size:40px;line-height:1}
+.out .lbl{font-size:12.5px;color:var(--muted)}
+.bar{height:10px;background:var(--paper);border:1px solid var(--rule);position:relative;flex:1 1 220px;align-self:center}
+.bar b{position:absolute;inset:0 auto 0 0;background:var(--blue)}
+.bar s{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--crit)}
+
+/* scorecard */
+.score{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.score div{background:var(--sheet);padding:16px;display:grid;gap:6px;align-content:start}
+.score .k{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.score .v{font-family:var(--f-display);font-size:24px}
+.dots{letter-spacing:3px;font-size:13px;color:var(--blue)}
+ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
+.src{font-size:12.5px;color:var(--muted)}
+.src a{color:var(--muted)}
+.verdict{border-left:3px solid var(--ink);padding:4px 0 4px 18px;font-family:var(--f-display);font-size:clamp(18px,2.4vw,22px);line-height:1.6;max-width:70ch}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">MODUL Biophilic Planter System · 설계 검토 &amp; 상품성 분석 · 2026.11</div>
+  <h1>물은 낮은 곳으로 흐른다</h1>
+  <p class="lede">MODUL은 ‘물 주기 걱정 없는 실내 정원’이라는 정확한 문제를 겨눴습니다. 다만 도면, 렌더, 설명서가 서로 다른 제품을 말하고 있고, 몇몇 약속은 물리 법칙과 식물 생리에 어긋납니다. 출시 전 바로잡아야 할 지점과 팔릴 수 있는 지점을 함께 정리했습니다.</p>
+</header>
+
+<section aria-labelledby="s-model">
+  <h2 id="s-model">3D 모델</h2>
+  <p>설명서 치수(90·135·180mm)와 도면의 구조(외곽 쉘 · 통기 바스켓 · 세라믹 콘 · 하부 섬프 · 도킹 트레이)를 하나의 제작 가능한 형상으로 다시 짰습니다. 화분 지름은 ‘바닥을 맞춰 3.5mm 간격으로 포갠다’는 조건에서 역산했습니다. 드래그로 회전, 휠·핀치로 확대합니다.</p>
+  <div class="viewer">
+    <div id="vp" role="img" aria-label="MODUL 플랜터 3D 모델"><div class="stamp mono" id="stamp">MODUL-R1 · SCALE 1:1 · mm</div></div>
+    <div class="panel">
+      <div class="modes" role="group" aria-label="보기 모드">
+        <button id="m-dock" aria-pressed="true">도킹 상태 <span>01</span></button>
+        <button id="m-explode" aria-pressed="false">분해 조립도 <span>02</span></button>
+        <button id="m-section" aria-pressed="false">단면 A-A <span>03</span></button>
+        <button id="m-nest" aria-pressed="false">중첩 보관 <span>04</span></button>
+      </div>
+      <p class="note" id="note"></p>
+      <div class="legend">
+        <div><i style="background:#2b3fa8"></i>대형 · 코발트 블루 (플루티드)</div>
+        <div><i style="background:#a8583c"></i>중형 · 로우 테라코타</div>
+        <div><i style="background:#7c8a5c"></i>소형 · 세이지 올리브</div>
+        <div><i style="background:#d9d2c4"></i>다공성 세라믹 콘</div>
+        <div><i style="background:#4f9fd6"></i>저수 (연통 수위)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>부위</th><th>대형 Tall</th><th>중형 Medium</th><th>소형 Low</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>높이</td><td class="n">180</td><td class="n">135</td><td class="n">90</td><td>설명서 값</td></tr>
+        <tr><td>상단 외경</td><td class="n">150.0</td><td class="n">135.8</td><td class="n">121.5</td><td>중첩 조건 역산 (벽 2.2, 구배 1.8°, 간격 3.5)</td></tr>
+        <tr><td>섬프 / 공기층</td><td class="n">22 / 14</td><td class="n">22 / 14</td><td class="n">22 / 14</td><td>원안 28 / 20 → 수정. 연통관이므로 세 화분이 같아야 함</td></tr>
+        <tr><td>유효 흙 깊이</td><td class="n">126</td><td class="n">82</td><td class="n bad">36</td><td>원안 스택이면 소형은 25mm</td></tr>
+        <tr><td>섬프 저수량</td><td class="n">≈220 ml</td><td class="n">≈184 ml</td><td class="n">≈151 ml</td><td>설명서 ‘150~200ml’와 부합</td></tr>
+        <tr><td>도킹 트레이</td><td colspan="3" class="n">455 × 175 × 30 · 포켓 깊이 20</td><td>원안(렌더)은 두께 약 15의 평판</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="src">부품별 STL과 파라메트릭 소스: <span class="mono">research/modul-planter/modul_model.py</span>, <span class="mono">stl/*.stl</span> (13개 파일). 치수를 바꾸고 다시 실행하면 전 부품이 갱신됩니다.</p>
+</section>
+
+<section aria-labelledby="s-find">
+  <h2 id="s-find">설계 검토: 바로잡아야 할 일곱 가지</h2>
+  <p>심각도는 <span class="sev c">출시 불가</span> 그대로 내면 제품이 작동하지 않거나 표시광고 문제가 되는 것, <span class="sev w">수정 권장</span> 사용 경험이나 원가를 해치는 것으로 나눴습니다.</p>
+  <div class="findings">
+    <div class="f"><div class="id">F-01<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>평판 트레이로는 화분 안까지 물을 올릴 수 없습니다</h3>
+      <p>연통관에서 물은 주수구 높이 이상으로 올라가지 않습니다. 렌더 속 트레이는 두께 15mm 남짓의 평판이고 황동 캡은 그 윗면에 붙어 있습니다. 화분 섬프의 바닥은 트레이 윗면보다 높으니, 600ml를 부어도 물은 트레이 안에 머물거나 주수구로 넘칩니다. ‘트레이 한 곳에 부으면 세 화분에 분배’라는 핵심 약속이 성립하지 않습니다.</p>
+      <p class="fix"><b>수정안</b> 화분 바닥이 20mm 들어앉는 포켓형 트레이(두께 30)로 바꿔 섬프 수위가 트레이 내부 수위와 같은 높이에 오게 합니다. 주수구 둘레에 오버플로 턱을 두면 최고 수위가 자동으로 제한됩니다. 3D 모델은 이 수정안 기준입니다.</p>
+    </div></div>
+    <div class="f"><div class="id">F-02<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>“3~4주에 한 번” 급수 주기는 저수량의 3배쯤 부풀려져 있습니다</h3>
+      <p>권장 급수량 600ml를 세 화분이 나눠 씁니다. 실내 몬스테라(약 1.6L 흙)는 하루 30~60ml, 필레아는 15~30ml를 증산합니다. 합하면 600ml는 대략 1~2주 분량입니다. 4주를 버티려면 1.5~2.5L가 필요합니다. 아래 계산기로 조합별로 확인할 수 있습니다.</p>
+      <p class="fix"><b>수정안</b> 문구를 “7~14일에 한 번 (식물·계절에 따라 다름)”으로 바꾸고 수위 표시창을 답니다. 4주 주기가 꼭 필요하면 트레이 아래 1.5L 서브 탱크를 옵션으로 둡니다.</p>
+    </div></div>
+    <div class="f"><div class="id">F-03<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>다육식물과 관엽식물이 한 저수조를 쓰는 대표 조합</h3>
+      <p>연통관은 세 화분의 수위를 같게 만듭니다. 렌더의 하워르티아는 하루 몇 ml만 쓰고 건조기를 거쳐야 하는 식물인데, 같은 높이의 물이 세라믹 콘을 통해 계속 올라옵니다. 몬스테라에게 맞춘 수분이 하워르티아에게는 과습입니다. 설명서는 선인장류에 “급수 주기를 6~8주로”라고 하지만 트레이를 공유하면 한 화분만 주기를 바꿀 방법이 없습니다.</p>
+      <p class="fix"><b>수정안</b> 포트마다 개폐 레버(또는 화분을 반쯤 들어 올린 ‘휴면 위치’)를 둬 개별 차단을 허용합니다. 세라믹 콘을 공극률 2단계(관엽용·다육용)로 나눠 판매하고, 대표 연출 이미지는 같은 물을 좋아하는 식물로 다시 찍습니다.</p>
+    </div></div>
+    <div class="f"><div class="id">F-04<span class="sev w">수정 권장</span></div><div class="body">
+      <h3>90mm 소형 화분에는 고정 스택이 들어가지 않습니다</h3>
+      <p>도면대로 섬프 28mm, 공기층 20mm, 바스켓 바닥을 쌓고 림 아래 15mm를 비우면 소형 화분의 흙 깊이는 25mm입니다. 식물이 서 있을 수 없는 깊이입니다. 섬프 높이만 줄이면 해결될 것 같지만, 연통관에서는 가장 낮은 섬프가 전체 최고 수위를 정하므로 세 화분의 섬프 높이가 같아야 합니다.</p>
+      <p class="fix"><b>수정안</b> 세 화분 모두 섬프 22 / 공기층 14로 통일(소형 흙 깊이 36mm). 소형 라인업을 110mm로 올리면 흙 깊이 56mm로 여유가 생깁니다.</p>
+    </div></div>
+    <div class="f"><div class="id">F-05<span class="sev w">수정 권장</span></div><div class="body">
+      <h3>공기층은 습해서 ‘에어 프루닝’이 일어나지 않습니다</h3>
+      <p>에어 프루닝은 뿌리 끝이 건조한 공기에 닿아 말라야 생깁니다. 물 위 14~20mm의 밀폐된 공간은 상대습도가 100%에 가까워, 뿌리는 마르지 않고 슬릿을 지나 물속으로 내려갑니다. 수경 뿌리가 섬프에 차면 “뿌리가 물에 잠기지 않는다”는 FAQ와 모순되고, 세척 시 바스켓이 빠지지 않습니다. 위에서 물을 부으면 흙 입자도 슬릿으로 흘러 “하부 수조는 유기물이 닿지 않는다”는 설명과 어긋납니다.</p>
+      <p class="fix"><b>수정안</b> 슬릿을 바스켓 측벽 상부(외기와 통하는 위치)로 옮기고 바닥은 세라믹 콘 구멍만 남깁니다. 바스켓 바닥에 부직포 링을 넣어 흙 유실을 막습니다.</p>
+    </div></div>
+    <div class="f"><div class="id">F-06<span class="sev w">수정 권장</span></div><div class="body">
+      <h3>도면, 렌더, 설명서가 서로 다른 제품을 그립니다</h3>
+      <p>도면은 사각형 쉘에 폭 380mm, 높이 1,330mm 치수가 적혀 있고 렌더는 원형 화분입니다. 도면은 섬프를 ‘초음파 융착’한다고 하는데 설명서는 섬프를 ‘반 바퀴 돌려 분리’합니다. 융착한 부품은 분리할 수 없습니다. 설명서의 마그네틱 가이드는 도면에 없습니다. 표제란 날짜(03/00, 22/19)와 제목(ENGINEERING TITLE LINKS)도 금형 발주 문서로 쓸 수 없는 상태입니다.</p>
+      <p class="fix"><b>수정안</b> 섬프는 바요넷 결합 + O링으로, 융착은 트레이 상·하판에만 씁니다. 도면은 위 3D 모델 치수로 다시 그려 표제란을 채웁니다.</p>
+    </div></div>
+    <div class="f"><div class="id">F-07<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>절대 표현은 표시광고법 리스크입니다</h3>
+      <p>“과습이 원천 차단됩니다”, “뿌리 썩음은 불가능합니다”, “단 한 방울도 흐르지 않습니다”는 검증할 수 없는 단정입니다. PP 사출로 만든 ‘로우 테라코타’를 소재 설명 없이 쓰면 소비자가 토분으로 오인할 수 있습니다.</p>
+      <p class="fix"><b>수정안</b> “공기층과 세라믹 콘이 과습 위험을 크게 낮춥니다”처럼 정도로 말하고, 누수는 시험 조건(예: 만수 상태 분리 100회)을 함께 적습니다. 색상명은 ‘테라코타 컬러(PP)’로 표기합니다.</p>
+    </div></div>
+  </div>
+</section>
+
+<section aria-labelledby="s-calc">
+  <h2 id="s-calc">급수 주기 계산기</h2>
+  <p>트레이 조합을 바꿔 600ml가 며칠 가는지 확인합니다. 하루 소비량은 실내 15~25℃, 간접광 기준 추정 범위의 중앙값입니다. 섬프가 비어도 흙에 남은 수분으로 2~3일은 더 버팁니다.</p>
+  <div class="calc">
+    <div class="rows">
+      <div class="row"><label for="p1">대형 (180)</label><select id="p1"></select><span class="mono" id="u1"></span></div>
+      <div class="row"><label for="p2">중형 (135)</label><select id="p2"></select><span class="mono" id="u2"></span></div>
+      <div class="row"><label for="p3">소형 (90)</label><select id="p3"></select><span class="mono" id="u3"></span></div>
+      <div class="row"><label for="vol">급수량</label><select id="vol"><option value="600" selected>600 ml (설명서 권장)</option><option value="900">900 ml (포켓형 트레이 최대)</option><option value="2100">2,100 ml (서브 탱크 옵션)</option></select><span></span></div>
+    </div>
+    <div class="out">
+      <div><div class="big mono" id="days">–</div><div class="lbl">예상 급수 주기 (일)</div></div>
+      <div class="bar" aria-hidden="true"><b id="barfill"></b><s id="claim"></s></div>
+      <div class="lbl" style="max-width:26ch" id="verdict"></div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="s-market">
+  <h2 id="s-market">상품성</h2>
+  <p>MODUL이 파는 것은 화분이 아니라 ‘물 주는 날을 잊어도 되는 거실’입니다. 저면관수 화분은 이미 이케아 VÅRDTRÄD처럼 1만 원대에도 있습니다. 그래서 차별점은 자동 급수 자체가 아니라 <b>세 화분을 하나의 오브제로 묶는 도킹 트레이</b>와 <b>보관할 때 하나로 포개지는 형상</b>에 있습니다.</p>
+  <div class="score">
+    <div><span class="k">문제 적합성</span><span class="v">강함</span><span class="dots">●●●●○</span><p class="src">과습·물 주기 망각은 실내 식물 고사의 가장 흔한 원인. 메시지가 바로 통합니다.</p></div>
+    <div><span class="k">차별성</span><span class="v">중간</span><span class="dots">●●●○○</span><p class="src">저면관수는 흔함. 일괄 도킹 + 단독 분리 + 중첩 보관의 조합이 유일한 자산이며, F-01 해결이 전제입니다.</p></div>
+    <div><span class="k">디자인 소구력</span><span class="v">강함</span><span class="dots">●●●●○</span><p class="src">세 색·세 질감·황동 포인트는 인테리어 사진에서 잘 읽힙니다. 선물 수요와 맞습니다.</p></div>
+    <div><span class="k">원가·제조 난이도</span><span class="v">높음</span><span class="dots">●●○○○</span><p class="src">화분당 부품 4개 × 3 + 트레이 2판, 금형 약 14벌. 밸브·자석·황동 캡은 수입 단가 변동을 받습니다.</p></div>
+    <div><span class="k">약속 신뢰도 (현재)</span><span class="v bad">낮음</span><span class="dots">●○○○○</span><p class="src">F-01·02·03이 그대로면 첫 2주 안에 리뷰에서 드러납니다. 저면관수 제품은 리뷰가 곧 매출입니다.</p></div>
+    <div><span class="k">가격 포지션</span><span class="v">3종 세트 12~16만 원</span><p class="src">해외 프리미엄 자동급수 화분 1개가 약 65~90달러(LECHUZA, 미국 소매가). 3종+트레이 세트를 그 1.5배 안쪽에 두면 ‘하나 값에 세트’가 성립합니다. 국내 가격은 확인하지 못해 추정입니다.</p></div>
+  </div>
+  <p>B2C 단품보다 먼저 볼 시장은 <b>공간 단위 구매</b>입니다. 모델하우스·호텔 객실·병원 대기실처럼 관리 인력이 적고 식물이 죽으면 공간 인상이 무너지는 곳에서는 ‘2주 무관리’가 그대로 비용 절감으로 계산됩니다. 채널그린의 가든디자이너 네트워크가 실내 그린 연출을 맡을 때 납품 표준 화분으로 묶으면 초기 물량을 B2B로 확보할 수 있습니다.</p>
+</section>
+
+<section aria-labelledby="s-plan">
+  <h2 id="s-plan">출시 전 순서</h2>
+  <ol class="plan">
+    <li><b>F-01 트레이 구조 확정.</b> 포켓형 트레이를 3D 프린트로 만들어 600ml 주수 후 세 섬프 수위를 실측합니다. 이것이 통과해야 나머지가 의미 있습니다.</li>
+    <li><b>4주 생육 시험.</b> 몬스테라·필레아·스킨답서스 각 5주, 하워르티아 5주로 실제 급수 주기와 과습 여부를 기록합니다. 그 숫자가 상세페이지 문구가 됩니다.</li>
+    <li><b>소형 높이 결정.</b> 90mm를 유지할지 110mm로 올릴지는 4주 시험의 흙 깊이 결과로 정합니다. 바뀌면 중첩 지름이 연쇄로 바뀌므로 금형 발주 전에 끝내야 합니다.</li>
+    <li><b>문구·인증 정리.</b> 절대 표현을 걷어내고, 누수 시험 조건과 PP 소재 표기를 상세페이지에 넣습니다.</li>
+    <li><b>도면 재작성 후 금형 견적.</b> 3D 모델 치수로 2D 도면을 다시 그리고 표제란을 채워 3곳 이상에서 견적을 받습니다.</li>
+  </ol>
+  <p class="verdict">아이디어는 팔립니다. 지금의 약속은 팔리지 않습니다. 물이 어디까지 올라가는지, 식물이 하루에 얼마를 마시는지를 숫자로 확인하고 나면, MODUL은 ‘관리하지 않아도 되는 정원’이라는 말을 정직하게 할 수 있는 몇 안 되는 실내 화분이 될 수 있습니다.</p>
+  <p class="src">참고: <a href="https://www.walmart.com/c/brand/lechuza-collection" target="_blank" rel="noopener">LECHUZA 미국 소매가(Walmart)</a> · <a href="https://www.ikea.com/kr/en/cat/indoor-plant-pots-10778/f/plastic-indoor-plant-pots-f-materials--47675/" target="_blank" rel="noopener">IKEA Korea 자가급수 화분</a> · <a href="https://www.gminsights.com/ko/industry-analysis/pots-and-planters-market" target="_blank" rel="noopener">GMI 화분·플랜터 시장(2025년 183억 달러)</a>. 식물별 소비량은 일반적인 실내 원예 경험치에 근거한 추정이며 생육 시험으로 대체해야 합니다.</p>
+</section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* ---------- 계산기 ---------- */
+const PLANTS = {
+  monstera:{n:"몬스테라",ml:45}, pothos:{n:"스킨답서스",ml:30}, pilea:{n:"필레아 페페",ml:22},
+  chamaedorea:{n:"테이블야자",ml:28}, hoya:{n:"호야",ml:12}, herb:{n:"바질 (허브)",ml:35},
+  haworthia:{n:"하워르티아 (다육)",ml:4}, none:{n:"비움",ml:0}
+};
+const defaults=["monstera","pilea","haworthia"];
+["p1","p2","p3"].forEach((id,i)=>{
+  const s=document.getElementById(id);
+  for(const k in PLANTS){const o=document.createElement("option");o.value=k;o.textContent=PLANTS[k].n;if(k===defaults[i])o.selected=true;s.appendChild(o)}
+  s.addEventListener("change",calc);
+});
+document.getElementById("vol").addEventListener("change",calc);
+function calc(){
+  let total=0;
+  ["p1","p2","p3"].forEach((id,i)=>{const p=PLANTS[document.getElementById(id).value];total+=p.ml;document.getElementById("u"+(i+1)).textContent=p.ml?p.ml+" ml/일":"–"});
+  const vol=+document.getElementById("vol").value;
+  const d=total?vol/total:Infinity;
+  const el=document.getElementById("days");
+  el.textContent=isFinite(d)?Math.round(d):"–";
+  const max=35;
+  document.getElementById("barfill").style.width=Math.min(100,(isFinite(d)?d:0)/max*100)+"%";
+  document.getElementById("claim").style.left=(24/max*100)+"%";
+  const succ=["p1","p2","p3"].some(id=>document.getElementById(id).value==="haworthia");
+  const leafy=["p1","p2","p3"].some(id=>["monstera","pothos","pilea","chamaedorea","herb"].includes(document.getElementById(id).value));
+  let v=isFinite(d)?(d>=21?"설명서의 3~4주 주장(빨간 선)에 닿습니다.":"설명서의 3~4주(빨간 선)보다 짧습니다."):"";
+  if(succ&&leafy)v+=" 다육과 관엽이 수위를 공유해 다육 쪽 과습 위험이 있습니다 (F-03).";
+  document.getElementById("verdict").textContent=v;
+}
+calc();
+
+/* ---------- 3D ---------- */
+const NOTES={
+  dock:"포켓형 트레이에 세 화분이 들어앉은 상태. 화분 바닥이 트레이 윗면보다 20mm 낮아, 트레이 내부 수위가 그대로 섬프 안까지 올라옵니다(파란 원판). 왼쪽 모서리가 황동 주수구.",
+  explode:"화분 하나는 다섯 부품입니다. 외곽 쉘 · 통기 바스켓 · 세라믹 콘 · 섬프(바요넷 결합) · 바닥 포펫 밸브. 세 화분과 트레이를 합치면 금형 약 14벌입니다.",
+  section:"단면 A-A. 섬프 22 · 공기층 14 · 바스켓 바닥 순서로 쌓입니다. 세라믹 콘의 끝이 섬프 물에 잠기고 넓은 입구가 흙 속에 있습니다. 소형은 흙 깊이가 36mm뿐입니다.",
+  nest:"바스켓과 콘을 뺀 외곽 쉘만 바닥을 맞춰 포갭니다. 지름 150/136/122, 반경 간격 3.5mm. 바스켓·콘·섬프는 따로 쌓아야 하므로 ‘대형 1개 부피’는 쉘에만 해당합니다."
+};
+const WALL=2.2, DR=Math.tan(1.8*Math.PI/180);
+const POTS=[
+  {k:"tall",h:180,od:150,col:0x2b3fa8,flute:true,x:-150},
+  {k:"medium",h:135,od:135.8,col:0xa8583c,rough:true,x:0},
+  {k:"low",h:90,od:121.5,col:0x7c8a5c,x:140}
+];
+const SUMP=22,GAP=14;
+const vp=document.getElementById("vp");
+let renderer,scene,camera,controls,groups=[],tray,water=[],clip,mode="dock";
+const css=getComputedStyle(document.documentElement);
+
+function ok(){try{const c=document.createElement("canvas");return !!(window.THREE&&(c.getContext("webgl")||c.getContext("experimental-webgl")))}catch(e){return false}}
+if(!ok()){vp.insertAdjacentHTML("beforeend",'<div class="fallback">이 기기에서는 3D를 그릴 수 없습니다. 치수표와 검토 내용은 아래에 그대로 있습니다.</div>')}else setTimeout(init,0);
+
+function rAt(od,h,z){return od/2-(h-z)*DR}
+function latheMat(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.62,metalness:0,side:THREE.DoubleSide,clippingPlanes:[]},opts))}
+function lathe(pts,mat,seg=96){
+  const g=new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0],p[1])),seg);g.computeVertexNormals();
+  return new THREE.Mesh(g,mat);
+}
+function flutedTube(rb,rt,z0,z1,mat){
+  // 외곽 쉘: 플루티드 외벽 + 매끈한 내벽, 바닥 개방
+  const seg=192,rows=24,pos=[],idx=[];
+  const ring=(z,r,fl)=>{for(let i=0;i<=seg;i++){const a=i/seg*Math.PI*2;const rr=r+(fl?1.3*Math.abs(Math.cos(a*24)):0);pos.push(rr*Math.sin(a),z,rr*Math.cos(a))}};
+  for(let j=0;j<=rows;j++){const t=j/rows;ring(z0+(z1-z0)*t,rb+(rt-rb)*t,true)}
+  const base=pos.length/3;
+  for(let j=0;j<=rows;j++){const t=j/rows;ring(z0+(z1-z0)*t,rb+(rt-rb)*t-WALL,false)}
+  const W=seg+1;
+  for(let s=0;s<2;s++)for(let j=0;j<rows;j++)for(let i=0;i<seg;i++){const o=s*base,a=o+j*W+i,b=a+W;s?idx.push(a,a+1,b,b,a+1,b+1):idx.push(a,b,a+1,b,b+1,a+1)}
+  for(let i=0;i<seg;i++){const a=rows*W+i,b=base+rows*W+i;idx.push(a,b,a+1,b,b+1,a+1)}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
+  return new THREE.Mesh(g,mat);
+}
+function roughMat(color){
+  const c=document.createElement("canvas");c.width=c.height=256;const x=c.getContext("2d");
+  const col=new THREE.Color(color);x.fillStyle="#"+col.getHexString();x.fillRect(0,0,256,256);
+  for(let i=0;i<5000;i++){const v=Math.random();x.fillStyle=v>.5?"rgba(255,230,210,.12)":"rgba(60,25,10,.16)";const s=Math.random()*3;x.fillRect(Math.random()*256,Math.random()*256,s,s)}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,2);
+  return latheMat(0xffffff,{map:t,roughness:.95});
+}
+
+function buildPot(p){
+  const g=new THREE.Group(),parts={};
+  const rb=rAt(p.od,p.h,0),rs=rAt(p.od,p.h,SUMP),rt=p.od/2;
+  const shellMat=p.rough?roughMat(p.col):latheMat(p.col,{roughness:p.flute?.45:.7});
+  parts.shell=p.flute?flutedTube(rs,rt,SUMP,p.h,shellMat):lathe([[rs,SUMP],[rt,p.h],[rt-WALL,p.h],[rs-WALL,SUMP]],shellMat);
+  parts.sump=lathe([[0,0],[rb,0],[rs,SUMP],[rs-WALL,SUMP],[rb-WALL,2.5],[0,2.5]],latheMat(new THREE.Color(p.col).multiplyScalar(.75)));
+  // 바스켓: 얇은 컵 + 세로 리브
+  const bz=SUMP+GAP, rbi=rs-WALL-.8, rti=rt-WALL-.8;
+  const basket=new THREE.Group();
+  basket.add(lathe([[0,bz],[rbi,bz],[rbi+(rti-rbi)*.18,bz+(p.h-bz)*.18],[rbi+(rti-rbi)*.18-1.6,bz+(p.h-bz)*.18],[rbi-1.6,bz+1.6],[0,bz+1.6]],latheMat(0x3a3f3c,{roughness:.8})));
+  const ribMat=latheMat(0x3a3f3c,{roughness:.8});
+  for(let i=0;i<28;i++){const a=i/28*Math.PI*2;const z0=bz+(p.h-bz)*.18,z1=p.h-3;
+    const r0=rbi+(rti-rbi)*.18-.8,r1=rti-.8;const len=Math.hypot(z1-z0,r1-r0);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(3,len,1.6),ribMat);
+    m.position.set(((r0+r1)/2)*Math.sin(a),(z0+z1)/2,((r0+r1)/2)*Math.cos(a));m.rotation.y=a;m.rotation.x=Math.atan2(r1-r0,z1-z0)*0;basket.add(m)}
+  basket.add(lathe([[rti-2,p.h-6],[rti,p.h-6],[rti,p.h-2],[rti-2,p.h-2]],ribMat));
+  parts.basket=basket;
+  const ch=bz+.35*(p.h-bz);
+  parts.cone=lathe([[0,4],[.11*p.od,4],[.2*p.od,ch],[0,ch]],latheMat(0xd9d2c4,{roughness:1}));
+  parts.valve=lathe([[0,-3],[9,-3],[9,2],[0,2]],latheMat(0x22262a,{roughness:.4}));
+  // 흙과 식물 실루엣
+  const soilTop=p.h-15;
+  parts.soil=lathe([[0,bz+1.6],[rbi-1.6,bz+1.6],[rAt(p.od,p.h,soilTop)-WALL-2.4,soilTop],[0,soilTop]],latheMat(0x3b2a20,{roughness:1}));
+  // 수위
+  const w=lathe([[0,2.6],[rb-WALL-.2,2.6],[rAt(p.od,p.h,15)-WALL-.4,15],[0,15]],latheMat(0x4f9fd6,{transparent:true,opacity:.55,roughness:.1}));
+  parts.water=w;water.push(w);
+  for(const k in parts)g.add(parts[k]);
+  g.userData={p,parts};
+  return g;
+}
+
+function buildTray(){
+  const L=455,W=175,T=30,r=14;
+  const s=new THREE.Shape();
+  s.moveTo(-L/2+r,-W/2);s.lineTo(L/2-r,-W/2);s.quadraticCurveTo(L/2,-W/2,L/2,-W/2+r);s.lineTo(L/2,W/2-r);s.quadraticCurveTo(L/2,W/2,L/2-r,W/2);
+  s.lineTo(-L/2+r,W/2);s.quadraticCurveTo(-L/2,W/2,-L/2,W/2-r);s.lineTo(-L/2,-W/2+r);s.quadraticCurveTo(-L/2,-W/2,-L/2+r,-W/2);
+  POTS.forEach(p=>{const h=new THREE.Path();h.absarc(p.x,0,rAt(p.od,p.h,0)+1.5,0,Math.PI*2,true);s.holes.push(h)});
+  const geo=new THREE.ExtrudeGeometry(s,{depth:T-20,bevelEnabled:true,bevelThickness:1.2,bevelSize:1.2,bevelSegments:2,curveSegments:48});
+  const top=new THREE.Mesh(geo,latheMat(0x2d3133,{roughness:.35,metalness:.55}));
+  top.rotation.x=-Math.PI/2;top.position.y=20;
+  const base=new THREE.Mesh(new THREE.BoxGeometry(L-2,20,W-2),latheMat(0x24282a,{roughness:.4,metalness:.5}));base.position.y=10;
+  const g=new THREE.Group();g.add(top,base);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(11,11,4,48),latheMat(0xb08a3e,{metalness:.9,roughness:.32}));cap.position.set(-L/2+22,T+2,W/2-22);g.add(cap);
+  g.userData.T=T;return g;
+}
+
+function init(){
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.localClippingEnabled=true;
+  vp.prepend(renderer.domElement);
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(32,1,1,5000);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f8c,.75));
+  const d=new THREE.DirectionalLight(0xffffff,.9);d.position.set(-300,500,400);scene.add(d);
+  const d2=new THREE.DirectionalLight(0xffffff,.35);d2.position.set(400,200,-300);scene.add(d2);
+  clip=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
+  tray=buildTray();scene.add(tray);
+  POTS.forEach(p=>{const g=buildPot(p);groups.push(g);scene.add(g)});
+  controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.target.set(0,90,0);
+  controls.minDistance=250;controls.maxDistance=1600;
+  camera.position.set(-260,360,720);
+  resize();new ResizeObserver(resize).observe(vp);
+  setMode("dock",true);
+  (function loop(){requestAnimationFrame(loop);step();controls.update();renderer.render(scene,camera)})();
+}
+function resize(){const w=vp.clientWidth,h=Math.max(440,vp.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+
+const targets=new Map();
+function tgt(o,pos,vis=true){targets.set(o,{pos:pos.clone(),vis})}
+function setMode(m,instant){
+  mode=m;document.getElementById("note").textContent=NOTES[m];
+  document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.id==="m-"+m));
+  const T=tray.userData.T, seat=T-20;
+  const clipOn=m==="section";
+  scene.traverse(o=>{if(o.material){o.material.clippingPlanes=clipOn&&o!==tray&&!tray.children.includes(o)?[clip]:[];o.material.needsUpdate=true}});
+  tgt(tray,new THREE.Vector3(0,m==="explode"?-60:0,0),m!=="nest");
+  groups.forEach((g,i)=>{
+    const p=g.userData.p,P=g.userData.parts;
+    let base=new THREE.Vector3(p.x,seat,0);
+    if(m==="nest")base=new THREE.Vector3(0,seat,0);
+    tgt(g,base);
+    const ex=m==="explode";
+    const show=k=>!(m==="nest"&&k!=="shell");
+    const off={sump:ex?-10:0,valve:ex?-45:0,shell:ex?70:0,basket:ex?250:0,cone:ex?150:0,soil:ex?250:0,water:0};
+    for(const k in P){tgt(P[k],new THREE.Vector3(0,off[k]||0,0),show(k)&&!(ex&&k==="water")&&!(ex&&k==="soil"))}
+  });
+  if(m==="nest"){controls.target.set(0,90,0)}else if(m==="explode"){controls.target.set(0,170,0)}else controls.target.set(0,90,0);
+  if(instant)targets.forEach((t,o)=>{o.position.copy(t.pos);o.visible=t.vis});
+}
+function step(){
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  targets.forEach((t,o)=>{if(reduce)o.position.copy(t.pos);else o.position.lerp(t.pos,.12);if(!t.vis&&o.position.distanceTo(t.pos)<2)o.visible=false;if(t.vis)o.visible=true});
+}
+["dock","explode","section","nest"].forEach(m=>{document.getElementById("m-"+m).addEventListener("click",()=>{if(window.THREE&&renderer)setMode(m);else{mode=m;document.getElementById("note").textContent=NOTES[m];document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.id==="m-"+m))}})});
+if(!renderer)document.getElementById("note").textContent=NOTES.dock;
+</script>
