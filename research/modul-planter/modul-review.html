@@ -93,6 +93,10 @@ tr:last-child td{border-bottom:0}
 .score .k{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
 .score .v{font-family:var(--f-display);font-size:24px}
 .dots{letter-spacing:3px;font-size:13px;color:var(--blue)}
+.innov{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.innov>div{background:var(--sheet);padding:18px;display:grid;gap:8px;align-content:start}
+.innov .k{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;color:var(--blue)}
+.innov p{font-size:14.5px;color:var(--muted)}
 ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
 .src{font-size:12.5px;color:var(--muted)}
 .src a{color:var(--muted)}
@@ -103,20 +107,51 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
 <header>
   <div class="eyebrow">MODUL Biophilic Planter System · 설계 검토 &amp; 상품성 분석 · 2026.11</div>
   <h1>물은 낮은 곳으로 흐른다</h1>
-  <p class="lede">MODUL은 ‘물 주기 걱정 없는 실내 정원’이라는 정확한 문제를 겨눴습니다. 다만 도면, 렌더, 설명서가 서로 다른 제품을 말하고 있고, 몇몇 약속은 물리 법칙과 식물 생리에 어긋납니다. 출시 전 바로잡아야 할 지점과 팔릴 수 있는 지점을 함께 정리했습니다.</p>
+  <p class="lede">MODUL은 ‘물 주기 걱정 없는 실내 정원’이라는 정확한 문제를 겨눴지만, 원안의 몇몇 약속은 물리 법칙과 식물 생리에 어긋났습니다. 이 문서는 그 결함을 짚고, 같은 문제를 정직하게 푸는 R2 디자인을 제안합니다. R2의 원리는 하나입니다. 물이 넘을 수 없는 높이를 형태로 정해 두는 것.</p>
 </header>
+
+<section aria-labelledby="s-r2">
+  <h2 id="s-r2">R2 제안 디자인</h2>
+  <p>원안은 “과습이 불가능하다”고 말로 약속했습니다. R2는 그 약속을 형태로 지킵니다. 부품을 늘리지 않고, 이미 있던 트레이와 황동 캡과 화분의 회전에 일을 하나씩 더 맡겼습니다.</p>
+  <div class="innov">
+    <div><span class="k">01 · 탱크 트레이</span><h3>트레이 몸통이 곧 저수조</h3><p>포켓은 마른 채로 두고, 포켓 둘레의 이중벽 몸통을 섬프와 같은 높이의 저수조로 씁니다. 크기는 그대로인데 사용 가능한 물이 600ml에서 약 944ml로 늘어납니다.</p></div>
+    <div><span class="k">02 · 형태로 정한 상한</span><h3>아무리 부어도 흙은 젖지 않는다</h3><p>트레이 윗면(30mm)을 섬프 상단(32mm)보다 2mm 낮게 잡았습니다. 연통관의 물은 가장 낮은 개구부보다 높이 오를 수 없으니, 넘치게 부어도 물은 트레이 위로 흘러넘칠 뿐 공기층과 흙에 닿지 못합니다.</p></div>
+    <div><span class="k">03 · 트위스트 휴면</span><h3>화분을 30° 돌리면 그 화분만 물을 끊는다</h3><p>포켓 바닥의 핀이 섬프의 포펫 밸브를 밀어 열고 있다가, 화분을 돌리면 핀이 비켜나 밸브가 닫힙니다. 별도 다이얼 부품이 사라지고, 다육식물은 공유 저수조에서도 건조기를 가집니다(F-03 해소).</p></div>
+    <div><span class="k">04 · 떠오르는 황동</span><h3>황동 캡이 수위계가 된다</h3><p>주수구 넥 안의 황동 플로트가 물에 떠서, 넥 위로 솟은 높이가 남은 물을 보여 줍니다. 평평해지면 급수할 때입니다. 장식이던 황동 포인트가 기능을 얻습니다.</p></div>
+    <div><span class="k">05 · 심지 카트리지</span><h3>수종에 맞춰 세라믹 콘을 고른다</h3><p>세라믹 콘을 공극률 3단(관엽 · 허브 · 다육) 카트리지로 나누고 색띠로 구분합니다. 바스켓 바닥에 바요넷으로 끼우며, 백화가 끼면 카트리지만 교체합니다. 반복 구매가 생기는 소모품입니다.</p></div>
+    <div><span class="k">06 · 링크 포트와 숨 쉬는 림</span><h3>트레이를 이으면 선반이 하나의 정원이 된다</h3><p>트레이 양 끝의 포트로 트레이를 직렬 연결하면 주수구 하나로 6구, 9구가 함께 급수됩니다. 통풍 슬롯은 흙면 위 림 둘레로 올려 실제 바깥 공기가 드나들게 했습니다.</p></div>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>항목</th><th>원안</th><th>R2</th><th>근거</th></tr></thead>
+      <tbody>
+        <tr><td>사용 가능 수량</td><td class="n">600 ml (도달 불가)</td><td class="n good">≈944 ml</td><td>섬프 483 + 탱크 몸통 461, 만수 기준</td></tr>
+        <tr><td>급수 주기 (몬스테라·필레아·하워르티아)</td><td class="n bad">“3~4주”</td><td class="n">약 13일 · 저수용 트레이 링크 시 약 27일</td><td>하루 71ml 추정, 아래 계산기</td></tr>
+        <tr><td>흙이 잠기는 최대 수위</td><td class="n bad">제한 없음</td><td class="n good">불가 (상한 30 &lt; 섬프 32)</td><td>형태로 정한 상한</td></tr>
+        <tr><td>화분별 급수 차단</td><td class="n bad">없음</td><td class="n good">30° 회전</td><td>트위스트 핀, 추가 부품 없음</td></tr>
+        <tr><td>남은 물 확인</td><td class="n">불가</td><td class="n good">황동 플로트</td><td>넥 위 4mm = 만수</td></tr>
+        <tr><td>소형 흙 깊이</td><td class="n bad">25 mm</td><td class="n good">56 mm</td><td>소형 110mm, 섬프 22 / 공기층 14</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure style="margin:0;display:grid;gap:8px">
+    <div class="tbl" style="background:#f8faf9"><img src="modul-r2-section.svg" alt="MODUL R2 대형 화분 도킹 단면도: 탱크 트레이 30, 포켓 20, 섬프 22, 공기층 14, 흙 126, 만수 26, 상한 30, 황동 플로트와 트위스트 핀" style="display:block;width:100%;min-width:640px"></div>
+    <figcaption class="src">R2 단면 A-A (대형, 도킹 상태). 물은 파란 영역에만 있습니다. 빨간 점선이 물리적 상한(트레이 윗면 30)이고, 섬프 상단(32)과 바스켓 바닥(46)은 그보다 높습니다.</figcaption>
+  </figure>
+</section>
 
 <section aria-labelledby="s-model">
   <h2 id="s-model">3D 모델</h2>
   <p>설명서 치수(90·135·180mm)와 도면의 구조(외곽 쉘 · 통기 바스켓 · 세라믹 콘 · 하부 섬프 · 도킹 트레이)를 하나의 제작 가능한 형상으로 다시 짰습니다. 화분 지름은 ‘바닥을 맞춰 3.5mm 간격으로 포갠다’는 조건에서 역산했습니다. 드래그로 회전, 휠·핀치로 확대합니다.</p>
   <div class="viewer">
-    <div id="vp" role="img" aria-label="MODUL 플랜터 3D 모델"><div class="stamp mono" id="stamp">MODUL-R1 · SCALE 1:1 · mm</div></div>
+    <div id="vp" role="img" aria-label="MODUL 플랜터 3D 모델"><div class="stamp mono" id="stamp">MODUL-R2 · SCALE 1:1 · mm</div></div>
     <div class="panel">
       <div class="modes" role="group" aria-label="보기 모드">
         <button id="m-dock" aria-pressed="true">도킹 상태 <span>01</span></button>
         <button id="m-explode" aria-pressed="false">분해 조립도 <span>02</span></button>
         <button id="m-section" aria-pressed="false">단면 A-A <span>03</span></button>
         <button id="m-nest" aria-pressed="false">중첩 보관 <span>04</span></button>
+        <button id="m-rest" aria-pressed="false">트위스트 휴면 <span>05</span></button>
       </div>
       <p class="note" id="note"></p>
       <div class="legend">
@@ -137,8 +172,8 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
         <tr><td>상단 외경</td><td class="n">150.0</td><td class="n">135.8</td><td class="n">122.8</td><td>중첩 조건 역산 (벽 2.2, 구배 1.8°, 간격 3.5)</td></tr>
         <tr><td>섬프 / 공기층</td><td class="n">22 / 14</td><td class="n">22 / 14</td><td class="n">22 / 14</td><td>원안 28 / 20 → 수정. 연통관이므로 세 화분이 같아야 함</td></tr>
         <tr><td>유효 흙 깊이</td><td class="n">126</td><td class="n">82</td><td class="n good">56</td><td>90mm 원안 스택이면 소형은 25mm</td></tr>
-        <tr><td>섬프 저수량</td><td class="n">≈220 ml</td><td class="n">≈184 ml</td><td class="n">≈151 ml</td><td>설명서 ‘150~200ml’와 부합</td></tr>
-        <tr><td>도킹 트레이</td><td colspan="3" class="n">455 × 175 × 30 · 포켓 깊이 20</td><td>원안(렌더)은 두께 약 15의 평판</td></tr>
+        <tr><td>섬프 저수량</td><td class="n">≈191 ml</td><td class="n">≈160 ml</td><td class="n">≈132 ml</td><td>R2 만수(섬프 바닥 위 13.5) 기준</td></tr>
+        <tr><td>탱크 트레이</td><td colspan="3" class="n">457 × 175 × 30 · 포켓 20 · 몸통 저수 ≈461 ml</td><td>섬프 포함 사용 수량 ≈944 ml (원안 600)</td></tr>
       </tbody>
     </table>
   </div>
@@ -194,7 +229,7 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
     <div class="f"><div class="id">R1-01<span class="sev c">출시 불가</span></div><div class="body">
       <h3>수위선이 트레이 윗면에 그려져 있고, 포켓이 물에 잠깁니다</h3>
       <p>단면 A-A에서 물이 포켓 전체를 채우고 트레이 상단(약 58mm)까지 올라옵니다. 이 높이는 섬프 22와 공기층 14를 넘어 바스켓 바닥 위이므로 흙이 물에 잠깁니다. 포켓을 열린 물그릇으로 쓰면 화분을 들 때마다 물이 따라 올라오고, 빛이 들어 이끼가 낍니다.</p>
-      <p class="fix"><b>수정안</b> 포켓은 마른 공간으로 두고 물은 닫힌 유로 → 포펫 밸브 → 섬프로만 다니게 합니다. 주수구를 스탠드파이프로 만들고 넘치는 턱을 섬프 바닥 위 18mm(섬프 상단 4mm 아래)에 둡니다. 이 높이가 시스템 전체의 최고 수위가 됩니다. 아래 R2 단면도가 이 구조입니다.</p>
+      <p class="fix"><b>수정안</b> 포켓은 마른 공간으로 두고 물은 닫힌 유로 → 포펫 밸브 → 섬프로만 다니게 합니다. 트레이 윗면(30)을 섬프 상단(32)보다 낮게 두면, 아무리 부어도 물은 흙에 닿지 못합니다. 아래 R2 단면도와 위 ‘R2 제안 디자인’이 이 구조입니다.</p>
     </div></div>
     <div class="f"><div class="id">R1-02<span class="sev c">출시 불가</span></div><div class="body">
       <h3>주수구가 사라졌습니다</h3>
@@ -215,10 +250,7 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
       <p class="fix"><b>수정안</b> 아래 R2 단면도는 3D 모델과 같은 파라미터 파일에서 생성했습니다. 치수를 바꾸면 모델과 도면이 함께 바뀝니다. 금형 견적용으로는 이 값을 기준으로 CAD(STEP)를 작성합니다.</p>
     </div></div>
   </div>
-  <figure style="margin:0;display:grid;gap:8px">
-    <div class="tbl" style="background:#f8faf9"><img src="modul-r2-section.svg" alt="MODUL R2 대형 화분 도킹 단면도: 트레이 30, 포켓 20, 섬프 22, 공기층 14, 흙 126, 최고 수위는 주수구 오버플로 턱 높이 28" style="display:block;width:100%;min-width:620px"></div>
-    <figcaption class="src">R2 단면 A-A (대형, 도킹 상태). 물은 파란색 영역에만 있습니다. 주수구 스탠드파이프의 넘침 높이가 섬프 수위를 정하고, 포켓은 마른 상태로 남습니다.</figcaption>
-  </figure>
+  <p class="src">R1의 나머지 지적은 위 ‘R2 제안 디자인’과 단면도에 반영했습니다.</p>
 </section>
 
 <section aria-labelledby="s-calc">
@@ -229,7 +261,7 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
       <div class="row"><label for="p1">대형 (180)</label><select id="p1"></select><span class="mono" id="u1"></span></div>
       <div class="row"><label for="p2">중형 (135)</label><select id="p2"></select><span class="mono" id="u2"></span></div>
       <div class="row"><label for="p3">소형 (110)</label><select id="p3"></select><span class="mono" id="u3"></span></div>
-      <div class="row"><label for="vol">급수량</label><select id="vol"><option value="600" selected>600 ml (설명서 권장)</option><option value="900">900 ml (포켓형 트레이 최대)</option><option value="2100">2,100 ml (서브 탱크 옵션)</option></select><span></span></div>
+      <div class="row"><label for="vol">급수량</label><select id="vol"><option value="600">600 ml (원안 설명서)</option><option value="944" selected>944 ml (R2 탱크 트레이 만수)</option><option value="1888">1,888 ml (빈 트레이 1개를 저수용으로 링크)</option><option value="2100">2,100 ml (서브 탱크 옵션)</option></select><span></span></div>
     </div>
     <div class="out">
       <div><div class="big mono" id="days">–</div><div class="lbl">예상 급수 주기 (일)</div></div>
@@ -303,7 +335,8 @@ calc();
 
 /* ---------- 3D ---------- */
 const NOTES={
-  dock:"포켓형 트레이에 세 화분이 들어앉은 상태. 화분 바닥이 트레이 윗면보다 20mm 낮아, 트레이 내부 수위가 그대로 섬프 안까지 올라옵니다(파란 원판). 왼쪽 모서리가 황동 주수구.",
+  dock:"R2 탱크 트레이에 세 화분이 들어앉은 상태. 포켓은 마르고, 포켓 둘레의 트레이 몸통이 약 0.94L 저수조입니다. 왼쪽 모서리의 황동 플로트가 솟은 높이가 남은 물, 양 끝의 둥근 단자가 다른 트레이와 잇는 링크 포트입니다.",
+  rest:"소형 화분만 30° 돌린 상태. 포켓 바닥의 트위스트 핀이 밸브에서 비켜나 이 화분만 급수가 멈춥니다(섬프 물이 흐려짐). 하워르티아 같은 다육은 건조기를 이렇게 만들어 줍니다. 림의 황동 눈금이 트레이의 FLOW/REST 표시를 가리킵니다.",
   explode:"화분 하나는 다섯 부품입니다. 외곽 쉘 · 통기 바스켓 · 세라믹 콘 · 섬프(바요넷 결합) · 바닥 포펫 밸브. 세 화분과 트레이를 합치면 금형 약 14벌입니다.",
   section:"단면 A-A. 섬프 22 · 공기층 14 · 바스켓 바닥 순서로 쌓입니다. 세라믹 콘의 끝이 섬프 물에 잠기고 넓은 입구가 흙 속에 있습니다. 소형은 R1에서 110mm로 올라가 흙 깊이 56mm를 확보했습니다.",
   nest:"바스켓과 콘을 뺀 외곽 쉘만 바닥을 맞춰 포갭니다. 지름 150/136/122, 반경 간격 3.5mm. 바스켓·콘·섬프는 따로 쌓아야 하므로 ‘대형 1개 부피’는 쉘에만 해당합니다."
@@ -368,6 +401,13 @@ function buildPot(p){
   parts.basket=basket;
   const ch=bz+.35*(p.h-bz);
   parts.cone=lathe([[0,4],[.11*p.od,4],[.2*p.od,ch],[0,ch]],latheMat(0xd9d2c4,{roughness:1}));
+  const band=lathe([[.2*p.od-.3,ch-6],[.2*p.od+1.2,ch-6],[.2*p.od+1.2,ch+.5],[.2*p.od-.3,ch+.5]],latheMat(p.k==="low"?0xd08a2e:0x4c8a52,{roughness:.6}));
+  parts.cone.add(band);
+  // 숨 쉬는 림: 흙면 위 통풍 슬롯
+  const vent=latheMat(0x111414,{roughness:1});
+  for(let i=0;i<20;i++){const a=i/20*Math.PI*2,rr=rt+.15;const m=new THREE.Mesh(new THREE.BoxGeometry(7,4,1),vent);m.position.set(rr*Math.sin(a),p.h-9,rr*Math.cos(a));m.rotation.y=a;parts.shell.add(m)}
+  // 트위스트 눈금
+  const tick=new THREE.Mesh(new THREE.BoxGeometry(3,6,3),latheMat(0xb08a3e,{metalness:.9,roughness:.3}));tick.position.set(0,p.h-3,rt+.6);parts.shell.add(tick);
   parts.valve=lathe([[0,-3],[9,-3],[9,2],[0,2]],latheMat(0x22262a,{roughness:.4}));
   // 흙과 식물 실루엣
   const soilTop=p.h-15;
@@ -391,7 +431,13 @@ function buildTray(){
   top.rotation.x=-Math.PI/2;top.position.y=20;
   const base=new THREE.Mesh(new THREE.BoxGeometry(L-2,20,W-2),latheMat(0x24282a,{roughness:.4,metalness:.5}));base.position.y=10;
   const g=new THREE.Group();g.add(top,base);
-  const cap=new THREE.Mesh(new THREE.CylinderGeometry(11,11,4,48),latheMat(0xb08a3e,{metalness:.9,roughness:.32}));cap.position.set(-L/2+22,T+2,W/2-22);g.add(cap);
+  const brass=latheMat(0xb08a3e,{metalness:.9,roughness:.32});
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(11,1.6,12,48),brass);ring.rotation.x=Math.PI/2;ring.position.set(-L/2+22,T+.6,W/2-22);g.add(ring);
+  const flt=new THREE.Mesh(new THREE.CylinderGeometry(7,7,10,40),brass);flt.position.set(-L/2+22,T+1,W/2-22);g.add(flt);g.userData.float=flt;
+  const port=latheMat(0x8f969a,{metalness:.6,roughness:.35});
+  [-1,1].forEach(sx=>{const c=new THREE.Mesh(new THREE.CylinderGeometry(6,6,6,32),port);c.rotation.z=Math.PI/2;c.position.set(sx*(L/2+2),14,0);g.add(c)});
+  // FLOW/REST 표시
+  POTS.forEach(p=>{const R=rAt(p.od,p.h,0)+8;[[0,0x2e7d4f],[-Math.PI/6,0xb3261e]].forEach(([a,c])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(2.4,1,7),latheMat(c,{roughness:.5}));m.position.set(p.x+R*Math.sin(a),T+.6,R*Math.cos(a));m.rotation.y=a;g.add(m)})});
   g.userData.T=T;return g;
 }
 
@@ -430,6 +476,8 @@ function setMode(m,instant){
     let base=new THREE.Vector3(p.x,seat,0);
     if(m==="nest")base=new THREE.Vector3(0,seat,0);
     tgt(g,base);
+    g.userData.rot=(m==="rest"&&p.k==="low")?-Math.PI/6:0;
+    if(P.water)P.water.material.opacity=(m==="rest"&&p.k==="low")?.15:.55;
     const ex=m==="explode";
     const show=k=>!(m==="nest"&&k!=="shell");
     const off={sump:ex?-10:0,valve:ex?-45:0,shell:ex?70:0,basket:ex?250:0,cone:ex?150:0,soil:ex?250:0,water:0};
@@ -437,11 +485,13 @@ function setMode(m,instant){
   });
   if(m==="nest"){controls.target.set(0,90,0)}else if(m==="explode"){controls.target.set(0,170,0)}else controls.target.set(0,90,0);
   if(instant)targets.forEach((t,o)=>{o.position.copy(t.pos);o.visible=t.vis});
+  if(tray.userData.float)tray.userData.float.position.y=tray.userData.T+(m==="rest"?1:4);
 }
 function step(){
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  groups.forEach(g=>{const r=g.userData.rot||0;g.rotation.y=reduce?r:g.rotation.y+(r-g.rotation.y)*.1});
   targets.forEach((t,o)=>{if(reduce)o.position.copy(t.pos);else o.position.lerp(t.pos,.12);if(!t.vis&&o.position.distanceTo(t.pos)<2)o.visible=false;if(t.vis)o.visible=true});
 }
-["dock","explode","section","nest"].forEach(m=>{document.getElementById("m-"+m).addEventListener("click",()=>{if(window.THREE&&renderer)setMode(m);else{mode=m;document.getElementById("note").textContent=NOTES[m];document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.id==="m-"+m))}})});
+["dock","explode","section","nest","rest"].forEach(m=>{document.getElementById("m-"+m).addEventListener("click",()=>{if(window.THREE&&renderer)setMode(m);else{mode=m;document.getElementById("note").textContent=NOTES[m];document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.id==="m-"+m))}})});
 if(!renderer)document.getElementById("note").textContent=NOTES.dock;
 </script>

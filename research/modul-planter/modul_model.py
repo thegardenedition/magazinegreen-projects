@@ -92,7 +92,7 @@ def build(out="stl"):
         for part, prof in parts.items():
             write_stl(f"{out}/{name}_{part}.stl", lathe(prof))
         soil = h - 15 - (sump_h + gap + 2.5)
-        sump_ml = math.pi * (rb - WALL) ** 2 * (sump_h - 2.5 - 4) / 1000
+        sump_ml = math.pi * (rb - WALL) ** 2 * (sump_h - 2.5 - 6) / 1000
         report.append((name, h, od, round(soil), round(sump_ml)))
     # 도킹 트레이: 라운드 사각 슬래브 (내부 유로는 리포트 도면 참고)
     L = sum(ods.values()) + 12 * 4
@@ -106,10 +106,22 @@ def build(out="stl"):
     tris += [((-x, -y, 0), (x, y, 0), (x, -y, 0)), ((-x, -y, 0), (-x, y, 0), (x, y, 0)),
              ((-x, -y, t), (x, -y, t), (x, y, t)), ((-x, -y, t), (x, y, t), (-x, y, t))]
     write_stl(f"{out}/dock_tray.stl", tris)
+    # R2 탱크 트레이: 포켓은 마른 상태, 포켓 둘레의 트레이 몸통이 섬프와 같은 높이 대역의 저수조가 된다.
+    band = 26 - (10 + 2.5)                                   # 섬프 바닥(절대 12.5) ~ 만수(26). 상한은 트레이 윗면 30
+    inner = (L - 2 * WALL) * (W - 2 * WALL)
+    pockets = sum(math.pi * (r_at(ods[n], h, 0) + 1.5 + WALL) ** 2 for n, h, *_ in POTS)
+    tank_ml = (inner - pockets) * band / 1000
+    sumps_ml = sum(x[4] for x in report)
+    # 황동 플로트 게이지, 수종별 심지 카트리지(공극률 3단)
+    write_stl(f"{out}/brass_float.stl", lathe([(0, 0), (6.5, 0), (6.5, 22), (9, 22), (9, 30), (0, 30)]))
+    for grade in ("leaf", "herb", "succulent"):
+        write_stl(f"{out}/wick_cartridge_{grade}.stl",
+                  lathe([(0, 0), (10, 0), (18, 40), (21, 40), (21, 44), (0, 44)]))
     print("pot      H    top OD  soil depth  sump ml")
     for r in report:
         print("%-7s %4d  %6.1f  %9d  %7d" % r)
     print("tray     %.0f x %.0f x 30 (pocket depth 20)" % (L, W))
+    print("R2 usable water: sumps %d + tank %d = %d ml" % (sumps_ml, tank_ml, sumps_ml + tank_ml))
 
 
 if __name__ == "__main__":
