@@ -133,10 +133,10 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
     <table>
       <thead><tr><th>부위</th><th>대형 Tall</th><th>중형 Medium</th><th>소형 Low</th><th>비고</th></tr></thead>
       <tbody>
-        <tr><td>높이</td><td class="n">180</td><td class="n">135</td><td class="n">90</td><td>설명서 값</td></tr>
-        <tr><td>상단 외경</td><td class="n">150.0</td><td class="n">135.8</td><td class="n">121.5</td><td>중첩 조건 역산 (벽 2.2, 구배 1.8°, 간격 3.5)</td></tr>
+        <tr><td>높이</td><td class="n">180</td><td class="n">135</td><td class="n">110</td><td>R1에서 소형 90 → 110</td></tr>
+        <tr><td>상단 외경</td><td class="n">150.0</td><td class="n">135.8</td><td class="n">122.8</td><td>중첩 조건 역산 (벽 2.2, 구배 1.8°, 간격 3.5)</td></tr>
         <tr><td>섬프 / 공기층</td><td class="n">22 / 14</td><td class="n">22 / 14</td><td class="n">22 / 14</td><td>원안 28 / 20 → 수정. 연통관이므로 세 화분이 같아야 함</td></tr>
-        <tr><td>유효 흙 깊이</td><td class="n">126</td><td class="n">82</td><td class="n bad">36</td><td>원안 스택이면 소형은 25mm</td></tr>
+        <tr><td>유효 흙 깊이</td><td class="n">126</td><td class="n">82</td><td class="n good">56</td><td>90mm 원안 스택이면 소형은 25mm</td></tr>
         <tr><td>섬프 저수량</td><td class="n">≈220 ml</td><td class="n">≈184 ml</td><td class="n">≈151 ml</td><td>설명서 ‘150~200ml’와 부합</td></tr>
         <tr><td>도킹 트레이</td><td colspan="3" class="n">455 × 175 × 30 · 포켓 깊이 20</td><td>원안(렌더)은 두께 약 15의 평판</td></tr>
       </tbody>
@@ -187,6 +187,40 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
   </div>
 </section>
 
+<section aria-labelledby="s-r1">
+  <h2 id="s-r1">R1 도면 검토 (2026.11 수정본)</h2>
+  <p>R1은 검토 의견 대부분을 받아들였습니다. 포켓형 트레이(455×175×30, 포켓 20), 바요넷 섬프와 O링, 회전식 차단 다이얼, 세라믹 콘 필터 링, 소형 110mm, 섬프 22 / 공기층 14 통일이 모두 반영됐습니다. 남은 문제는 물이 어디까지 차오르는지가 정해지지 않았다는 것입니다.</p>
+  <div class="findings">
+    <div class="f"><div class="id">R1-01<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>수위선이 트레이 윗면에 그려져 있고, 포켓이 물에 잠깁니다</h3>
+      <p>단면 A-A에서 물이 포켓 전체를 채우고 트레이 상단(약 58mm)까지 올라옵니다. 이 높이는 섬프 22와 공기층 14를 넘어 바스켓 바닥 위이므로 흙이 물에 잠깁니다. 포켓을 열린 물그릇으로 쓰면 화분을 들 때마다 물이 따라 올라오고, 빛이 들어 이끼가 낍니다.</p>
+      <p class="fix"><b>수정안</b> 포켓은 마른 공간으로 두고 물은 닫힌 유로 → 포펫 밸브 → 섬프로만 다니게 합니다. 주수구를 스탠드파이프로 만들고 넘치는 턱을 섬프 바닥 위 18mm(섬프 상단 4mm 아래)에 둡니다. 이 높이가 시스템 전체의 최고 수위가 됩니다. 아래 R2 단면도가 이 구조입니다.</p>
+    </div></div>
+    <div class="f"><div class="id">R1-02<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>주수구가 사라졌습니다</h3>
+      <p>등각도의 트레이에 황동 리필 캡도, 물을 넣을 구멍도 없습니다. 포켓도 하나만 그려져 있어 세 포트를 잇는 유로를 확인할 수 없습니다.</p>
+      <p class="fix"><b>수정안</b> 트레이 모서리에 스탠드파이프형 주수구(R1-01)와 포켓 3개, 그 아래 유로를 그립니다.</p>
+    </div></div>
+    <div class="f"><div class="id">R1-03<span class="sev w">수정 권장</span></div><div class="body">
+      <h3>통풍구가 섬프 링에 달려 있습니다</h3>
+      <p>‘상부 둘레 통풍구’ 지시선이 바요넷 섬프 부품을 가리킵니다. 섬프에 구멍을 내면 물이 그 높이에서 새고 증발도 빨라집니다. 에어 프루닝용 통풍구는 흙면보다 위, 바스켓 측벽 상단과 쉘 림 바로 아래에 있어야 바깥 공기와 통합니다.</p>
+    </div></div>
+    <div class="f"><div class="id">R1-04<span class="sev w">수정 권장</span></div><div class="body">
+      <h3>치수 표기가 서로 맞지 않습니다</h3>
+      <p>단면 상단의 180mm와 135mm는 높이 값이 지름 자리에 들어간 것입니다(대형 상단 외경은 150). 단면 바닥 폭 295mm는 트레이 폭 175mm보다 넓고, 등각도에는 근거 없는 350mm가 있습니다. 세로 치수 ‘56/82/126mm’는 흙 깊이인데 높이 58mm 구간에 붙어 있습니다. 용량표는 행이 중복됐습니다(소형 151, 중형 184, 대형 220ml가 맞습니다). 소형이 110mm가 되면 중첩 조건상 상단 외경은 122.8mm입니다. 121.5로 두면 간격이 3.5가 아니라 4.2mm가 되어 덜컹거립니다.</p>
+    </div></div>
+    <div class="f"><div class="id">R1-05<span class="sev c">출시 불가</span></div><div class="body">
+      <h3>표제란과 DFM 노트를 읽을 수 없어 금형 발주 문서로 쓸 수 없습니다</h3>
+      <p>‘TOSSS FOR’, ‘NOREABJAIL BEITOTAL’ 같은 표제란 항목과 DFM 노트의 한글·영문 문장이 깨져 있습니다. 이미지 생성 도구로 만든 그림으로 보입니다. 구조를 소통하는 데는 충분하지만, 금형사에는 CAD에서 뽑은 도면이 가야 합니다.</p>
+      <p class="fix"><b>수정안</b> 아래 R2 단면도는 3D 모델과 같은 파라미터 파일에서 생성했습니다. 치수를 바꾸면 모델과 도면이 함께 바뀝니다. 금형 견적용으로는 이 값을 기준으로 CAD(STEP)를 작성합니다.</p>
+    </div></div>
+  </div>
+  <figure style="margin:0;display:grid;gap:8px">
+    <div class="tbl" style="background:#f8faf9"><img src="modul-r2-section.svg" alt="MODUL R2 대형 화분 도킹 단면도: 트레이 30, 포켓 20, 섬프 22, 공기층 14, 흙 126, 최고 수위는 주수구 오버플로 턱 높이 28" style="display:block;width:100%;min-width:620px"></div>
+    <figcaption class="src">R2 단면 A-A (대형, 도킹 상태). 물은 파란색 영역에만 있습니다. 주수구 스탠드파이프의 넘침 높이가 섬프 수위를 정하고, 포켓은 마른 상태로 남습니다.</figcaption>
+  </figure>
+</section>
+
 <section aria-labelledby="s-calc">
   <h2 id="s-calc">급수 주기 계산기</h2>
   <p>트레이 조합을 바꿔 600ml가 며칠 가는지 확인합니다. 하루 소비량은 실내 15~25℃, 간접광 기준 추정 범위의 중앙값입니다. 섬프가 비어도 흙에 남은 수분으로 2~3일은 더 버팁니다.</p>
@@ -194,7 +228,7 @@ ol.plan{margin:0;padding-left:1.3em;display:grid;gap:8px;max-width:72ch}
     <div class="rows">
       <div class="row"><label for="p1">대형 (180)</label><select id="p1"></select><span class="mono" id="u1"></span></div>
       <div class="row"><label for="p2">중형 (135)</label><select id="p2"></select><span class="mono" id="u2"></span></div>
-      <div class="row"><label for="p3">소형 (90)</label><select id="p3"></select><span class="mono" id="u3"></span></div>
+      <div class="row"><label for="p3">소형 (110)</label><select id="p3"></select><span class="mono" id="u3"></span></div>
       <div class="row"><label for="vol">급수량</label><select id="vol"><option value="600" selected>600 ml (설명서 권장)</option><option value="900">900 ml (포켓형 트레이 최대)</option><option value="2100">2,100 ml (서브 탱크 옵션)</option></select><span></span></div>
     </div>
     <div class="out">
@@ -271,14 +305,14 @@ calc();
 const NOTES={
   dock:"포켓형 트레이에 세 화분이 들어앉은 상태. 화분 바닥이 트레이 윗면보다 20mm 낮아, 트레이 내부 수위가 그대로 섬프 안까지 올라옵니다(파란 원판). 왼쪽 모서리가 황동 주수구.",
   explode:"화분 하나는 다섯 부품입니다. 외곽 쉘 · 통기 바스켓 · 세라믹 콘 · 섬프(바요넷 결합) · 바닥 포펫 밸브. 세 화분과 트레이를 합치면 금형 약 14벌입니다.",
-  section:"단면 A-A. 섬프 22 · 공기층 14 · 바스켓 바닥 순서로 쌓입니다. 세라믹 콘의 끝이 섬프 물에 잠기고 넓은 입구가 흙 속에 있습니다. 소형은 흙 깊이가 36mm뿐입니다.",
+  section:"단면 A-A. 섬프 22 · 공기층 14 · 바스켓 바닥 순서로 쌓입니다. 세라믹 콘의 끝이 섬프 물에 잠기고 넓은 입구가 흙 속에 있습니다. 소형은 R1에서 110mm로 올라가 흙 깊이 56mm를 확보했습니다.",
   nest:"바스켓과 콘을 뺀 외곽 쉘만 바닥을 맞춰 포갭니다. 지름 150/136/122, 반경 간격 3.5mm. 바스켓·콘·섬프는 따로 쌓아야 하므로 ‘대형 1개 부피’는 쉘에만 해당합니다."
 };
 const WALL=2.2, DR=Math.tan(1.8*Math.PI/180);
 const POTS=[
   {k:"tall",h:180,od:150,col:0x2b3fa8,flute:true,x:-150},
   {k:"medium",h:135,od:135.8,col:0xa8583c,rough:true,x:0},
-  {k:"low",h:90,od:121.5,col:0x7c8a5c,x:140}
+  {k:"low",h:110,od:122.8,col:0x7c8a5c,x:140}
 ];
 const SUMP=22,GAP=14;
 const vp=document.getElementById("vp");
