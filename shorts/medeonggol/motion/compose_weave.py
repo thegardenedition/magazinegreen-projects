@@ -35,6 +35,9 @@ CLIPS = {
               "hf_20261024_171201_6ba4a145-b365-41e1-b38e-272fa811dd5a.mp4",
     "clip02": "https://d8j0ntlcm91z4.cloudfront.net/user_3KcRqK6RIUPy2RaaLRBKDHuTOIw/"
               "hf_20261024_172117_945fc268-9a4d-4af6-93e9-8f2d153605cb.mp4",
+    # 실제 조성 전 사진 → 실제 현재 사진(연못과 정자)을 시작·끝 이미지로 만든 변화 클립
+    "tr_pond": "https://d8j0ntlcm91z4.cloudfront.net/user_3KcRqK6RIUPy2RaaLRBKDHuTOIw/"
+               "hf_20261110_081539_54193027-2873-4a76-ad69-e48255445542.mp4",
 }
 
 # (출력 시작, 출력 끝, 종류, 원본 시작, 원본 끝, HUD 라벨)
@@ -49,7 +52,7 @@ TIMELINE = [
     (30.0, 34.0, "motion", 28.6, 32.6, None),
     (34.0, 46.0, "motion", 38.5, 43.9, None),
     (46.0, 52.0, "motion", 17.2, 23.0, None),
-    (52.0, 58.5, "motion", 44.0, 48.99, None),
+    (52.0, 58.5, "tr_pond", 0.0, 8.0, "AI 재현 · 조성 전 → 현재"),
     (58.5, 65.5, "motion", 49.0, 56.0, None),
 ]
 DURATION = TIMELINE[-1][1]
