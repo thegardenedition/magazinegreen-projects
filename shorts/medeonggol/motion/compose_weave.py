@@ -39,8 +39,8 @@ CLIPS = {
 
 # (출력 시작, 출력 끝, 종류, 원본 시작, 원본 끝, HUD 라벨)
 TIMELINE = [
-    (0.0, 4.0, "clip01", 0.0, 4.0, "FOOTAGE · 백 년 된 숲?"),
-    (4.0, 8.0, "clip01", 4.0, 8.0, "FOOTAGE · 2016 이전의 땅"),
+    (0.0, 2.0, "clip01", 0.0, 2.0, "FOOTAGE · 백 년 된 숲?"),
+    (2.0, 8.0, "before", 0.0, 1.0, "PHOTO · 조성 전 실제 모습"),
     (8.0, 14.0, "motion", 2.5, 9.0, None),
     (14.0, 19.0, "clip02", 0.0, 3.0, "FOOTAGE · 반듯한 담"),
     (19.0, 19.4, "glitch", 3.0, 6.0, None),
@@ -92,6 +92,14 @@ class Weaver:
         ns = argparse.Namespace(data=os.path.join(HERE, "site_data.json"), font=args.font, logo=None, no_captions=True)
         self.r = sb.Renderer(ns)
         self.clips = {n: fetch_clip(n) for n in CLIPS}
+        # 조성 전 실제 사진(사용자 제공). 저장소에는 넣지 않고 경로로 받는다.
+        self.before = None
+        if args.before:
+            im = Image.open(args.before).convert("RGB")
+            s = max(W / im.width, H / im.height)
+            im = im.resize((int(im.width * s) + 1, int(im.height * s) + 1), Image.LANCZOS)
+            x, y = (im.width - W) // 2, (im.height - H) // 2
+            self.before = im.crop((x, y, x + W, y + H))
         root = os.path.abspath(os.path.join(HERE, ".."))
         self.big = parse_srt(os.path.join(root, "화면자막.srt"))
         self.small = parse_srt(os.path.join(root, "하단캡션.srt"))
@@ -156,6 +164,37 @@ class Weaver:
                     y += 52
         return Image.alpha_composite(img.convert("RGBA"), ov).convert("RGB")
 
+    def before_photo(self, u, label, t):
+        """조성 전 실제 사진: 천천히 다가가며, 끝부분에 빨간 측량 격자가 땅 위에 깔린다."""
+        if self.before is None:
+            return self.footage("clip01", 2.0 + u * 6.0, label, t)
+        z = 1.0 + 0.08 * sb.ease(u)
+        w, h = int(W / z), int(H / z)
+        x, y = (W - w) // 2, int((H - h) * 0.6)
+        img = self.before.crop((x, y, x + w, y + h)).resize((W, H), Image.LANCZOS).convert("RGBA")
+        ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        dr = ImageDraw.Draw(ov)
+        for yy in range(0, H, 6):
+            dr.line([(0, yy), (W, yy)], fill=(0, 0, 0, 22))
+        g = sb.ease(sb.ph(u, (0.55, 0.95)))
+        if g > 0:
+            a = int(235 * g)
+            hz, vx = 790, W / 2  # 지평선(숲 아래 풀밭 경계)과 소실점
+            for k in range(-8, 9):
+                dr.line([(vx + k * 18, hz), (vx + k * 260, H)], fill=sb.RED + (a,), width=3)
+            yy = hz
+            step = 12
+            while yy < H:
+                dr.line([(0, yy), (W, yy)], fill=sb.RED + (int(a * 0.8),), width=3)
+                step *= 1.35
+                yy += step
+        self.r.hud(dr, t, label)
+        tag = "실제 사진 · 조성 전"
+        tw = dr.textlength(tag, font=self.r.f_small)
+        dr.rectangle((W - 40 - tw - 26, 104, W - 40, 140), fill=(0, 0, 0, 140))
+        dr.text((W - 40 - tw - 13, 109), tag, font=self.r.f_small, fill=(255, 255, 255, 230))
+        return Image.alpha_composite(img, ov).convert("RGB")
+
     def raw(self, seg, t):
         a, b, kind, s0, s1, label = seg
         u = min(max((t - a) / (b - a), 0), 1)
@@ -164,6 +203,8 @@ class Weaver:
             return self.r.frame(min(src, sb.DURATION - 1e-3))
         if kind == "glitch":
             return self.glitch(u, t)
+        if kind == "before":
+            return self.before_photo(u, label, t)
         return self.footage(kind, src, label, t)
 
     def frame(self, t):
@@ -184,6 +225,7 @@ def main():
     ap.add_argument("--out", default="medeonggol_weave.mp4")
     ap.add_argument("--font")
     ap.add_argument("--still", type=float, action="append")
+    ap.add_argument("--before", help="조성 전 실제 사진(세로 사진 권장). 없으면 Clip 01 화면을 쓴다")
     args = ap.parse_args()
     wv = Weaver(args)
     if args.still:
