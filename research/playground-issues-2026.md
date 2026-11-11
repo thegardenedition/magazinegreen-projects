@@ -189,7 +189,6 @@
 - [인사이트 — 몇 동 몇 호에 사니](https://www.insight.co.kr/news/554057)
 - [맘스커리어 — 아파트에 사는 아이만 놀 수 있는 놀이터](http://www.momscareer.co.kr/news/articleView.html?idxno=4660)
 - [서울신문 — 용산구 지능형 CCTV](https://m.go.seoul.co.kr/news/2025/08/18/20250818500207)
-- [세계일보 (2026.3)](https://www.segye.com/newsView/20260309509594)
 - [YTN — 미끄럼틀 내부 44℃](https://www.ytn.co.kr/_ln/0103_202608081413180182)
 - [뉴시스 — 폭염에 문 닫은 오산 물놀이장](https://www.newsis.com/view/NISX20260805_0003737676)
 - [CBS Colorado — hot playground equipment](https://www.cbsnews.com/colorado/news/hot-playground-equipment-summer-heats-up-denver)
