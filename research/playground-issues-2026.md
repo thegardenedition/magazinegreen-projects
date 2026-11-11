@@ -153,6 +153,63 @@
 
 ---
 
+## 최근 1개월 타임라인 (2026-10-11 ~ 11-11)
+
+### 국내
+| 날짜 | 이슈 | 비고 |
+|---|---|---|
+| 10.21 | 서대문구 홍제1동, 낡은 놀이시설을 철거하고 주민 운동·쉼터로 재정비 | 놀이터의 용도 전환 (B2) |
+| 10.23 | 안전관리법 시행령·시행규칙 개정안 입법예고 (~12.8) | 10.28 전후로 '놀이터 골프 과태료' 보도 쏟아짐 |
+| 10.25 | 오산 궐동 아파트 놀이터 인공암벽 구조물에 12세 다리 끼임. 소방이 구조물을 절단해 구조 | 끼임 = 해저드 사례 |
+| 10.26~11.5 | 대전교육청, 유치원·초교 놀이시설 40곳 민관합동 점검 | — |
+| 11.2 | 행안부 '2026 우수 어린이놀이시설' 9곳 선정 (자연·모험·안전관리) | 인천나비공원 모험숲 등 |
+| 11.3 | LH, 공공주택 첫 통합놀이터 설계공모 당선작 발표 (시흥하중 A-4) | 2027년 확대 |
+| 11.7 | 인천시·롯데·초록우산, 부평 공공 무료 실내놀이터 협약. 11월 착공, 2027 상반기 개관 | 놀이의 실내화 |
+| 11.9 | 마포구, 어린이공원 7곳 정비 완료 (2억 7천만 원, 그늘막 추가) | — |
+| 11.9 | 부산 남구 구민공원 놀이시설 재개방 (시비 6억, 물놀이 겸용. 물놀이는 2027 여름 운영) | — |
+| 11.9 | 경남도의회 행정사무감사: 놀이시설 안전 지원 3년간 0건, 31곳 중 24곳 무인 운영, 사고 원인 전부 '이용자 부주의' | ★★ |
+| 11.10~27 | 경남도 동절기 놀이시설 50곳 민관합동 점검 | — |
+
+**기간 밖이지만 지금 챙길 것**: 울산 중구 새터공원 생태놀이터 철거·주차장(사업비 170억, 128면)이 **2026년 12월 착공 예정**이다. 삼일공원 주차장 반대 주민 집회도 9월 말부터 매주 이어지는 중. 착공 직전 현장 취재 시점.
+
+### 해외
+| 날짜 | 이슈 | 비고 |
+|---|---|---|
+| 10.13 | Phys.org: 3~5세가 지저분하거나 위험한 바깥 놀이를 피하는 것은 어른의 반복된 안전·청결 경고와 관련 | "한 세대 만에 바깥 놀이 50% 감소"는 2차 인용이라 미검증 |
+| 10.26 | **PLOS ONE 체계적 고찰** (엑서터대·UBC): 3~12세 대상 연구 74편. 모험적 바깥 놀이가 신체·정신 건강, 사회·인지 발달과 연관 | 신체활동을 잰 연구 23편 중 18편이 긍정 연관. 부상 결과는 혼재. 상관관계 연구 |
+| 10월 | 미국 오하이오 노스캔턴: 웨스트파크 놀이터가 안전검사에 불합격해 철거. 주민들 "구멍만 남았다" | ★★ 안전 기준이 놀이터를 없애는 장면 |
+| 10.22 | 미국 롤리: 옛 놀이터 영구 폐쇄 (철거 공사) | — |
+| 10.27 / 11.10 | 미국 멘로파크 플러드파크 놀이터 개장. 아이와 주민이 함께 설계 | 아동 참여 설계 사례 |
+| 11.10 | 미국 샌마테오 센트럴파크 놀이터 리뉴얼 '어드벤처 빌리지' | — |
+| 11.19 (예정) | 미국 포틀랜드 하이츠파크 통합놀이터 개장 ('Everybody Plays' 캠페인 두 번째) | 11.11 보도 |
+
+### 1개월 출처
+- [서울신문 — 서대문구 놀이터 주민 운동·휴식 공간 재정비](https://go.seoul.co.kr/news/newsView.php?id=20261021500080)
+- [국민일보 — 놀이터 골프연습 과태료](https://www.kmib.co.kr/article/20261028500055)
+- [네이트 — 아파트 놀이터 구조물에 다리 낀 초등생](https://m.news.nate.com/view/20261025n15859)
+- [충청매일 — 대전시교육청 놀이시설 40곳 점검](https://www.ccdn.co.kr/news/articleView.html?idxno=1107041)
+- [아주경제 — 경기도 우수 어린이놀이시설 2곳](https://www.ajunews.com/view/20261102104904953)
+- [더리포트 — 우수 어린이놀이시설 9곳](https://www.thereport.co.kr/news/articleView.html?idxno=92968)
+- [아시아투데이 — LH 통합놀이터](https://www.asiatoday.co.kr/kn/view.php?key=20261103010001135)
+- [중도일보 — 인천시 첫 공공 실내놀이터](https://m.joongdo.co.kr/view.php?key=20261107010002294)
+- [한국NGO신문 — 부평 무료 실내놀이터](https://www.ngonews.kr/news/articleView.html?idxno=242508)
+- [데일리안 — 마포구 어린이공원 7곳 정비](https://www.dailian.co.kr/news/view/1712298/%EC%84%9C%EC%9A%B8-%EB%A7%88%ED%8F%AC%EA%B5%AC-2%EC%96%B57000%EB%A7%8C%EC%9B%90-%ED%88%AC%EC%9E%85%ED%95%B4-2026)
+- [국제뉴스 — 부산 남구 구민공원 놀이시설 새 단장](https://www.gukjenews.com/news/articleView.html?idxno=3745062)
+- [뉴스클레임 — 경남 놀이터 안전 지원 3년째 0건](https://newsclaim.co.kr/news/articleView.html?idxno=3082173)
+- [뉴스프리존 — 경남 동절기 놀이시설 점검](https://www.newsfreezone.co.kr/news/articleView.html?idxno=718281)
+- [부산일보 — 울산 170억 주차장 추진 논란](https://www.busan.com/view/busan/view.php?code=2026033011144188959)
+- [네이트 — 울산 중구 삼일공원 주차장 진통](https://m.news.nate.com/view/20260930n25091)
+- [Phys.org — Messy, risky outdoor play (2026.10)](https://phys.org/news/2026-10-messy-risky-outdoor-play-important.html)
+- [University of Exeter — Adventurous play linked to better health](https://news.exeter.ac.uk/faculty-of-health-and-life-sciences/adventurous-play-linked-to-better-physical-and-mental-health-in-children/)
+- [PLOS ONE — Outdoor risky play and health-related outcomes](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0347444)
+- [Yahoo — Playground removed from North Canton park](https://www.yahoo.com/news/articles/stuck-hole-playground-removed-north-120834255.html)
+- [Raleigh — Old playground closed](https://raleighnc.gov/status-alerts/old-playground-closed)
+- [San Mateo County — Flood Park playground open](https://www.smcgov.org/parks/news/flood-park-playground-open-ribbon-cutting-nov-10)
+- [City of San Mateo — Central Park playground renovation](https://www.cityofsanmateo.org/4142/Central-Park-Playground-Renovation)
+- [Portland Tribune — Portland Heights Park playground](https://portlandtribune.com/2026/11/11/new-playground-opens-at-portland-heights-park-in-southwest-portland/)
+
+---
+
 ## 기사화 우선순위 제안
 1. **놀이터가 주차장이 될 때** (B1+B2): 울산 새터공원 생태놀이터 철거를 축으로 삼는다. 조경 공간이 면적 경쟁에서 밀리는 구조. ★★★
 2. **회원제 놀이터** (C1): 공유지에서 사유지로. 「위험이 지워진 놀이터」와 2부작으로 묶을 수 있다. ★★★
