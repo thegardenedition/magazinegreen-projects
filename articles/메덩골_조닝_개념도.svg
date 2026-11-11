@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" font-family="'Noto Sans CJK KR','Noto Sans KR','NanumGothic',sans-serif">
+  <rect width="1200" height="720" fill="#fbfaf6"/>
+  <text x="40" y="46" font-size="24" font-weight="700" fill="#2b2b26">'메덩골 한국정원' 조닝 개념도</text>
+  <text x="40" y="72" font-size="14" fill="#6b6a62">걷는 순서와 구역 구성을 나타낸 개념도입니다. 실제 배치·축척과 다릅니다.</text>
+
+  <!-- zones -->
+  <rect x="40" y="96" width="366" height="540" rx="10" fill="#f1ead6"/>
+  <rect x="416" y="96" width="376" height="540" rx="10" fill="#e6e3d8"/>
+  <rect x="802" y="96" width="358" height="540" rx="10" fill="#d9e2d2"/>
+
+  <g font-size="13" fill="#6b6a62">
+    <text x="60" y="126">첫째 구역 · 생활</text>
+    <text x="436" y="126">둘째 구역 · 사유</text>
+    <text x="822" y="126">셋째 구역 · 정신</text>
+  </g>
+  <g font-size="21" font-weight="700" fill="#2b2b26">
+    <text x="60" y="154">민초들의 삶</text>
+    <text x="436" y="154">선비들의 풍류</text>
+    <text x="822" y="154">한국인의 정신</text>
+  </g>
+  <g font-size="13.5" fill="#4a4942">
+    <text x="60" y="178">열린 경관 · 과수원길, 밭담, 냇가</text>
+    <text x="436" y="178">둘러싸인 경관 · 담장, 마당, 연못</text>
+    <text x="822" y="178">덮인 경관 · 솔숲, 서원, 산길</text>
+  </g>
+
+  <!-- stream -->
+  <path d="M1108,238 C1150,300 1140,410 1060,455 C980,498 840,490 724,486 C600,500 470,540 318,560 C220,572 130,590 58,612" fill="none" stroke="#5b8fb0" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+  <text x="822" y="548" font-size="14" fill="#3f7396" font-weight="700">메덩내 (약 400m)</text>
+  <text x="822" y="568" font-size="12.5" fill="#3f7396">물은 셋째 구역에서 첫째 구역으로 흐릅니다</text>
+
+  <!-- walking path -->
+  <path d="M70,360 L150,360 L290,360 L411,360 L480,360 L560,300 L640,360 L724,486 L760,360 L860,360 L950,360 L1030,320 L1108,238" fill="none" stroke="#8a6a45" stroke-width="2.5" stroke-dasharray="7 6"/>
+  <path d="M290,360 L262,500 L318,560" fill="none" stroke="#8a6a45" stroke-width="2.5" stroke-dasharray="7 6"/>
+  <path d="M640,360 L640,250" fill="none" stroke="#8a6a45" stroke-width="2.5" stroke-dasharray="7 6"/>
+  <path d="M1030,320 L1030,206" fill="none" stroke="#8a6a45" stroke-width="2.5" stroke-dasharray="7 6"/>
+
+  <!-- transition markers -->
+  <g>
+    <rect x="401" y="336" width="20" height="48" rx="4" fill="#8a6a45"/>
+    <text x="411" y="410" font-size="14" font-weight="700" text-anchor="middle" fill="#2b2b26">제월문</text>
+    <text x="411" y="428" font-size="12" text-anchor="middle" fill="#6b6a62">구역이 바뀌는 문</text>
+  </g>
+
+  <!-- nodes -->
+  <g fill="#fbfaf6" stroke="#2b2b26" stroke-width="2">
+    <circle cx="70" cy="360" r="7" fill="#2b2b26"/>
+    <circle cx="150" cy="360" r="9"/><circle cx="290" cy="360" r="9"/>
+    <circle cx="262" cy="500" r="9"/><circle cx="318" cy="560" r="9"/>
+    <circle cx="480" cy="360" r="9"/><circle cx="560" cy="300" r="9"/><circle cx="640" cy="360" r="9"/>
+    <circle cx="640" cy="250" r="9"/><circle cx="724" cy="486" r="9"/><circle cx="760" cy="360" r="9"/>
+    <circle cx="860" cy="360" r="9"/><circle cx="950" cy="360" r="9"/><circle cx="1030" cy="320" r="9"/>
+    <circle cx="1030" cy="206" r="9"/><circle cx="1108" cy="238" r="9"/>
+  </g>
+  <g font-size="15" fill="#2b2b26" font-weight="700">
+    <text x="70" y="338" text-anchor="middle" font-size="13">입구</text>
+    <text x="150" y="338" text-anchor="middle">고향의 봄</text>
+    <text x="290" y="338" text-anchor="middle">남도돌담길</text>
+    <text x="248" y="505" text-anchor="end">서낭 회화나무</text>
+    <text x="318" y="590" text-anchor="middle">빨래터</text>
+    <text x="480" y="338" text-anchor="middle">함소연</text>
+    <text x="560" y="278" text-anchor="middle">파청헌</text>
+    <text x="640" y="390" text-anchor="middle">고샅</text>
+    <text x="640" y="228" text-anchor="middle">무영원</text>
+    <text x="724" y="516" text-anchor="middle">용반연</text>
+    <text x="760" y="338" text-anchor="middle">재예당</text>
+    <text x="860" y="338" text-anchor="middle">경주솔밭</text>
+    <text x="950" y="338" text-anchor="middle">유생돌정원</text>
+    <text x="1030" y="350" text-anchor="middle">선곡서원</text>
+    <text x="1016" y="212" text-anchor="end">봉상숲</text>
+    <text x="1108" y="218" text-anchor="middle">경외암</text>
+  </g>
+  <g font-size="12" fill="#6b6a62">
+    <text x="860" y="390" text-anchor="middle">구역이 바뀌는 숲</text>
+    <text x="1100" y="198" text-anchor="middle">물이 시작되는 곳</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="13" fill="#4a4942">
+    <line x1="40" y1="672" x2="90" y2="672" stroke="#8a6a45" stroke-width="2.5" stroke-dasharray="7 6"/>
+    <text x="100" y="677">걷는 길</text>
+    <line x1="180" y1="672" x2="230" y2="672" stroke="#5b8fb0" stroke-width="7" stroke-linecap="round"/>
+    <text x="242" y="677">계류 '메덩내'</text>
+    <text x="1160" y="677" text-anchor="end">구역 구분: 메덩골정원 공식 안내 기준</text>
+  </g>
+</svg>
