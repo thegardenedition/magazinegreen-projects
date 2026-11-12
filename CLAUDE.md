@@ -44,3 +44,23 @@
   - 격식은 원문을 따르고, '-했-'를 '-하였-'로 올리지 않는다.
   - 원문에 없던 상투어를 새로 넣지 않는다.
   - 원문의 30% 넘게 고치지 않는다.
+
+## 설치된 외부 스킬
+
+`.claude/skills/` 아래에 원본 저장소에서 복사해 둔 스킬이다. 업데이트할 때는 원본을 다시 받아 덮어쓴다.
+
+| 스킬 | 원본 (커밋) | 쓰임 |
+|---|---|---|
+| humanize-korean, humanize-scan, humanize, humanize-redo | epoko77-ai/im-not-ai (v2.3.2) | 한국어 AI 티 점검·윤문. 규칙 요약은 위 절 |
+| line-art-animation | JDhruv14/line-art-animation (c43d698) | 펜 선 SVG 애니메이션: 걷는 인물, 바람, 낮밤 변화, 영상 출력 |
+| frontend-slides | zarazhangrui/frontend-slides (9906a34) | 1920×1080 고정 무대의 단일 HTML 발표 자료, PPTX 변환 |
+
+이 저장소에서 쓸 때 주의할 점은 다음과 같다.
+
+- `.claude`는 `tsconfig.json`의 exclude에 들어 있다. line-art-animation의 `.ts` 예제가 Next.js 빌드 타입 검사에 섞이지 않게 하려는 것이니 빼지 않는다.
+- line-art-animation은 README에 쓰이는 `media/` 폴더(7MB)를 빼고 복사했다. 장면을 만들 때는 `lib/`를 작업 폴더로 복사해 쓴다. 정원 장면에서 그라스, 수양 가지, 정원등처럼 흔들리는 것은 `spring()`·`pendulum()`·`pointerWind()`로 움직인다.
+- frontend-slides의 템플릿 폰트(Cormorant, Playfair, Bodoni 등)에는 한글 글자가 없다. 한글 서체(Noto Serif KR, Gowun Batang, Pretendard 등)를 함께 지정한다.
+- frontend-slides에서 매체 성격에 맞는 템플릿 후보는 다음과 같다.
+  - 매거진그린: Soft Editorial, Grove, Editorial Forest
+  - 채널그린 B2B 제안서: Emerald Editorial
+- 클라우드 세션에서는 frontend-slides의 `export-pdf.sh`가 Playwright를 새로 설치하려 한다. 대신 이미 설치된 Chromium(`/opt/pw-browsers/chromium`)을 쓴다. 공유 링크는 Vercel 배포 대신 Artifact로 만든다.
