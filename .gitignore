@@ -6,3 +6,4 @@ out
 *.log
 tsconfig.tsbuildinfo
 _workspace
+__pycache__/
